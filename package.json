@@ -4,11 +4,13 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
+    "@tailwindcss/postcss": "^4.1.18",
     "@tanstack/react-query": "^5.90.12",
     "autoprefixer": "^10.4.23",
     "clsx": "^2.1.1",

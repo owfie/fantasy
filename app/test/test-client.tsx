@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { getErrorMessage } from '@/lib/utils';
 import {
   testCreateTeam,
   testCreatePlayer,
@@ -29,14 +30,11 @@ interface TestData {
   fantasyTeamId?: string;
 }
 
-interface TestDataState extends TestData {
-  setTestData: (data: Partial<TestData>) => void;
-}
 
-interface TestResult {
+interface TestResult<T = unknown> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
   error?: string;
 }
 
@@ -63,17 +61,18 @@ export default function TestClient({ testData: initialTestData }: { testData: Te
       } else {
         toast.error('Action failed', { description: result.message || result.error });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       const errorResult = {
         success: false,
         message: 'Test failed',
-        error: error.message,
+        error: message,
       };
       setResults((prev) => ({
         ...prev,
         [testName]: errorResult,
       }));
-      toast.error('Test failed', { description: error.message });
+      toast.error('Test failed', { description: error instanceof Error ? error.message : 'An unknown error occurred' });
     } finally {
       setLoading((prev) => ({ ...prev, [testName]: false }));
     }
@@ -198,7 +197,7 @@ export default function TestClient({ testData: initialTestData }: { testData: Te
               testCreateGame(
                 testData.weekId || '',
                 testData.firstTeamId || '',
-                (testData as any).secondTeamId || testData.firstTeamId || ''
+                testData.secondTeamId || testData.firstTeamId || ''
               )
             }
             updateData={(result) => {
@@ -326,7 +325,7 @@ export default function TestClient({ testData: initialTestData }: { testData: Te
         <h4>📋 Requirements Coverage</h4>
         <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
           <li>✅ Players with starting values</li>
-          <li>✅ Player stats (goals, assists, D's, drops, turnovers)</li>
+          <li>✅ Player stats (goals, assists, blocks, drops, turnovers)</li>
           <li>✅ Points calculation formula</li>
           <li>✅ Fantasy teams with salary cap (team value)</li>
           <li>✅ Captain selection (double points)</li>

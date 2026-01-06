@@ -269,9 +269,9 @@ export default function AdminDashboard() {
           description: result.message || 'An error occurred',
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error('Error saving stats', {
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
       });
     } finally {
       setSaving(false);
@@ -353,7 +353,7 @@ export default function AdminDashboard() {
               <th style={{ padding: '1rem', textAlign: 'left', fontWeight: '600', minWidth: '200px' }}>Player</th>
               <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', minWidth: '100px' }}>Goals (+3)</th>
               <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', minWidth: '100px' }}>Assists (+2)</th>
-              <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', minWidth: '100px' }}>D's (+2)</th>
+              <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', minWidth: '100px' }}>Blocks (+3)</th>
               <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', minWidth: '100px' }}>Drops (-1)</th>
               <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', minWidth: '100px' }}>Turnovers (-1)</th>
               <th style={{ padding: '1rem', textAlign: 'center', fontWeight: '600', minWidth: '100px' }}>Points</th>

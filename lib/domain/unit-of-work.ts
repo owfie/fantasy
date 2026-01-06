@@ -15,6 +15,13 @@ import {
   GamesRepository,
 } from './repositories';
 
+// Track operations for rollback
+interface TrackedOperation {
+  type: 'create' | 'update' | 'delete';
+  table: string;
+  data: Record<string, unknown> & { id: string };
+}
+
 export class UnitOfWork {
   private client: SupabaseClient;
   
@@ -28,8 +35,7 @@ export class UnitOfWork {
   public readonly weeks: WeeksRepository;
   public readonly games: GamesRepository;
 
-  // Track operations for rollback
-  private operations: Array<{ type: 'create' | 'update' | 'delete'; table: string; data: any }> = [];
+  private operations: TrackedOperation[] = [];
   private committed: boolean = false;
 
   constructor(client: SupabaseClient) {
@@ -115,7 +121,7 @@ export class UnitOfWork {
   /**
    * Track an operation for potential rollback
    */
-  trackOperation(type: 'create' | 'update' | 'delete', table: string, data: any): void {
+  trackOperation(type: 'create' | 'update' | 'delete', table: string, data: Record<string, unknown> & { id: string }): void {
     this.operations.push({ type, table, data });
   }
 
@@ -123,7 +129,7 @@ export class UnitOfWork {
    * Execute a database function (RPC) for true transaction support
    * Use this for complex operations that need ACID guarantees
    */
-  async executeRpc<T = any>(functionName: string, params?: Record<string, any>): Promise<T> {
+  async executeRpc<T = unknown>(functionName: string, params?: Record<string, unknown>): Promise<T> {
     const { data, error } = await this.client.rpc(functionName, params || {});
 
     if (error) {

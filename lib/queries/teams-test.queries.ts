@@ -13,16 +13,15 @@ import {
   testSoftDeleteTeam,
   testHardDeleteTeam,
   testGetTeam,
-  testGetAllTeams,
   testRestoreTeam,
 } from '@/lib/api';
 import { teamKeys } from './teams.queries';
 import { testKeys } from './test.queries';
 
-interface TestActionResult {
+interface TestActionResult<T = unknown> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
   error?: string;
 }
 

@@ -8,7 +8,8 @@
 
 import { getUnitOfWork } from '@/lib/domain/server-uow';
 import { FantasyTeamService, TeamsService } from '@/lib/domain/services';
-import { InsertTeam, UpdateTeam, InsertPlayer, InsertFantasyTeam, InsertPlayerStats, InsertGame, InsertWeek, InsertSeason } from '@/lib/domain/types';
+import { Team, Player, Week, InsertPlayerStats as InsertPlayerStatsType, UpdatePlayerStats } from '@/lib/domain/types';
+import { getErrorMessage } from '@/lib/utils';
 
 // ============================================
 // TEST DASHBOARD DATA
@@ -23,9 +24,9 @@ interface PlayerPointsData {
 }
 
 export interface TestDashboardData {
-  teams: any[];
-  players: any[];
-  weeks: any[];
+  teams: Team[];
+  players: Player[];
+  weeks: Week[];
   playerPoints: PlayerPointsData[];
   testData: {
     firstTeamId?: string;
@@ -42,7 +43,7 @@ export async function getTestDashboardData(): Promise<TestDashboardData> {
   return uow.execute(async (uow) => {
     // Get all teams including soft-deleted (for admin view)
     const teamsList = await uow.teams.findAllIncludingDeleted();
-    const playersList = await uow.players.findAll({ is_active: true } as any);
+    const playersList = await uow.players.findAll({ is_active: true });
     
     // Get all weeks (ordered by week number)
     const weeksList = await uow.weeks.findAll();
@@ -77,7 +78,12 @@ export async function getTestDashboardData(): Promise<TestDashboardData> {
     
     // Fill in points for each week
     if (statsWithGames && !statsError) {
-      for (const stat of statsWithGames as any[]) {
+      interface StatWithGame {
+        player_id: string;
+        points: number;
+        games?: { week_id: string };
+      }
+      for (const stat of statsWithGames as StatWithGame[]) {
         const weekId = stat.games?.week_id;
         if (!weekId) continue;
         
@@ -101,7 +107,7 @@ export async function getTestDashboardData(): Promise<TestDashboardData> {
       testData.firstTeamId = teamsList[0].id;
       testData.secondTeamId = teamsList.length > 1 ? teamsList[1].id : teamsList[0].id;
       testData.firstPlayerId = playersList[0].id;
-      testData.firstFivePlayerIds = playersList.slice(0, 10).map((p: any) => p.id);
+      testData.firstFivePlayerIds = playersList.slice(0, 10).map((p) => p.id);
     }
     
     return {
@@ -126,8 +132,9 @@ export async function testCreateTeam(name: string, color?: string) {
   try {
     const team = await service.create({ name, color });
     return { success: true, message: 'Team created successfully', data: team };
-  } catch (error: any) {
-    return { success: false, message: error.message, error: error.message };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
   }
 }
 
@@ -142,8 +149,9 @@ export async function testUpdateTeam(teamId: string, updates: { name?: string; c
       ...updates,
     });
     return { success: true, message: 'Team updated successfully', data: team };
-  } catch (error: any) {
-    return { success: false, message: error.message, error: error.message };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
   }
 }
 
@@ -155,8 +163,9 @@ export async function testSoftDeleteTeam(teamId: string) {
   try {
     await service.deleteSoft(teamId);
     return { success: true, message: 'Team soft deleted successfully', data: null };
-  } catch (error: any) {
-    return { success: false, message: error.message, error: error.message };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
   }
 }
 
@@ -168,8 +177,9 @@ export async function testHardDeleteTeam(teamId: string) {
   try {
     await service.deleteHard(teamId);
     return { success: true, message: 'Team permanently deleted', data: null };
-  } catch (error: any) {
-    return { success: false, message: error.message, error: error.message };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
   }
 }
 
@@ -184,8 +194,9 @@ export async function testGetTeam(teamId: string) {
       return { success: false, message: 'Team not found', data: null };
     }
     return { success: true, message: 'Team retrieved', data: team };
-  } catch (error: any) {
-    return { success: false, message: error.message, error: error.message };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
   }
 }
 
@@ -197,8 +208,9 @@ export async function testGetAllTeams() {
   try {
     const teams = await service.findAllIncludingDeleted(); // Include deleted teams
     return { success: true, message: `Found ${teams.length} teams`, data: teams };
-  } catch (error: any) {
-    return { success: false, message: error.message, error: error.message };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
   }
 }
 
@@ -210,8 +222,9 @@ export async function testRestoreTeam(teamId: string) {
   try {
     const team = await service.restore(teamId);
     return { success: true, message: 'Team restored successfully', data: team };
-  } catch (error: any) {
-    return { success: false, message: error.message, error: error.message };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
   }
 }
 
@@ -292,7 +305,7 @@ export async function testHardDeletePlayer(playerId: string) {
     }
     
     // Check for related entities (stats, fantasy team players, etc.)
-    const stats = await uow.playerStats.findAll({ player_id: playerId } as any);
+    const stats = await uow.playerStats.findAll({ player_id: playerId });
     if (stats.length > 0) {
       return { success: false, message: 'Cannot delete player with stats', error: 'Player has stats' };
     }
@@ -575,11 +588,12 @@ export async function testTransactionRollback() {
       
       return { success: true, message: 'Should not reach here', data: team };
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
     return {
       success: false,
       message: 'Transaction correctly rolled back',
-      error: error.message,
+      error: message,
     };
   }
 }
@@ -677,8 +691,8 @@ export interface WeekStats {
 }
 
 export interface AdminDashboardData {
-  players: any[];
-  weeks: any[];
+  players: Player[];
+  weeks: Week[];
   weekStats: WeekStats[];
   totalPlayers: number;
   weeksCompleted: number;
@@ -690,7 +704,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
 
   return uow.execute(async (uow) => {
     // Get all active players
-    const playersList = await uow.players.findAll({ is_active: true } as any);
+    const playersList = await uow.players.findAll({ is_active: true });
     
     // Get all weeks (ordered by week number)
     const weeksList = await uow.weeks.findAll();
@@ -738,7 +752,19 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     }>>();
     
     if (allStats && !statsError) {
-      for (const stat of allStats as any[]) {
+      interface StatWithGame {
+        player_id: string;
+        game_id: string;
+        goals: number;
+        assists: number;
+        blocks: number;
+        drops: number;
+        throwaways: number;
+        points: number;
+        played: boolean;
+        games?: { week_id: string };
+      }
+      for (const stat of allStats as StatWithGame[]) {
         const weekId = stat.games?.week_id;
         if (!weekId) continue;
         
@@ -896,16 +922,29 @@ export async function saveWeekStats(input: SaveWeekStatsInput) {
     }
     
     // Create a map of existing stats by player_id
-    const existingStatsMap = new Map<string, any>();
+    interface ExistingStat {
+      id: string;
+      player_id: string;
+      game_id: string;
+      goals: number;
+      assists: number;
+      blocks: number;
+      drops: number;
+      throwaways: number;
+      points: number;
+      played: boolean | null;
+      entered_by?: string | null;
+    }
+    const existingStatsMap = new Map<string, ExistingStat>();
     if (allExistingStats) {
-      for (const stat of allExistingStats) {
+      for (const stat of allExistingStats as ExistingStat[]) {
         existingStatsMap.set(stat.player_id, stat);
       }
     }
     
     // Separate stats into creates and updates
-    const toCreate: any[] = [];
-    const toUpdate: any[] = [];
+    const toCreate: InsertPlayerStatsType[] = [];
+    const toUpdate: UpdatePlayerStats[] = [];
     
     for (const playerStat of input.playerStats) {
       const existing = existingStatsMap.get(playerStat.playerId);

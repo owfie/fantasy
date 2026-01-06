@@ -18,11 +18,13 @@ import {
   Button,
   formatDate,
 } from './shared/crud-components';
+import { getErrorMessage } from '@/lib/utils';
+import { Team } from '@/lib/domain/types';
 
-interface TestResult {
+interface TestResult<T = unknown> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
   error?: string;
 }
 
@@ -49,18 +51,19 @@ export default function TeamsCrudClient() {
     getById: '',
   });
 
-  const runTest = async (testName: string, testFn: () => Promise<TestResult>) => {
+  const runTest = async (testName: string, testFn: () => Promise<TestResult<Team | Team[] | null>>) => {
     setLoading((prev) => ({ ...prev, [testName]: true }));
     try {
       const result = await testFn();
       setResults((prev) => ({ ...prev, [testName]: result }));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       setResults((prev) => ({
         ...prev,
         [testName]: {
           success: false,
           message: 'Test failed',
-          error: error.message,
+          error: message,
         },
       }));
     } finally {
@@ -77,13 +80,14 @@ export default function TeamsCrudClient() {
       });
       setResults((prev) => ({ ...prev, create: result }));
       setFormData((prev) => ({ ...prev, createName: '', createColor: '' }));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       setResults((prev) => ({
         ...prev,
         create: {
           success: false,
-          message: error.message || 'Failed to create team',
-          error: error.message,
+          message: message || 'Failed to create team',
+          error: message,
         },
       }));
     }
@@ -100,13 +104,14 @@ export default function TeamsCrudClient() {
         },
       });
       setResults((prev) => ({ ...prev, update: result }));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       setResults((prev) => ({
         ...prev,
         update: {
           success: false,
-          message: error.message || 'Failed to update team',
-          error: error.message,
+          message: message || 'Failed to update team',
+          error: message,
         },
       }));
     }
@@ -117,13 +122,14 @@ export default function TeamsCrudClient() {
     try {
       const result = await softDeleteMutation.mutateAsync(teamId);
       setResults((prev) => ({ ...prev, softDelete: result }));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       setResults((prev) => ({
         ...prev,
         softDelete: {
           success: false,
-          message: error.message || 'Failed to soft delete team',
-          error: error.message,
+          message: message || 'Failed to soft delete team',
+          error: message,
         },
       }));
     }
@@ -134,13 +140,14 @@ export default function TeamsCrudClient() {
     try {
       const result = await hardDeleteMutation.mutateAsync(teamId);
       setResults((prev) => ({ ...prev, hardDelete: result }));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       setResults((prev) => ({
         ...prev,
         hardDelete: {
           success: false,
-          message: error.message || 'Failed to hard delete team',
-          error: error.message,
+          message: message || 'Failed to hard delete team',
+          error: message,
         },
       }));
     }
@@ -150,13 +157,14 @@ export default function TeamsCrudClient() {
     try {
       const result = await restoreMutation.mutateAsync(teamId);
       setResults((prev) => ({ ...prev, restore: result }));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       setResults((prev) => ({
         ...prev,
         restore: {
           success: false,
-          message: error.message || 'Failed to restore team',
-          error: error.message,
+          message: message || 'Failed to restore team',
+          error: message,
         },
       }));
     }

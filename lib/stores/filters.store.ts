@@ -21,7 +21,7 @@ const defaultTeamFilters: TeamFilters = {
   searchTerm: '',
 };
 
-export const useFiltersStore = create<FiltersStore>((set, get) => ({
+export const useFiltersStore = create<FiltersStore>((set, _get) => ({
   teamFilters: defaultTeamFilters,
   setTeamFilters: (filters) => {
     set((state) => ({

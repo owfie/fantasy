@@ -63,7 +63,7 @@ export default function TestPage() {
           <div style={{ padding: '1rem', background: '#f8f9fa', borderRadius: '4px' }}>
             <h2>Teams ({teams.length})</h2>
             <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
-              {teams.slice(0, 5).map((team: any) => (
+              {teams.slice(0, 5).map((team) => (
                 <li key={team.id}>
                   {team.name} {team.color && <span style={{ color: team.color }}>●</span>}
                 </li>
@@ -76,7 +76,7 @@ export default function TestPage() {
           <div style={{ padding: '1rem', background: '#f8f9fa', borderRadius: '4px' }}>
             <h2>Players ({players.length})</h2>
             <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
-              {players.slice(0, 5).map((player: any) => (
+              {players.slice(0, 5).map((player) => (
                 <li key={player.id}>
                   {player.first_name} {player.last_name} 
                   {player.starting_value && ` ($${player.starting_value})`}
@@ -125,7 +125,7 @@ export default function TestPage() {
         <h3>✅ Requirements Coverage</h3>
         <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
           <li>✅ Players with starting values</li>
-          <li>✅ Player stats (goals, assists, D's, drops, turnovers)</li>
+          <li>✅ Player stats (goals, assists, D&apos;s, drops, turnovers)</li>
           <li>✅ Points calculation formula</li>
           <li>✅ Fantasy teams with salary cap (team value)</li>
           <li>✅ Captain selection (double points)</li>

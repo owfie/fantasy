@@ -6,8 +6,7 @@
 
 import { UnitOfWork } from '../unit-of-work';
 import { BaseCrudService } from './base-crud.service';
-import { TeamsRepository } from '../repositories';
-import { Team, InsertTeam, UpdateTeam } from '../types';
+import { Team, InsertTeam, UpdateTeam, Game } from '../types';
 
 export class TeamsService extends BaseCrudService<Team, InsertTeam, UpdateTeam> {
   constructor(uow: UnitOfWork) {
@@ -126,8 +125,8 @@ export class TeamsService extends BaseCrudService<Team, InsertTeam, UpdateTeam> 
       }
 
       // Check if team has games
-      const homeGames = await this.uow.games.findAll({ home_team_id: id } as Partial<any>);
-      const awayGames = await this.uow.games.findAll({ away_team_id: id } as Partial<any>);
+      const homeGames = await this.uow.games.findAll({ home_team_id: id } as Partial<Game>);
+      const awayGames = await this.uow.games.findAll({ away_team_id: id } as Partial<Game>);
       if (homeGames.length > 0 || awayGames.length > 0) {
         throw new Error('Cannot delete team with games. Remove all games first.');
       }

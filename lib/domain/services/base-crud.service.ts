@@ -43,8 +43,9 @@ export abstract class BaseCrudService<T, TInsert, TUpdate> implements IBaseCrudS
    */
   async update(data: TUpdate): Promise<T> {
     return this.uow.execute(async () => {
-      // Verify entity exists
-      const existing = await this.repository.findById((data as any).id);
+      // Verify entity exists - TUpdate should have id
+      const updateData = data as TUpdate & { id: string };
+      const existing = await this.repository.findById(updateData.id);
       if (!existing) {
         throw new Error('Entity not found');
       }
@@ -111,7 +112,7 @@ export abstract class BaseCrudService<T, TInsert, TUpdate> implements IBaseCrudS
    * Validate before hard delete
    * Override in subclasses to add entity-specific validation
    */
-  protected async validateBeforeHardDelete(id: string): Promise<void> {
+  protected async validateBeforeHardDelete(_id: string): Promise<void> {
     // Default: no validation
     // Subclasses should override to check for related entities, etc.
   }

@@ -7,24 +7,24 @@
 
 import React from 'react';
 
-interface TestResult {
+interface TestResult<T = unknown> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
   error?: string;
 }
 
-interface TestResultDisplayProps {
+interface TestResultDisplayProps<T = unknown> {
   testName: string;
   isLoading: boolean;
-  result?: TestResult;
+  result?: TestResult<T>;
   hideSuccess?: boolean; // Option to hide success messages
 }
 
 /**
  * Generic component to display test results
  */
-export function TestResultDisplay({ testName, isLoading, result, hideSuccess = true }: TestResultDisplayProps) {
+export function TestResultDisplay<T = unknown>({ isLoading, result, hideSuccess = true }: TestResultDisplayProps<T>) {
   // Hide if no result and not loading, or if result is successful and hideSuccess is true
   if ((!result && !isLoading) || (result?.success && hideSuccess)) return null;
 

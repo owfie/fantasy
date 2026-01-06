@@ -18,14 +18,15 @@ import {
   FormNumberInput,
   Button,
   FormSection,
-  formatDate,
 } from './shared/crud-components';
 import { useTeamsIncludingDeleted } from '@/lib/queries/teams.queries';
+import { getErrorMessage } from '@/lib/utils';
+import { Player, PlayerRole } from '@/lib/domain/types';
 
-interface TestResult {
+interface TestResult<T = unknown> {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
   error?: string;
 }
 
@@ -61,18 +62,19 @@ export default function PlayersCrudClient() {
     getById: '',
   });
 
-  const runTest = async (testName: string, testFn: () => Promise<TestResult>) => {
+  const runTest = async (testName: string, testFn: () => Promise<TestResult<Player>>) => {
     setLoading((prev) => ({ ...prev, [testName]: true }));
     try {
       const result = await testFn();
       setResults((prev) => ({ ...prev, [testName]: result }));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       setResults((prev) => ({
         ...prev,
         [testName]: {
           success: false,
           message: 'Test failed',
-          error: error.message,
+          error: message,
         },
       }));
     } finally {
@@ -101,13 +103,14 @@ export default function PlayersCrudClient() {
         createStartingValue: '0',
         createDraftOrder: '',
       }));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       setResults((prev) => ({
         ...prev,
         create: {
           success: false,
-          message: error.message || 'Failed to create player',
-          error: error.message,
+          message: message || 'Failed to create player',
+          error: message,
         },
       }));
     }
@@ -116,7 +119,14 @@ export default function PlayersCrudClient() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const updates: any = {};
+      const updates: Partial<{
+        team_id: string;
+        first_name: string;
+        last_name: string;
+        player_role: PlayerRole;
+        starting_value: number;
+        draft_order: number;
+      }> = {};
       if (formData.updateTeamId) updates.team_id = formData.updateTeamId;
       if (formData.updateFirstName) updates.first_name = formData.updateFirstName;
       if (formData.updateLastName) updates.last_name = formData.updateLastName;
@@ -129,13 +139,14 @@ export default function PlayersCrudClient() {
         updates,
       });
       setResults((prev) => ({ ...prev, update: result }));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       setResults((prev) => ({
         ...prev,
         update: {
           success: false,
-          message: error.message || 'Failed to update player',
-          error: error.message,
+          message: message || 'Failed to update player',
+          error: message,
         },
       }));
     }
@@ -146,13 +157,14 @@ export default function PlayersCrudClient() {
     try {
       const result = await softDeleteMutation.mutateAsync(playerId);
       setResults((prev) => ({ ...prev, softDelete: result }));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       setResults((prev) => ({
         ...prev,
         softDelete: {
           success: false,
-          message: error.message || 'Failed to soft delete player',
-          error: error.message,
+          message: message || 'Failed to soft delete player',
+          error: message,
         },
       }));
     }
@@ -163,13 +175,14 @@ export default function PlayersCrudClient() {
     try {
       const result = await hardDeleteMutation.mutateAsync(playerId);
       setResults((prev) => ({ ...prev, hardDelete: result }));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       setResults((prev) => ({
         ...prev,
         hardDelete: {
           success: false,
-          message: error.message || 'Failed to hard delete player',
-          error: error.message,
+          message: message || 'Failed to hard delete player',
+          error: message,
         },
       }));
     }
@@ -179,13 +192,14 @@ export default function PlayersCrudClient() {
     try {
       const result = await restoreMutation.mutateAsync(playerId);
       setResults((prev) => ({ ...prev, restore: result }));
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
       setResults((prev) => ({
         ...prev,
         restore: {
           success: false,
-          message: error.message || 'Failed to restore player',
-          error: error.message,
+          message: message || 'Failed to restore player',
+          error: message,
         },
       }));
     }
@@ -258,7 +272,7 @@ export default function PlayersCrudClient() {
               <FormField label="Role" required>
                 <FormSelect
                   value={formData.createRole}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, createRole: e.target.value as any }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, createRole: e.target.value as PlayerRole }))}
                   options={roleOptions}
                   required
                 />
@@ -331,7 +345,7 @@ export default function PlayersCrudClient() {
               <FormField label="Role">
                 <FormSelect
                   value={formData.updateRole}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, updateRole: e.target.value as any }))}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, updateRole: e.target.value as PlayerRole }))}
                   options={roleOptions}
                 />
               </FormField>
@@ -407,7 +421,7 @@ export default function PlayersCrudClient() {
           <TestResultDisplay testName="restore" isLoading={restoreMutation.isPending} result={results.restore} />
 
           <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
-            {players.map((player: any) => {
+            {players.map((player) => {
               const isInactive = !player.is_active;
               return (
                 <div

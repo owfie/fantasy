@@ -4,7 +4,7 @@
  */
 
 import { UnitOfWork } from '../unit-of-work';
-import { InsertFantasyTeam, InsertFantasyTeamPlayer, FantasyTeam, Player } from '../types';
+import { InsertFantasyTeam, FantasyTeam } from '../types';
 
 export class FantasyTeamService {
   constructor(private uow: UnitOfWork) {}

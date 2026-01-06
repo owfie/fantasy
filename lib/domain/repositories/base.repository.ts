@@ -3,7 +3,7 @@
  * Provides common CRUD operations for all entities
  */
 
-import { SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient, PostgrestError } from '@supabase/supabase-js';
 
 export interface IRepository<T, TInsert, TUpdate> {
   findById(id: string): Promise<T | null>;
@@ -65,7 +65,7 @@ export abstract class BaseRepository<T, TInsert, TUpdate> implements IRepository
   async create(data: TInsert): Promise<T> {
     const { data: result, error } = await this.client
       .from(this.tableName)
-      .insert(data as any)
+      .insert(data as TInsert)
       .select()
       .single();
 
@@ -79,7 +79,7 @@ export abstract class BaseRepository<T, TInsert, TUpdate> implements IRepository
   async createMany(data: TInsert[]): Promise<T[]> {
     const { data: result, error } = await this.client
       .from(this.tableName)
-      .insert(data as any)
+      .insert(data as TInsert[])
       .select();
 
     if (error) {
@@ -90,7 +90,8 @@ export abstract class BaseRepository<T, TInsert, TUpdate> implements IRepository
   }
 
   async update(data: TUpdate): Promise<T> {
-    const { id, ...updateData } = data as any;
+    // Extract id and rest of data - TUpdate should have id
+    const { id, ...updateData } = data as TUpdate & { id: string };
 
     // Filter out undefined values - Supabase doesn't handle undefined
     const cleanUpdateData = Object.fromEntries(
@@ -145,7 +146,7 @@ export abstract class BaseRepository<T, TInsert, TUpdate> implements IRepository
   /**
    * Execute a custom query
    */
-  protected async query<R = T>(queryFn: (client: SupabaseClient) => Promise<{ data: R | null; error: any }>): Promise<R> {
+  protected async query<R = T>(queryFn: (client: SupabaseClient) => Promise<{ data: R | null; error: PostgrestError | null }>): Promise<R> {
     const { data, error } = await queryFn(this.client);
 
     if (error) {

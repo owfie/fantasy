@@ -21,6 +21,7 @@ import {
 
 interface TestData {
   firstTeamId?: string;
+  secondTeamId?: string;
   firstPlayerId?: string;
   firstFivePlayerIds?: string[];
   adminUserId?: string;
@@ -126,7 +127,7 @@ export default function TestClient({ testData: initialTestData }: { testData: Te
               <strong>{result.success ? '✅' : '❌'}</strong> {result.message}
             </div>
             {result.error && <div style={{ color: '#721c24', marginTop: '0.5rem' }}>{result.error}</div>}
-            {result.data && (
+            {result.data !== undefined && (
               <details style={{ marginTop: '0.5rem' }}>
                 <summary style={{ cursor: 'pointer', color: '#007bff' }}>View Data</summary>
                 <pre style={{ marginTop: '0.5rem', fontSize: '0.8rem', overflow: 'auto' }}>
@@ -181,10 +182,11 @@ export default function TestClient({ testData: initialTestData }: { testData: Te
             label="3. Create Season & Week"
             testFn={() => testCreateSeasonAndWeek()}
             updateData={(result) => {
-              if (result.data?.season && result.data?.week) {
+              const data = result.data as { season?: { id: string }; week?: { id: string } } | undefined;
+              if (data?.season && data?.week) {
                 return {
-                  seasonId: result.data.season.id,
-                  weekId: result.data.week.id,
+                  seasonId: data.season.id,
+                  weekId: data.week.id,
                 };
               }
               return {};
@@ -201,8 +203,9 @@ export default function TestClient({ testData: initialTestData }: { testData: Te
               )
             }
             updateData={(result) => {
-              if (result.data?.id) {
-                return { gameId: result.data.id };
+              const data = result.data as { id?: string } | undefined;
+              if (data?.id) {
+                return { gameId: data.id };
               }
               return {};
             }}
@@ -220,8 +223,9 @@ export default function TestClient({ testData: initialTestData }: { testData: Te
               )
             }
             updateData={(result) => {
-              if (result.data?.id) {
-                return { fantasyTeamId: result.data.id };
+              const data = result.data as { id?: string } | undefined;
+              if (data?.id) {
+                return { fantasyTeamId: data.id };
               }
               return {};
             }}

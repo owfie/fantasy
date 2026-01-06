@@ -114,9 +114,6 @@ export function useCreateTeam() {
       
       toast.success('Team created', { description: `Team "${data.name}" has been created` });
     },
-    onError: (error) => {
-      toast.error('Failed to create team', { description: error.message });
-    },
   });
 }
 

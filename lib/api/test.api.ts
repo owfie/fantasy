@@ -83,7 +83,7 @@ export async function getTestDashboardData(): Promise<TestDashboardData> {
         points: number;
         games?: { week_id: string };
       }
-      for (const stat of statsWithGames as StatWithGame[]) {
+      for (const stat of statsWithGames as unknown as StatWithGame[]) {
         const weekId = stat.games?.week_id;
         if (!weekId) continue;
         
@@ -764,7 +764,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
         played: boolean;
         games?: { week_id: string };
       }
-      for (const stat of allStats as StatWithGame[]) {
+      for (const stat of allStats as unknown as StatWithGame[]) {
         const weekId = stat.games?.week_id;
         if (!weekId) continue;
         
@@ -873,6 +873,7 @@ export interface SaveWeekStatsInput {
     blocks: number;
     drops: number;
     throwaways: number;
+    played: boolean;
   }>;
   adminUserId?: string;
 }

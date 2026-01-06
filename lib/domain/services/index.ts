@@ -3,7 +3,7 @@
  */
 
 export { FantasyTeamService } from './fantasy-team.service';
-export { BaseCrudService, IBaseCrudService } from './base-crud.service';
+export { BaseCrudService, type IBaseCrudService } from './base-crud.service';
 export { TeamsService } from './teams.service';
 
 

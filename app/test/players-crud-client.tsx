@@ -62,7 +62,7 @@ export default function PlayersCrudClient() {
     getById: '',
   });
 
-  const runTest = async (testName: string, testFn: () => Promise<TestResult<Player>>) => {
+  const runTest = async (testName: string, testFn: () => Promise<TestResult<Player | Player[] | null>>) => {
     setLoading((prev) => ({ ...prev, [testName]: true }));
     try {
       const result = await testFn();

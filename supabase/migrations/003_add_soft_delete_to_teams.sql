@@ -8,3 +8,4 @@ CREATE INDEX IF NOT EXISTS idx_teams_deleted_at ON teams(deleted_at);
 -- Update RLS policy to allow viewing deleted teams (for admin)
 -- The existing policies already allow admins to see everything
 
+

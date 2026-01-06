@@ -6,6 +6,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   testCreateTeam,
   testUpdateTeam,
@@ -33,11 +34,20 @@ export function useTestCreateTeam() {
 
   return useMutation<TestActionResult, Error, { name: string; color?: string }>({
     mutationFn: ({ name, color }) => testCreateTeam(name, color),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.allIncludingDeleted() });
       queryClient.invalidateQueries({ queryKey: teamKeys.lists() });
       // Invalidate test dashboard since it contains teams data
       queryClient.invalidateQueries({ queryKey: testKeys.dashboard() });
+      
+      if (data.success) {
+        toast.success('Team created', { description: data.message });
+      } else {
+        toast.error('Failed to create team', { description: data.message || data.error });
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to create team', { description: error.message });
     },
   });
 }
@@ -50,12 +60,21 @@ export function useTestUpdateTeam() {
 
   return useMutation<TestActionResult, Error, { teamId: string; updates: { name?: string; color?: string } }>({
     mutationFn: ({ teamId, updates }) => testUpdateTeam(teamId, updates),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.allIncludingDeleted() });
       queryClient.invalidateQueries({ queryKey: teamKeys.lists() });
       queryClient.invalidateQueries({ queryKey: teamKeys.details() });
       // Invalidate test dashboard since it contains teams data
       queryClient.invalidateQueries({ queryKey: testKeys.dashboard() });
+      
+      if (data.success) {
+        toast.success('Team updated', { description: data.message });
+      } else {
+        toast.error('Failed to update team', { description: data.message || data.error });
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to update team', { description: error.message });
     },
   });
 }
@@ -68,11 +87,20 @@ export function useTestSoftDeleteTeam() {
 
   return useMutation<TestActionResult, Error, string>({
     mutationFn: (teamId) => testSoftDeleteTeam(teamId),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.allIncludingDeleted() });
       queryClient.invalidateQueries({ queryKey: teamKeys.lists() });
       // Invalidate test dashboard since it contains teams data
       queryClient.invalidateQueries({ queryKey: testKeys.dashboard() });
+      
+      if (data.success) {
+        toast.success('Team soft deleted', { description: data.message });
+      } else {
+        toast.error('Failed to soft delete team', { description: data.message || data.error });
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to soft delete team', { description: error.message });
     },
   });
 }
@@ -85,11 +113,20 @@ export function useTestHardDeleteTeam() {
 
   return useMutation<TestActionResult, Error, string>({
     mutationFn: (teamId) => testHardDeleteTeam(teamId),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.allIncludingDeleted() });
       queryClient.invalidateQueries({ queryKey: teamKeys.lists() });
       // Invalidate test dashboard since it contains teams data
       queryClient.invalidateQueries({ queryKey: testKeys.dashboard() });
+      
+      if (data.success) {
+        toast.success('Team permanently deleted', { description: data.message });
+      } else {
+        toast.error('Failed to delete team', { description: data.message || data.error });
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to delete team', { description: error.message });
     },
   });
 }
@@ -102,11 +139,20 @@ export function useTestRestoreTeam() {
 
   return useMutation<TestActionResult, Error, string>({
     mutationFn: (teamId) => testRestoreTeam(teamId),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: teamKeys.allIncludingDeleted() });
       queryClient.invalidateQueries({ queryKey: teamKeys.lists() });
       // Invalidate test dashboard since it contains teams data
       queryClient.invalidateQueries({ queryKey: testKeys.dashboard() });
+      
+      if (data.success) {
+        toast.success('Team restored', { description: data.message });
+      } else {
+        toast.error('Failed to restore team', { description: data.message || data.error });
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to restore team', { description: error.message });
     },
   });
 }

@@ -10,6 +10,7 @@ import { useTestDashboard } from '@/lib/queries/test.queries';
 
 import TestClient from './test-client';
 import TeamsCrudClient from './teams-crud-client';
+import PlayersCrudClient from './players-crud-client';
 import AdminDashboard from './admin-dashboard';
 
 export default function TestPage() {
@@ -97,6 +98,13 @@ export default function TestPage() {
       {status.includes('✅') && (
         <div style={{ marginTop: '2rem' }}>
           <TeamsCrudClient />
+        </div>
+      )}
+
+      {/* Players CRUD Operations */}
+      {status.includes('✅') && (
+        <div style={{ marginTop: '2rem' }}>
+          <PlayersCrudClient />
         </div>
       )}
 

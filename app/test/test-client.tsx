@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import {
   testCreateTeam,
   testCreatePlayer,
@@ -55,15 +56,24 @@ export default function TestClient({ testData: initialTestData }: { testData: Te
         const newData = updateData(result);
         setTestData((prev) => ({ ...prev, ...newData }));
       }
+      
+      // Show toast notification for UoW action completion
+      if (result.success) {
+        toast.success('Action completed', { description: result.message });
+      } else {
+        toast.error('Action failed', { description: result.message || result.error });
+      }
     } catch (error: any) {
+      const errorResult = {
+        success: false,
+        message: 'Test failed',
+        error: error.message,
+      };
       setResults((prev) => ({
         ...prev,
-        [testName]: {
-          success: false,
-          message: 'Test failed',
-          error: error.message,
-        },
+        [testName]: errorResult,
       }));
+      toast.error('Test failed', { description: error.message });
     } finally {
       setLoading((prev) => ({ ...prev, [testName]: false }));
     }

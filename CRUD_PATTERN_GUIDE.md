@@ -266,3 +266,4 @@ All operations return consistent result objects:
 
 The same pattern works for any entity: Games, Seasons, Weeks, FantasyTeams, etc.
 
+

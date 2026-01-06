@@ -6,6 +6,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { createTeam, updateTeam, deleteTeam, getTeams, getTeam, testGetAllTeams, testRestoreTeam } from '@/lib/api';
 import { Team, InsertTeam, UpdateTeam } from '@/lib/domain/types';
 import { testKeys } from './test.queries';
@@ -100,6 +101,7 @@ export function useCreateTeam() {
       if (context?.previousAllTeams) {
         queryClient.setQueryData(teamKeys.allIncludingDeleted(), context.previousAllTeams);
       }
+      toast.error('Failed to create team', { description: err.message });
     },
     onSuccess: (data) => {
       // Invalidate and refetch teams list
@@ -109,6 +111,11 @@ export function useCreateTeam() {
       queryClient.invalidateQueries({ queryKey: testKeys.dashboard() });
       // Also set the new team in cache
       queryClient.setQueryData(teamKeys.detail(data.id), data);
+      
+      toast.success('Team created', { description: `Team "${data.name}" has been created` });
+    },
+    onError: (error) => {
+      toast.error('Failed to create team', { description: error.message });
     },
   });
 }
@@ -161,6 +168,7 @@ export function useUpdateTeam() {
       if (context?.previousAllTeams) {
         queryClient.setQueryData(teamKeys.allIncludingDeleted(), context.previousAllTeams);
       }
+      toast.error('Failed to update team', { description: err.message });
     },
     onSuccess: (data) => {
       // Invalidate and refetch
@@ -169,6 +177,8 @@ export function useUpdateTeam() {
       queryClient.invalidateQueries({ queryKey: teamKeys.allIncludingDeleted() });
       // Invalidate test dashboard since it contains teams data
       queryClient.invalidateQueries({ queryKey: testKeys.dashboard() });
+      
+      toast.success('Team updated', { description: `Team "${data.name}" has been updated` });
     },
   });
 }
@@ -216,6 +226,7 @@ export function useDeleteTeam() {
       if (context?.previousAllTeams) {
         queryClient.setQueryData(teamKeys.allIncludingDeleted(), context.previousAllTeams);
       }
+      toast.error('Failed to delete team', { description: err.message });
     },
     onSuccess: () => {
       // Invalidate teams list to ensure consistency
@@ -223,6 +234,8 @@ export function useDeleteTeam() {
       queryClient.invalidateQueries({ queryKey: teamKeys.allIncludingDeleted() });
       // Invalidate test dashboard since it contains teams data
       queryClient.invalidateQueries({ queryKey: testKeys.dashboard() });
+      
+      toast.success('Team deleted', { description: 'Team has been permanently deleted' });
     },
   });
 }
@@ -245,7 +258,13 @@ export function useRestoreTeam() {
         if (result.data) {
           queryClient.setQueryData(teamKeys.detail(result.data.id), result.data);
         }
+        toast.success('Team restored', { description: result.message });
+      } else {
+        toast.error('Failed to restore team', { description: result.message || result.error });
       }
+    },
+    onError: (error) => {
+      toast.error('Failed to restore team', { description: error.message });
     },
   });
 }

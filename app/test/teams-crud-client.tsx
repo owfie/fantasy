@@ -10,19 +10,14 @@ import {
   useTestRestoreTeam,
 } from '@/lib/queries/teams-test.queries';
 import { testGetTeam, testGetAllTeams } from '@/lib/api';
-
-// Helper function to format date consistently (avoids hydration errors)
-function formatDate(dateString: string): string {
-  const date = new Date(dateString);
-  // Use a consistent format: YYYY-MM-DD HH:MM:SS
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
-  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
+import {
+  TestResultDisplay,
+  FormField,
+  FormInput,
+  FormSection,
+  Button,
+  formatDate,
+} from './shared/crud-components';
 
 interface TestResult {
   success: boolean;
@@ -167,38 +162,6 @@ export default function TeamsCrudClient() {
     }
   };
 
-  const TestResultDisplay = ({ testName, label }: { testName: string; label: string }) => {
-    const result = results[testName];
-    const isLoading = loading[testName] || 
-      (testName === 'create' && createTeamMutation.isPending) ||
-      (testName === 'update' && updateTeamMutation.isPending) ||
-      (testName === 'softDelete' && softDeleteMutation.isPending) ||
-      (testName === 'hardDelete' && hardDeleteMutation.isPending) ||
-      (testName === 'restore' && restoreMutation.isPending);
-
-    if (!result && !isLoading) return null;
-
-    return (
-      <div style={{ marginTop: '0.5rem', padding: '0.75rem', background: result?.success ? '#d4edda' : '#f8d7da', borderRadius: '4px', fontSize: '0.9rem' }}>
-        {isLoading ? (
-          <div>Running...</div>
-        ) : (
-          <>
-            <div><strong>{result?.success ? '✅' : '❌'}</strong> {result?.message}</div>
-            {result?.error && <div style={{ color: '#721c24', marginTop: '0.25rem' }}>{result.error}</div>}
-            {result?.data && (
-              <details style={{ marginTop: '0.5rem' }}>
-                <summary style={{ cursor: 'pointer', color: '#007bff' }}>View Data</summary>
-                <pre style={{ marginTop: '0.5rem', fontSize: '0.8rem', overflow: 'auto' }}>
-                  {JSON.stringify(result.data, null, 2)}
-                </pre>
-              </details>
-            )}
-          </>
-        )}
-      </div>
-    );
-  };
 
   if (isLoadingTeams) {
     return (
@@ -220,170 +183,126 @@ export default function TeamsCrudClient() {
 
   return (
     <div>
-      <h3>🏈 Teams CRUD Operations</h3>
+      <h3>Teams</h3>
       <p style={{ color: '#666', marginBottom: '1.5rem' }}>
         Test Create, Read, Update, Delete (Soft), and Delete (Hard) operations for teams
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-        {/* Left Column: Forms */}
+        {/* Left Column: Forms */}image.pngimage.pngimage.pngimage.pngimage.pngimage.pngimage.pngimage.pngimage.png
         <div>
           {/* Create Team */}
-          <div style={{ marginBottom: '2rem', padding: '1rem', background: '#f8f9fa', borderRadius: '4px' }}>
-            <h4>Create Team</h4>
+          <FormSection title="Create Team">
             <form onSubmit={handleCreate}>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500' }}>
-                  Name *
-                </label>
-                <input
-                  type="text"
+              <FormField label="Name" required>
+                <FormInput
                   value={formData.createName}
                   onChange={(e) => setFormData((prev) => ({ ...prev, createName: e.target.value }))}
                   required
-                  style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
                 />
-              </div>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500' }}>
-                  Color (hex)
-                </label>
-                <input
-                  type="text"
+              </FormField>
+              <FormField label="Color (hex)">
+                <FormInput
                   value={formData.createColor}
                   onChange={(e) => setFormData((prev) => ({ ...prev, createColor: e.target.value }))}
                   placeholder="#FF5733"
-                  style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
                 />
-              </div>
-              <button
+              </FormField>
+              <Button
                 type="submit"
-                disabled={createTeamMutation.isPending}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: createTeamMutation.isPending ? '#ccc' : '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: createTeamMutation.isPending ? 'not-allowed' : 'pointer',
-                }}
+                variant="success"
+                isLoading={createTeamMutation.isPending}
               >
-                {createTeamMutation.isPending ? 'Creating...' : 'Create Team'}
-              </button>
-              <TestResultDisplay testName="create" label="Create" />
+                Create Team
+              </Button>
+              <TestResultDisplay
+                testName="create"
+                isLoading={createTeamMutation.isPending}
+                result={results.create}
+              />
             </form>
-          </div>
+          </FormSection>
 
           {/* Update Team */}
-          <div data-update-form style={{ marginBottom: '2rem', padding: '1rem', background: '#f8f9fa', borderRadius: '4px' }}>
-            <h4>Update Team</h4>
-            <form onSubmit={handleUpdate}>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500' }}>
-                  Team ID *
-                </label>
-                <input
-                  type="text"
-                  value={formData.updateId}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, updateId: e.target.value }))}
-                  required
-                  placeholder="Enter team UUID"
-                  style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+          <FormSection title="Update Team">
+            <div data-update-form>
+              <form onSubmit={handleUpdate}>
+                <FormField label="Team ID" required>
+                  <FormInput
+                    value={formData.updateId}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, updateId: e.target.value }))}
+                    placeholder="Enter team UUID"
+                    required
+                  />
+                </FormField>
+                <FormField label="New Name">
+                  <FormInput
+                    value={formData.updateName}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, updateName: e.target.value }))}
+                  />
+                </FormField>
+                <FormField label="New Color">
+                  <FormInput
+                    value={formData.updateColor}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, updateColor: e.target.value }))}
+                    placeholder="#FF5733"
+                  />
+                </FormField>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  isLoading={updateTeamMutation.isPending}
+                >
+                  Update Team
+                </Button>
+                <TestResultDisplay
+                  testName="update"
+                  isLoading={updateTeamMutation.isPending}
+                  result={results.update}
                 />
-              </div>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500' }}>
-                  New Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.updateName}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, updateName: e.target.value }))}
-                  style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
-                />
-              </div>
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: '500' }}>
-                  New Color
-                </label>
-                <input
-                  type="text"
-                  value={formData.updateColor}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, updateColor: e.target.value }))}
-                  placeholder="#FF5733"
-                  style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={updateTeamMutation.isPending}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: updateTeamMutation.isPending ? '#ccc' : '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: updateTeamMutation.isPending ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {updateTeamMutation.isPending ? 'Updating...' : 'Update Team'}
-              </button>
-              <TestResultDisplay testName="update" label="Update" />
-            </form>
-          </div>
+              </form>
+            </div>
+          </FormSection>
 
           {/* Get Team by ID */}
-          <div style={{ marginBottom: '2rem', padding: '1rem', background: '#f8f9fa', borderRadius: '4px' }}>
-            <h4>Get Team by ID</h4>
+          <FormSection title="Get Team by ID">
             <div style={{ marginBottom: '0.75rem' }}>
-              <input
-                type="text"
+              <FormInput
                 value={formData.getById}
                 onChange={(e) => setFormData((prev) => ({ ...prev, getById: e.target.value }))}
                 placeholder="Enter team UUID"
-                style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #ddd', marginBottom: '0.5rem' }}
+                style={{ marginBottom: '0.5rem' }}
               />
-              <button
+              <Button
                 onClick={() => runTest('getById', () => testGetTeam(formData.getById))}
                 disabled={loading.getById || !formData.getById}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: loading.getById || !formData.getById ? '#ccc' : '#17a2b8',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: loading.getById || !formData.getById ? 'not-allowed' : 'pointer',
-                }}
+                variant="info"
               >
-                {loading.getById ? 'Loading...' : 'Get Team'}
-              </button>
+                Get Team
+              </Button>
             </div>
-            <TestResultDisplay testName="getById" label="Get by ID" />
-          </div>
+            <TestResultDisplay
+              testName="getById"
+              isLoading={loading.getById}
+              result={results.getById}
+            />
+          </FormSection>
         </div>
 
         {/* Right Column: Teams List */}
         <div>
           <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4>Teams ({teams.length})</h4>
-            <button
+            <Button
               onClick={() => runTest('getAll', () => testGetAllTeams())}
               disabled={loading.getAll}
-              style={{
-                padding: '0.5rem 1rem',
-                background: loading.getAll ? '#ccc' : '#6c757d',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: loading.getAll ? 'not-allowed' : 'pointer',
-                fontSize: '0.9rem',
-              }}
+              variant="secondary"
             >
-              {loading.getAll ? 'Loading...' : 'Refresh'}
-            </button>
+              Refresh
+            </Button>
           </div>
-            <TestResultDisplay testName="getAll" label="Get All" />
-            <TestResultDisplay testName="restore" label="Restore" />
+          <TestResultDisplay testName="getAll" isLoading={loading.getAll} result={results.getAll} />
+          <TestResultDisplay testName="restore" isLoading={restoreMutation.isPending} result={results.restore} />
 
           <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
             {teams.map((team) => {
@@ -428,7 +347,7 @@ export default function TeamsCrudClient() {
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {!isDeleted && (
                       <>
-                        <button
+                        <Button
                           onClick={() => {
                             setFormData((prev) => ({
                               ...prev,
@@ -438,66 +357,38 @@ export default function TeamsCrudClient() {
                             }));
                             document.querySelector('[data-update-form]')?.scrollIntoView({ behavior: 'smooth' });
                           }}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            background: '#007bff',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem',
-                          }}
+                          variant="primary"
+                          style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
                         >
                           Edit
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={() => handleSoftDelete(team.id)}
                           disabled={softDeleteMutation.isPending}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            background: '#ffc107',
-                            color: 'black',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: softDeleteMutation.isPending ? 'not-allowed' : 'pointer',
-                            fontSize: '0.85rem',
-                          }}
+                          variant="warning"
+                          style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
                         >
                           Soft Delete
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           onClick={() => handleHardDelete(team.id)}
                           disabled={hardDeleteMutation.isPending}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            background: '#dc3545',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: hardDeleteMutation.isPending ? 'not-allowed' : 'pointer',
-                            fontSize: '0.85rem',
-                          }}
+                          variant="danger"
+                          style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
                         >
                           Hard Delete
-                        </button>
+                        </Button>
                       </>
                     )}
                     {isDeleted && (
-                      <button
+                      <Button
                         onClick={() => handleRestore(team.id)}
                         disabled={restoreMutation.isPending}
-                        style={{
-                          padding: '0.25rem 0.5rem',
-                          background: '#28a745',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: restoreMutation.isPending ? 'not-allowed' : 'pointer',
-                          fontSize: '0.85rem',
-                        }}
+                        variant="success"
+                        style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
                       >
                         {restoreMutation.isPending ? 'Restoring...' : 'Restore'}
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -505,17 +396,6 @@ export default function TeamsCrudClient() {
             })}
           </div>
         </div>
-      </div>
-
-      <div style={{ marginTop: '2rem', padding: '1rem', background: '#e7f3ff', borderRadius: '4px' }}>
-        <h4>📋 SOLID Principles Applied</h4>
-        <ul style={{ margin: 0, paddingLeft: '1.5rem', fontSize: '0.9rem' }}>
-          <li><strong>Single Responsibility:</strong> Each service method has one clear purpose</li>
-          <li><strong>Open/Closed:</strong> BaseCrudService can be extended without modification</li>
-          <li><strong>Liskov Substitution:</strong> TeamsService can be used anywhere BaseCrudService is expected</li>
-          <li><strong>Interface Segregation:</strong> IBaseCrudService provides focused interface</li>
-          <li><strong>Dependency Inversion:</strong> Services depend on UnitOfWork abstraction, not concrete implementations</li>
-        </ul>
       </div>
     </div>
   );

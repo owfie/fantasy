@@ -241,6 +241,120 @@ export async function testCreatePlayer(
   });
 }
 
+export async function testUpdatePlayer(
+  playerId: string,
+  updates: {
+    team_id?: string;
+    first_name?: string;
+    last_name?: string;
+    player_role?: 'captain' | 'player' | 'marquee' | 'rookie_marquee' | 'reserve';
+    starting_value?: number;
+    draft_order?: number;
+  }
+) {
+  const uow = await getUnitOfWork();
+  
+  return uow.execute(async (uow) => {
+    const player = await uow.players.update({
+      id: playerId,
+      ...updates,
+    });
+    
+    return { success: true, message: 'Player updated', data: player };
+  });
+}
+
+export async function testSoftDeletePlayer(playerId: string) {
+  const uow = await getUnitOfWork();
+  
+  return uow.execute(async (uow) => {
+    const player = await uow.players.findById(playerId);
+    if (!player) {
+      return { success: false, message: 'Player not found', error: 'Player not found' };
+    }
+    
+    await uow.players.update({
+      id: playerId,
+      is_active: false,
+    });
+    
+    return { success: true, message: 'Player soft deleted', data: null };
+  });
+}
+
+export async function testHardDeletePlayer(playerId: string) {
+  const uow = await getUnitOfWork();
+  
+  return uow.execute(async (uow) => {
+    const player = await uow.players.findById(playerId);
+    if (!player) {
+      return { success: false, message: 'Player not found', error: 'Player not found' };
+    }
+    
+    // Check for related entities (stats, fantasy team players, etc.)
+    const stats = await uow.playerStats.findAll({ player_id: playerId } as any);
+    if (stats.length > 0) {
+      return { success: false, message: 'Cannot delete player with stats', error: 'Player has stats' };
+    }
+    
+    await uow.players.delete(playerId);
+    
+    return { success: true, message: 'Player permanently deleted', data: null };
+  });
+}
+
+export async function testRestorePlayer(playerId: string) {
+  const uow = await getUnitOfWork();
+  
+  return uow.execute(async (uow) => {
+    const player = await uow.players.findById(playerId);
+    if (!player) {
+      return { success: false, message: 'Player not found', error: 'Player not found' };
+    }
+    
+    await uow.players.update({
+      id: playerId,
+      is_active: true,
+    });
+    
+    const restored = await uow.players.findById(playerId);
+    
+    return { success: true, message: 'Player restored', data: restored };
+  });
+}
+
+export async function testGetPlayer(playerId: string) {
+  const uow = await getUnitOfWork();
+  
+  return uow.execute(async (uow) => {
+    const player = await uow.players.findById(playerId);
+    
+    if (!player) {
+      return { success: false, message: 'Player not found', error: 'Player not found' };
+    }
+    
+    return { success: true, message: 'Player found', data: player };
+  });
+}
+
+export async function testGetAllPlayers() {
+  const uow = await getUnitOfWork();
+  
+  return uow.execute(async (uow) => {
+    // Get all players including inactive ones (for admin view)
+    const { data: players, error } = await uow.getClient()
+      .from('players')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      return { success: false, message: 'Failed to fetch players', error: error.message };
+    }
+    
+    return { success: true, message: 'Players fetched', data: players || [] };
+  });
+}
+
 // Test 3: Create fantasy team with players (salary cap test)
 export async function testCreateFantasyTeam(
   ownerId: string,
@@ -550,6 +664,7 @@ export interface PlayerWeekStats {
   throwaways: number;
   points: number;
   isCompleted: boolean;
+  played: boolean;
 }
 
 export interface WeekStats {
@@ -607,6 +722,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
         drops,
         throwaways,
         points,
+        played,
         games!inner(week_id)
       `);
     
@@ -618,6 +734,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
       drops: number;
       throwaways: number;
       points: number;
+      played: boolean;
     }>>();
     
     if (allStats && !statsError) {
@@ -640,6 +757,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
             drops: 0,
             throwaways: 0,
             points: 0,
+            played: true, // Default to true
           });
         }
         
@@ -650,6 +768,11 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
         playerStats.drops += stat.drops || 0;
         playerStats.throwaways += stat.throwaways || 0;
         playerStats.points += stat.points || 0;
+        // A player can only play in one game per week, so we just use the played value directly
+        // No aggregation needed - each player has at most one stat record per week
+        if (stat.played !== undefined) {
+          playerStats.played = stat.played;
+        }
       }
     }
     
@@ -664,6 +787,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
           drops: 0,
           throwaways: 0,
           points: 0,
+          played: true, // Default to true if no stats exist
         };
         
         // A player is completed if they have at least one stat entry (points > 0 or any stat > 0)
@@ -685,6 +809,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
           throwaways: stats.throwaways,
           points: stats.points,
           isCompleted,
+          played: stats.played !== undefined ? stats.played : true,
         };
       });
       
@@ -786,13 +911,18 @@ export async function saveWeekStats(input: SaveWeekStatsInput) {
       const existing = existingStatsMap.get(playerStat.playerId);
       
       if (existing) {
+        // Normalize played values for comparison (treat null/undefined as true)
+        const existingPlayed = existing.played !== null && existing.played !== undefined ? existing.played : true;
+        const newPlayed = playerStat.played !== undefined ? playerStat.played : true;
+        
         // Check if anything actually changed
         const hasChanges = 
           existing.goals !== playerStat.goals ||
           existing.assists !== playerStat.assists ||
           existing.blocks !== playerStat.blocks ||
           existing.drops !== playerStat.drops ||
-          existing.throwaways !== playerStat.throwaways;
+          existing.throwaways !== playerStat.throwaways ||
+          existingPlayed !== newPlayed;
         
         if (hasChanges) {
           toUpdate.push({
@@ -802,7 +932,7 @@ export async function saveWeekStats(input: SaveWeekStatsInput) {
             blocks: playerStat.blocks,
             drops: playerStat.drops,
             throwaways: playerStat.throwaways,
-            played: true,
+            played: newPlayed,
             entered_by: input.adminUserId,
           });
         }
@@ -816,7 +946,7 @@ export async function saveWeekStats(input: SaveWeekStatsInput) {
           blocks: playerStat.blocks,
           drops: playerStat.drops,
           throwaways: playerStat.throwaways,
-          played: true,
+          played: playerStat.played !== undefined ? playerStat.played : true,
           entered_by: input.adminUserId,
         });
       }

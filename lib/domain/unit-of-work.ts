@@ -13,6 +13,9 @@ import {
   SeasonsRepository,
   WeeksRepository,
   GamesRepository,
+  ArticleAuthorsRepository,
+  ArticleTagsRepository,
+  ArticlesRepository,
 } from './repositories';
 
 // Track operations for rollback
@@ -34,6 +37,9 @@ export class UnitOfWork {
   public readonly seasons: SeasonsRepository;
   public readonly weeks: WeeksRepository;
   public readonly games: GamesRepository;
+  public readonly articleAuthors: ArticleAuthorsRepository;
+  public readonly articleTags: ArticleTagsRepository;
+  public readonly articles: ArticlesRepository;
 
   private operations: TrackedOperation[] = [];
   private committed: boolean = false;
@@ -50,6 +56,9 @@ export class UnitOfWork {
     this.seasons = new SeasonsRepository(client);
     this.weeks = new WeeksRepository(client);
     this.games = new GamesRepository(client);
+    this.articleAuthors = new ArticleAuthorsRepository(client);
+    this.articleTags = new ArticleTagsRepository(client);
+    this.articles = new ArticlesRepository(client);
   }
 
   /**

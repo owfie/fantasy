@@ -3,6 +3,8 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "@/lib/queries/providers";
 import { Toaster } from "sonner";
+import { GlobalHeader } from "@/components/global-header";
+import "./tailwind.css";
 import "./globals.scss";
 
 const defaultUrl = process.env.VERCEL_URL
@@ -36,6 +38,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
+            <GlobalHeader />
             {children}
             <Toaster position="top-right" richColors />
           </ThemeProvider>

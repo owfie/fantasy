@@ -11,6 +11,9 @@ export { FantasyTeamPlayersRepository } from './fantasy-team-players.repository'
 export { PlayerStatsRepository } from './player-stats.repository';
 export { SeasonsRepository } from './seasons.repository';
 export { WeeksRepository } from './weeks.repository';
-export { GamesRepository } from './games.repository';
+export { GamesRepository, type GameWithTeams, type GameWithDetails, type PlayerWithAvailability } from './games.repository';
+export { ArticleAuthorsRepository } from './article-authors.repository';
+export { ArticleTagsRepository } from './article-tags.repository';
+export { ArticlesRepository } from './articles.repository';
 
 

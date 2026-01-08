@@ -5,4 +5,5 @@
 
 export * from './teams.api';
 export * from './test.api';
+export * from './fixtures.api';
 

@@ -1,6 +1,8 @@
 import { getFixtures } from '@/lib/api';
 import { GameWithTeams } from '@/lib/domain/repositories/games.repository';
 import Link from 'next/link';
+import { Card } from '@/components/Card';
+import styles from './page.module.scss';
 
 export default async function FixturesPage() {
   const fixtures = await getFixtures();
@@ -64,18 +66,15 @@ export default async function FixturesPage() {
   });
 
   return (
-    <main className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-4">Fixtures</h1>
+    <div className={styles.container}>
+      <h1>Fixtures</h1>
       
       {sortedDates.map(dateKey => (
-        <div key={dateKey} className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">{dateKey}</h2>
-          <div className="space-y-4">
+        <div key={dateKey} className={styles.group}>
+          <>{dateKey}</>
+          <div className={styles.deck}>
             {fixturesByDate[dateKey].map(fixture => (
-              <div 
-                key={fixture.id} 
-                className="border border-gray-300 rounded p-4 hover:bg-gray-50"
-              >
+              <Card key={fixture.id}>
                 <Link href={`/fixtures/game/${fixture.id}`} className="block" scroll={false}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -110,11 +109,11 @@ export default async function FixturesPage() {
                     <span className="text-gray-500">No broadcast link</span>
                   )}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </div>
       ))}
-    </main>
+    </div>
   );
 }

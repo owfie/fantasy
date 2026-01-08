@@ -11,8 +11,6 @@ export default async function Home() {
     <main>
       <h1>Super League Fantasy</h1>
       <p>Welcome to the fantasy frisbee league application.</p>
-      <AuthButton />
-      {!user && <DiscordLogin />}
     </main>
   );
 }

@@ -16,6 +16,7 @@ import {
   ArticleAuthorsRepository,
   ArticleTagsRepository,
   ArticlesRepository,
+  ValueChangesRepository,
 } from './repositories';
 
 // Track operations for rollback
@@ -40,6 +41,7 @@ export class UnitOfWork {
   public readonly articleAuthors: ArticleAuthorsRepository;
   public readonly articleTags: ArticleTagsRepository;
   public readonly articles: ArticlesRepository;
+  public readonly valueChanges: ValueChangesRepository;
 
   private operations: TrackedOperation[] = [];
   private committed: boolean = false;
@@ -59,6 +61,7 @@ export class UnitOfWork {
     this.articleAuthors = new ArticleAuthorsRepository(client);
     this.articleTags = new ArticleTagsRepository(client);
     this.articles = new ArticlesRepository(client);
+    this.valueChanges = new ValueChangesRepository(client);
   }
 
   /**

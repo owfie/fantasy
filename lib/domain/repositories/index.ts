@@ -15,5 +15,5 @@ export { GamesRepository, type GameWithTeams, type GameWithDetails, type PlayerW
 export { ArticleAuthorsRepository } from './article-authors.repository';
 export { ArticleTagsRepository } from './article-tags.repository';
 export { ArticlesRepository } from './articles.repository';
-
+export { ValueChangesRepository, type PlayerWithPrices } from './value-changes.repository';
 

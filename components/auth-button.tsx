@@ -1,18 +1,35 @@
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "./logout-button";
+import Image from "next/image";
 
 export async function AuthButton() {
   const supabase = await createClient();
 
-  // You can also use getUser() which will be slower.
-  const { data } = await supabase.auth.getClaims();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const user = data?.claims;
+  if (!user) {
+    return null;
+  }
 
-  return user ? (
-    <div>
-      Hey, {user.email || user.name || "User"}!
-      <LogoutButton />
+  // Discord provides avatar_url and full_name/name in user_metadata
+  const metadata = user.user_metadata;
+  const avatarUrl = metadata?.avatar_url;
+  const username = metadata?.full_name || metadata?.name || metadata?.custom_claims?.global_name || user.email;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <span>{username}</span>
+      {avatarUrl && (
+        <Image
+          src={avatarUrl}
+          alt={username || 'User avatar'}
+          width={32}
+          height={32}
+          style={{ borderRadius: '50%' }}
+        />
+      )}
+
+      {/* <LogoutButton /> */}
     </div>
-  ) : null;
+  );
 }

@@ -1,7 +1,7 @@
 // Global SCSS variables and base styles
 // Note: Tailwind CSS is imported via app/tailwind.css
 :root {
-  --background: 0 0% 100%;
+  --background: #F8F8F8;
   --foreground: 0 0% 3.9%;
   --border: 0 0% 89.8%;
   --radius: 0.5rem;
@@ -20,9 +20,10 @@
 }
 
 body {
-  background-color: hsl(var(--background));
+  background-color: var(--background);
   color: hsl(var(--foreground));
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

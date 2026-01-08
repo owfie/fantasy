@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Inter } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "@/lib/queries/providers";
 import { Toaster } from "sonner";
-import { GlobalHeader } from "@/components/global-header";
 import "./tailwind.css";
 import "./globals.scss";
+import { Header } from "@/components/Header";
+import { AuthButton } from "@/components/AuthButton";
+import Ticker from "@/components/Ticker";
+import styles from './layout.module.scss';
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -17,8 +20,7 @@ export const metadata: Metadata = {
   description: "Fantasy frisbee league application",
 };
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
   display: "swap",
   subsets: ["latin"],
 });
@@ -30,18 +32,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={geistSans.className}>
+      <body className={`${inter.className} ${styles.body}`}>
         <QueryProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <GlobalHeader />
+          <Ticker />
+          <Header authSlot={<AuthButton />} />
+          <main className={styles.main}>
             {children}
-            <Toaster position="top-right" richColors />
-          </ThemeProvider>
+          </main>
+          <Toaster position="top-right" richColors />
         </QueryProvider>
       </body>
     </html>

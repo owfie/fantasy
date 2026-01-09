@@ -52,7 +52,7 @@ export function useUserProfiles() {
     queryFn: async () => {
       const result = await testGetUserProfiles();
       if (!result.success) {
-        throw new Error(result.error || result.message);
+        throw new Error('error' in result ? result.error : result.message);
       }
       return result.data || [];
     },
@@ -106,7 +106,7 @@ export function useFantasyTeams(seasonId: string | null) {
       if (!seasonId) return [];
       const result = await testGetAllFantasyTeams(seasonId);
       if (!result.success) {
-        throw new Error(result.error || result.message);
+        throw new Error('error' in result ? result.error : result.message);
       }
       return result.data || [];
     },
@@ -124,7 +124,7 @@ export function useFantasyTeamWithPlayers(fantasyTeamId: string | null) {
       if (!fantasyTeamId) return null;
       const result = await testGetFantasyTeamWithPlayers(fantasyTeamId);
       if (!result.success) {
-        throw new Error(result.error || result.message);
+        throw new Error('error' in result ? result.error : result.message);
       }
       return result.data;
     },
@@ -142,7 +142,7 @@ export function useAvailablePlayers(seasonId: string | null) {
       if (!seasonId) return [];
       const result = await testGetAvailablePlayers(seasonId);
       if (!result.success) {
-        throw new Error(result.error || result.message);
+        throw new Error('error' in result ? result.error : result.message);
       }
       return result.data || [];
     },

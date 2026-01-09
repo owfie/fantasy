@@ -1,0 +1,58 @@
+.Header {
+    // border: 1px solid red;
+    width: 100vw;
+
+    .container {
+        max-width: 1000px;
+        margin: 0 auto;
+        
+
+        .content {
+            margin: 2em;
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 100px;
+
+            border-bottom: 0.5px solid #E7E7E7;
+
+            .logo {
+                position: absolute;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
+            }
+
+            .nav {
+                display: flex;
+                gap: 20px;
+                width: 100%;
+                justify-content: center;
+                gap: 1em;
+
+                a {
+                    color: #ccc;
+                    
+                    &[data-active="true"] {
+                        color: #111;
+                    }
+                }
+
+                .user {
+                    position: absolute;
+                    right: 0;
+                    top: 50%;
+                    transform: translateY(-50%);
+                }
+            }
+        }
+        .news {
+            width: 100%;
+            border: 1px solid blue;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    }
+}

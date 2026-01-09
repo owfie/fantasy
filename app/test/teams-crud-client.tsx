@@ -9,6 +9,7 @@ import {
   useTestHardDeleteTeam,
   useTestRestoreTeam,
 } from '@/lib/queries/teams-test.queries';
+import { useSeasonPlayers } from '@/lib/queries/seasons.queries';
 import { testGetTeam, testGetAllTeams } from '@/lib/api';
 import {
   TestResultDisplay,
@@ -28,8 +29,13 @@ interface TestResult<T = unknown> {
   error?: string;
 }
 
-export default function TeamsCrudClient() {
+interface TeamsCrudClientProps {
+  seasonId?: string;
+}
+
+export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
   const { data: teams = [], isLoading: isLoadingTeams, error: teamsError } = useTeamsIncludingDeleted();
+  const { data: seasonPlayers = [] } = useSeasonPlayers(seasonId || '');
   
   // Mutations
   const createTeamMutation = useTestCreateTeam();
@@ -189,12 +195,198 @@ export default function TeamsCrudClient() {
     );
   }
 
+  // Group players by team for the selected season
+  const activeTeams = teams.filter((t) => !t.deleted_at);
+  const playersByTeam = new Map<string, typeof seasonPlayers>();
+  const unassignedPlayers: typeof seasonPlayers = [];
+
+  for (const sp of seasonPlayers) {
+    if (sp.team_id) {
+      const existing = playersByTeam.get(sp.team_id) || [];
+      existing.push(sp);
+      playersByTeam.set(sp.team_id, existing);
+    } else {
+      unassignedPlayers.push(sp);
+    }
+  }
+
   return (
     <div>
       <h3>Teams</h3>
       <p style={{ color: '#666', marginBottom: '1.5rem' }}>
         Test Create, Read, Update, Delete (Soft), and Delete (Hard) operations for teams
       </p>
+
+      {/* Team Roster Grid - Only show if season is selected */}
+      {seasonId && seasonPlayers.length > 0 && (
+        <div style={{ marginBottom: '2rem' }}>
+          <h4 style={{ marginBottom: '1rem', color: '#495057' }}>
+            Season Rosters
+            <span style={{ fontWeight: 'normal', fontSize: '0.9rem', marginLeft: '0.5rem', color: '#6c757d' }}>
+              ({seasonPlayers.length} players)
+            </span>
+          </h4>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
+            gap: '1rem' 
+          }}>
+            {activeTeams.map((team) => {
+              const teamPlayers = playersByTeam.get(team.id) || [];
+              return (
+                <div
+                  key={team.id}
+                  style={{
+                    padding: '1rem',
+                    background: 'white',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '8px',
+                    borderTop: `4px solid ${team.color || '#6c757d'}`,
+                  }}
+                >
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.5rem', 
+                    marginBottom: '0.75rem',
+                    paddingBottom: '0.5rem',
+                    borderBottom: '1px solid #e9ecef'
+                  }}>
+                    {team.color && (
+                      <span style={{ 
+                        width: '12px', 
+                        height: '12px', 
+                        borderRadius: '50%', 
+                        background: team.color,
+                        flexShrink: 0
+                      }} />
+                    )}
+                    <strong style={{ fontSize: '0.95rem' }}>{team.name}</strong>
+                    <span style={{ 
+                      marginLeft: 'auto', 
+                      fontSize: '0.8rem', 
+                      color: '#6c757d',
+                      background: '#f8f9fa',
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '10px'
+                    }}>
+                      {teamPlayers.length}
+                    </span>
+                  </div>
+                  {teamPlayers.length === 0 ? (
+                    <p style={{ color: '#adb5bd', fontSize: '0.85rem', fontStyle: 'italic', margin: 0 }}>
+                      No players assigned
+                    </p>
+                  ) : (
+                    <ul style={{ 
+                      margin: 0, 
+                      padding: 0, 
+                      listStyle: 'none',
+                      fontSize: '0.9rem'
+                    }}>
+                      {teamPlayers.map((sp) => (
+                        <li 
+                          key={sp.id} 
+                          style={{ 
+                            padding: '0.25rem 0',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            opacity: sp.is_active ? 1 : 0.5,
+                            borderBottom: '1px solid #f8f9fa'
+                          }}
+                        >
+                          <span>
+                            {sp.player?.first_name} {sp.player?.last_name}
+                            {!sp.is_active && <span style={{ color: '#dc3545', marginLeft: '0.25rem' }}>✗</span>}
+                          </span>
+                          <span style={{ color: '#6c757d', fontSize: '0.8rem' }}>
+                            ${sp.starting_value}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+            {/* Unassigned Players Card */}
+            {unassignedPlayers.length > 0 && (
+              <div
+                style={{
+                  padding: '1rem',
+                  background: '#fff8e1',
+                  border: '1px dashed #ffc107',
+                  borderRadius: '8px',
+                }}
+              >
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem', 
+                  marginBottom: '0.75rem',
+                  paddingBottom: '0.5rem',
+                  borderBottom: '1px solid #ffe082'
+                }}>
+                  <span style={{ fontSize: '1rem' }}>⚠️</span>
+                  <strong style={{ fontSize: '0.95rem', color: '#856404' }}>Unassigned</strong>
+                  <span style={{ 
+                    marginLeft: 'auto', 
+                    fontSize: '0.8rem', 
+                    color: '#856404',
+                    background: '#fff3cd',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '10px'
+                  }}>
+                    {unassignedPlayers.length}
+                  </span>
+                </div>
+                <ul style={{ 
+                  margin: 0, 
+                  padding: 0, 
+                  listStyle: 'none',
+                  fontSize: '0.9rem'
+                }}>
+                  {unassignedPlayers.map((sp) => (
+                    <li 
+                      key={sp.id} 
+                      style={{ 
+                        padding: '0.25rem 0',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        opacity: sp.is_active ? 1 : 0.5,
+                        borderBottom: '1px solid #ffe082'
+                      }}
+                    >
+                      <span>
+                        {sp.player?.first_name} {sp.player?.last_name}
+                      </span>
+                      <span style={{ color: '#856404', fontSize: '0.8rem' }}>
+                        ${sp.starting_value}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {seasonId && seasonPlayers.length === 0 && (
+        <div style={{ 
+          padding: '1rem', 
+          background: '#e7f3ff', 
+          borderRadius: '8px', 
+          marginBottom: '1.5rem',
+          border: '1px solid #b6d4fe'
+        }}>
+          <p style={{ margin: 0, color: '#084298' }}>
+            No players assigned to this season yet. Go to <strong>Seasons & Season Players</strong> to add players.
+          </p>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
         {/* Left Column: Forms */}image.pngimage.pngimage.pngimage.pngimage.pngimage.pngimage.pngimage.pngimage.png

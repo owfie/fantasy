@@ -1,0 +1,127 @@
+.Ticker {
+    width: 100%;
+    overflow: hidden;
+    background: linear-gradient(90deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    // border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 0;
+    position: relative;
+
+    // Fade edges
+    &::before,
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 60px;
+        z-index: 2;
+        pointer-events: none;
+    }
+
+    &::before {
+        left: 0;
+        background: linear-gradient(90deg, #0f172a 0%, transparent 100%);
+    }
+
+    &::after {
+        right: 0;
+        background: linear-gradient(90deg, transparent 0%, #0f172a 100%);
+    }
+}
+
+.TickerTrack {
+    display: flex;
+    gap: 2.5rem;
+    animation: scroll 60s linear infinite;
+    width: max-content;
+
+    &.Paused {
+        animation-play-state: paused;
+    }
+}
+
+.TickerItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+    letter-spacing: 0.01em;
+}
+
+.PlayerName {
+    color: #e2e8f0;
+    font-weight: 500;
+}
+
+.PlayerValue {
+    color: #94a3b8;
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    font-size: 0.75rem;
+}
+
+.ChangeUp {
+    color: #22c55e;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+}
+
+.ChangeDown {
+    color: #ef4444;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.125rem;
+}
+
+.PauseButton {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    
+    background: rgba(30, 41, 59, 0.9);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 6px;
+    color: #94a3b8;
+    cursor: pointer;
+    
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    
+    &:hover {
+        background: rgba(51, 65, 85, 0.95);
+        color: #e2e8f0;
+        border-color: rgba(148, 163, 184, 0.5);
+    }
+    
+    &:active {
+        transform: translateY(-50%) scale(0.95);
+    }
+    
+    &.Visible {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+@keyframes scroll {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}

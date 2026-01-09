@@ -1,0 +1,76 @@
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    #e5e7eb 0%,
+    #f3f4f6 50%,
+    #e5e7eb 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.matchup {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.teams {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.teamName {
+  height: 1.25rem;
+  width: 6rem;
+}
+
+.vs {
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+.time {
+  height: 1rem;
+  width: 4rem;
+}
+
+.broadcast {
+  height: 1rem;
+  width: 7rem;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.deck {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.dateHeader {
+  height: 1.5rem;
+  width: 14rem;
+}
+

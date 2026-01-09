@@ -9,29 +9,29 @@ import { getTestDashboardData, TestDashboardData, getAdminDashboardData, AdminDa
 
 export const testKeys = {
   all: ['test'] as const,
-  dashboard: () => [...testKeys.all, 'dashboard'] as const,
-  adminDashboard: () => [...testKeys.all, 'adminDashboard'] as const,
+  dashboard: (seasonId?: string) => [...testKeys.all, 'dashboard', seasonId] as const,
+  adminDashboard: (seasonId?: string) => [...testKeys.all, 'adminDashboard', seasonId] as const,
 };
 
 /**
- * Query hook to fetch test dashboard data
+ * Query hook to fetch test dashboard data (filtered by season)
  */
-export function useTestDashboard() {
+export function useTestDashboard(seasonId?: string) {
   return useQuery<TestDashboardData>({
-    queryKey: testKeys.dashboard(),
-    queryFn: () => getTestDashboardData(),
+    queryKey: testKeys.dashboard(seasonId),
+    queryFn: () => getTestDashboardData(seasonId),
     staleTime: 10 * 1000, // 10 seconds - test data can be slightly stale
     gcTime: 2 * 60 * 1000, // 2 minutes
   });
 }
 
 /**
- * Query hook to fetch admin dashboard data
+ * Query hook to fetch admin dashboard data (filtered by season)
  */
-export function useAdminDashboard() {
+export function useAdminDashboard(seasonId?: string) {
   return useQuery<AdminDashboardData>({
-    queryKey: testKeys.adminDashboard(),
-    queryFn: () => getAdminDashboardData(),
+    queryKey: testKeys.adminDashboard(seasonId),
+    queryFn: () => getAdminDashboardData(seasonId),
     staleTime: 5 * 1000, // 5 seconds
     gcTime: 1 * 60 * 1000, // 1 minute
   });

@@ -37,16 +37,31 @@ export interface TestDashboardData {
   };
 }
 
-export async function getTestDashboardData(): Promise<TestDashboardData> {
+export async function getTestDashboardData(seasonId?: string): Promise<TestDashboardData> {
   const uow = await getUnitOfWork();
 
   return uow.execute(async (uow) => {
     // Get all teams including soft-deleted (for admin view)
     const teamsList = await uow.teams.findAllIncludingDeleted();
-    const playersList = await uow.players.findAll({ is_active: true });
     
-    // Get all weeks (ordered by week number)
-    const weeksList = await uow.weeks.findAll();
+    // If seasonId provided, get season players, otherwise get all active players
+    let playersList;
+    if (seasonId) {
+      const seasonPlayers = await uow.seasonPlayers.findBySeasonWithPlayers(seasonId);
+      playersList = seasonPlayers
+        .filter(sp => sp.is_active && sp.player)
+        .map(sp => sp.player);
+    } else {
+      playersList = await uow.players.findAll({ is_active: true });
+    }
+    
+    // Get weeks for specific season or all weeks
+    let weeksList;
+    if (seasonId) {
+      weeksList = await uow.weeks.findBySeason(seasonId);
+    } else {
+      weeksList = await uow.weeks.findAll();
+    }
     const sortedWeeks = weeksList.sort((a, b) => a.week_number - b.week_number);
     
     // Get teams for player names
@@ -699,15 +714,28 @@ export interface AdminDashboardData {
   totalWeeks: number;
 }
 
-export async function getAdminDashboardData(): Promise<AdminDashboardData> {
+export async function getAdminDashboardData(seasonId?: string): Promise<AdminDashboardData> {
   const uow = await getUnitOfWork();
 
   return uow.execute(async (uow) => {
-    // Get all active players
-    const playersList = await uow.players.findAll({ is_active: true });
+    // If seasonId provided, get season players, otherwise get all active players
+    let playersList;
+    if (seasonId) {
+      const seasonPlayers = await uow.seasonPlayers.findBySeasonWithPlayers(seasonId);
+      playersList = seasonPlayers
+        .filter(sp => sp.is_active && sp.player)
+        .map(sp => sp.player);
+    } else {
+      playersList = await uow.players.findAll({ is_active: true });
+    }
     
-    // Get all weeks (ordered by week number)
-    const weeksList = await uow.weeks.findAll();
+    // Get weeks for specific season or all weeks
+    let weeksList;
+    if (seasonId) {
+      weeksList = await uow.weeks.findBySeason(seasonId);
+    } else {
+      weeksList = await uow.weeks.findAll();
+    }
     const sortedWeeks = weeksList.sort((a, b) => a.week_number - b.week_number);
     
     // Get all games grouped by week
@@ -876,6 +904,331 @@ export interface SaveWeekStatsInput {
     played: boolean;
   }>;
   adminUserId?: string;
+}
+
+// ============================================
+// FANTASY TEAMS CRUD OPERATIONS
+// ============================================
+
+export async function testGetUserProfiles() {
+  const uow = await getUnitOfWork();
+  
+  try {
+    const { data, error } = await uow.getClient()
+      .from('user_profiles')
+      .select('id, email, display_name, is_admin, created_at')
+      .order('display_name', { ascending: true });
+    
+    if (error) {
+      return { success: false, message: `Failed to fetch users: ${error.message}`, error: error.message };
+    }
+    
+    return { success: true, message: `Found ${data?.length || 0} users`, data: data || [] };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+export async function testSetUserAdmin(userId: string, isAdmin: boolean) {
+  const uow = await getUnitOfWork();
+  
+  try {
+    const { data, error } = await uow.getClient()
+      .from('user_profiles')
+      .update({ is_admin: isAdmin })
+      .eq('id', userId)
+      .select()
+      .single();
+    
+    if (error) {
+      return { success: false, message: `Failed to update user: ${error.message}`, error: error.message };
+    }
+    
+    return { 
+      success: true, 
+      message: isAdmin ? 'User is now an admin' : 'Admin privileges removed', 
+      data 
+    };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+export async function testGetActiveSeason() {
+  const uow = await getUnitOfWork();
+  
+  try {
+    const season = await uow.seasons.findActive();
+    
+    if (!season) {
+      return { success: false, message: 'No active season found', data: null };
+    }
+    
+    // Check if current date is within season range
+    const now = new Date();
+    const startDate = new Date(season.start_date);
+    const endDate = new Date(season.end_date);
+    
+    if (now < startDate || now > endDate) {
+      return { 
+        success: true, 
+        message: `Active season found but current date is outside range (${season.start_date} - ${season.end_date})`, 
+        data: season 
+      };
+    }
+    
+    return { success: true, message: 'Active season found', data: season };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+export async function testGetAllFantasyTeams() {
+  const uow = await getUnitOfWork();
+  
+  try {
+    const { data, error } = await uow.getClient()
+      .from('fantasy_teams')
+      .select(`
+        *,
+        user_profiles!owner_id(email, display_name),
+        seasons!season_id(name)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      return { success: false, message: `Failed to fetch fantasy teams: ${error.message}`, error: error.message };
+    }
+    
+    return { success: true, message: `Found ${data?.length || 0} fantasy teams`, data: data || [] };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+export async function testGetFantasyTeamWithPlayers(fantasyTeamId: string) {
+  const uow = await getUnitOfWork();
+  
+  try {
+    const team = await uow.fantasyTeams.findById(fantasyTeamId);
+    if (!team) {
+      return { success: false, message: 'Fantasy team not found', data: null };
+    }
+    
+    // Get players on this team with full player details
+    const { data: teamPlayers, error: playersError } = await uow.getClient()
+      .from('fantasy_team_players')
+      .select(`
+        *,
+        players!player_id(id, first_name, last_name, player_role, starting_value, team_id)
+      `)
+      .eq('fantasy_team_id', fantasyTeamId)
+      .order('is_captain', { ascending: false })
+      .order('is_reserve', { ascending: true });
+    
+    if (playersError) {
+      return { success: false, message: `Failed to fetch team players: ${playersError.message}`, error: playersError.message };
+    }
+    
+    return {
+      success: true,
+      message: 'Fantasy team retrieved',
+      data: {
+        team,
+        players: teamPlayers || [],
+        playerCount: teamPlayers?.length || 0,
+        activePlayers: teamPlayers?.filter(p => p.is_active && !p.is_reserve).length || 0,
+        benchPlayers: teamPlayers?.filter(p => p.is_reserve).length || 0,
+      },
+    };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+export async function testCreateFantasyTeamEmpty(
+  ownerId: string,
+  seasonId: string,
+  teamName: string
+) {
+  const uow = await getUnitOfWork();
+  
+  try {
+    const team = await uow.fantasyTeams.create({
+      owner_id: ownerId,
+      season_id: seasonId,
+      name: teamName,
+      original_value: 0,
+      total_value: 0,
+    });
+    
+    return { success: true, message: 'Fantasy team created', data: team };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+export async function testUpdateFantasyTeam(
+  fantasyTeamId: string,
+  updates: { name?: string }
+) {
+  const uow = await getUnitOfWork();
+  
+  try {
+    const team = await uow.fantasyTeams.update({
+      id: fantasyTeamId,
+      ...updates,
+    });
+    
+    return { success: true, message: 'Fantasy team updated', data: team };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+export async function testDeleteFantasyTeam(fantasyTeamId: string) {
+  const uow = await getUnitOfWork();
+  
+  try {
+    // First delete all fantasy_team_players
+    const { error: playersDeleteError } = await uow.getClient()
+      .from('fantasy_team_players')
+      .delete()
+      .eq('fantasy_team_id', fantasyTeamId);
+    
+    if (playersDeleteError) {
+      return { success: false, message: `Failed to delete team players: ${playersDeleteError.message}`, error: playersDeleteError.message };
+    }
+    
+    // Then delete the fantasy team
+    await uow.fantasyTeams.delete(fantasyTeamId);
+    
+    return { success: true, message: 'Fantasy team permanently deleted', data: null };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+export async function testAddPlayerToFantasyTeam(
+  fantasyTeamId: string,
+  playerId: string,
+  options?: { isCaptain?: boolean; isBench?: boolean }
+) {
+  const uow = await getUnitOfWork();
+  const service = new FantasyTeamService(uow);
+  
+  try {
+    await service.addPlayerToTeam(fantasyTeamId, playerId, {
+      isCaptain: options?.isCaptain,
+      isReserve: options?.isBench,
+    });
+    
+    const team = await uow.fantasyTeams.findById(fantasyTeamId);
+    return { success: true, message: 'Player added to team', data: team };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+export async function testRemovePlayerFromFantasyTeam(fantasyTeamId: string, playerId: string) {
+  const uow = await getUnitOfWork();
+  const service = new FantasyTeamService(uow);
+  
+  try {
+    await service.removePlayerFromTeam(fantasyTeamId, playerId);
+    const team = await uow.fantasyTeams.findById(fantasyTeamId);
+    return { success: true, message: 'Player removed from team', data: team };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+export async function testSetFantasyTeamCaptain(fantasyTeamId: string, playerId: string) {
+  const uow = await getUnitOfWork();
+  const service = new FantasyTeamService(uow);
+  
+  try {
+    await service.setCaptain(fantasyTeamId, playerId);
+    return { success: true, message: 'Captain set', data: null };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+export async function testSetPlayerBenchStatus(
+  fantasyTeamId: string,
+  playerId: string,
+  isBench: boolean
+) {
+  const uow = await getUnitOfWork();
+  
+  try {
+    // Find the fantasy_team_player entry
+    const players = await uow.fantasyTeamPlayers.findByFantasyTeam(fantasyTeamId);
+    const player = players.find(p => p.player_id === playerId);
+    
+    if (!player) {
+      return { success: false, message: 'Player not found on this team', error: 'Player not found' };
+    }
+    
+    await uow.fantasyTeamPlayers.update({
+      id: player.id,
+      is_reserve: isBench,
+    });
+    
+    return { success: true, message: isBench ? 'Player moved to bench' : 'Player moved to active roster', data: null };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+// Get available players (not on any fantasy team in this season)
+export async function testGetAvailablePlayers(seasonId: string) {
+  const uow = await getUnitOfWork();
+  
+  try {
+    // Get all active players
+    const allPlayers = await uow.players.findAll({ is_active: true });
+    
+    // Get all fantasy teams in this season
+    const fantasyTeams = await uow.fantasyTeams.findBySeason(seasonId);
+    const fantasyTeamIds = fantasyTeams.map(t => t.id);
+    
+    if (fantasyTeamIds.length === 0) {
+      // No fantasy teams, all players available
+      return { success: true, message: `Found ${allPlayers.length} available players`, data: allPlayers };
+    }
+    
+    // Get all players already on fantasy teams
+    const { data: takenPlayers, error } = await uow.getClient()
+      .from('fantasy_team_players')
+      .select('player_id')
+      .in('fantasy_team_id', fantasyTeamIds);
+    
+    if (error) {
+      return { success: false, message: `Failed to fetch taken players: ${error.message}`, error: error.message };
+    }
+    
+    const takenPlayerIds = new Set((takenPlayers || []).map(p => p.player_id));
+    const availablePlayers = allPlayers.filter(p => !takenPlayerIds.has(p.id));
+    
+    return { success: true, message: `Found ${availablePlayers.length} available players`, data: availablePlayers };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
 }
 
 export async function saveWeekStats(input: SaveWeekStatsInput) {

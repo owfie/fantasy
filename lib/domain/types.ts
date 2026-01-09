@@ -23,6 +23,7 @@ export interface UserProfile extends BaseEntity {
 // Team
 export interface Team extends BaseEntity {
   name: string;
+  slug?: string;
   color?: string;
   deleted_at?: string;
 }
@@ -148,6 +149,15 @@ export interface ValueChange extends BaseEntity {
   value: number;
 }
 
+// Season Player (junction table - tracks player's team per season)
+export interface SeasonPlayer extends BaseEntity {
+  season_id: string;
+  player_id: string;
+  team_id?: string;  // The team the player played for in this season
+  starting_value: number;
+  is_active: boolean;
+}
+
 // Article Author
 export interface ArticleAuthor extends BaseEntity {
   name: string;
@@ -186,6 +196,7 @@ export type InsertRosterChange = Omit<RosterChange, 'id' | 'created_at'>;
 export type InsertPlayerAvailability = Omit<PlayerAvailability, 'id' | 'created_at' | 'updated_at'>;
 export type InsertTransfer = Omit<Transfer, 'id' | 'created_at'>;
 export type InsertValueChange = Omit<ValueChange, 'id' | 'created_at'>;
+export type InsertSeasonPlayer = Omit<SeasonPlayer, 'id' | 'created_at' | 'updated_at'>;
 export type InsertArticleAuthor = Omit<ArticleAuthor, 'id' | 'created_at'>;
 export type InsertArticleTag = Omit<ArticleTag, 'id' | 'created_at'>;
 export type InsertArticle = Omit<Article, 'id' | 'created_at' | 'updated_at'>;
@@ -203,6 +214,7 @@ export type UpdateRosterChange = Partial<Omit<RosterChange, 'id' | 'created_at'>
 export type UpdatePlayerAvailability = Partial<Omit<PlayerAvailability, 'id' | 'created_at'>> & { id: string };
 export type UpdateTransfer = Partial<Omit<Transfer, 'id' | 'created_at'>> & { id: string };
 export type UpdateValueChange = Partial<Omit<ValueChange, 'id' | 'created_at'>> & { id: string };
+export type UpdateSeasonPlayer = Partial<Omit<SeasonPlayer, 'id' | 'created_at' | 'updated_at'>> & { id: string };
 export type UpdateArticleAuthor = Partial<Omit<ArticleAuthor, 'id' | 'created_at'>> & { id: string };
 export type UpdateArticleTag = Partial<Omit<ArticleTag, 'id' | 'created_at'>> & { id: string };
 export type UpdateArticle = Partial<Omit<Article, 'id' | 'created_at'>> & { id: string };

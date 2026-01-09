@@ -18,8 +18,12 @@ function formatPlayerRole(role: string): string {
   return roleMap[role] || role;
 }
 
-export default function AdminDashboard() {
-  const { data, isLoading, error, refetch } = useAdminDashboard();
+interface AdminDashboardProps {
+  seasonId?: string;
+}
+
+export default function AdminDashboard({ seasonId }: AdminDashboardProps) {
+  const { data, isLoading, error, refetch } = useAdminDashboard(seasonId);
   const queryClient = useQueryClient();
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(0);
   const [editingStats, setEditingStats] = useState<Record<string, {

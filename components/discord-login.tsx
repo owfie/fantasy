@@ -16,7 +16,7 @@ export function DiscordLogin() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "discord",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(window.location.pathname)}`,
         },
       });
 
@@ -32,13 +32,13 @@ export function DiscordLogin() {
 
   return (
     <div>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p style={{ color: "red", fontSize: "12px" }}>{error}</p>}
       <button
         onClick={handleDiscordLogin}
         disabled={isLoading}
         style={{
-          padding: "12px 24px",
-          fontSize: "16px",
+          padding: "8px 16px",
+          fontSize: "14px",
           backgroundColor: "#5865F2",
           color: "white",
           border: "none",
@@ -47,7 +47,7 @@ export function DiscordLogin() {
           opacity: isLoading ? 0.6 : 1,
         }}
       >
-        {isLoading ? "Connecting..." : "Continue with Discord"}
+        {isLoading ? "..." : "Login"}
       </button>
     </div>
   );

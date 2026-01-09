@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import Image from "next/image";
 import styles from './index.module.scss';
+import { LogoutButton } from "../logout-button";
+import { DiscordLogin } from "../discord-login";
 
 export async function AuthButton() {
   const supabase = await createClient();
@@ -8,7 +10,7 @@ export async function AuthButton() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    return null;
+    return <DiscordLogin />;
   }
 
   // Discord provides avatar_url and full_name/name in user_metadata
@@ -28,8 +30,9 @@ export async function AuthButton() {
           style={{ borderRadius: '50%' }}
         />
       )}
-
-      {/* <LogoutButton /> */}
+      <div className={styles.logout}>
+        <LogoutButton />
+      </div>
     </div>
   );
 }

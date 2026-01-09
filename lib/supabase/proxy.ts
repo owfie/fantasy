@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { hasEnvVars } from "../utils";
 
 // Routes that require authentication - all others are public
-const protectedRoutes = ["/protected", "/fantasy"];
+const protectedRoutes: string[] = [];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({

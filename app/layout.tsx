@@ -35,7 +35,9 @@ export default function RootLayout({
       <body className={`${inter.className} ${styles.body}`}>
         <QueryProvider>
           <Ticker />
-          <Header authSlot={<AuthButton />} />
+          <Header>
+            <AuthButton />
+          </Header>
           <main className={styles.main}>
             {children}
           </main>

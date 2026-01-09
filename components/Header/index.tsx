@@ -7,10 +7,10 @@ import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
 
 interface HeaderProps {
-    authSlot?: ReactNode;
+    children?: ReactNode;
 }
 
-export const Header = ({ authSlot }: HeaderProps) => {
+export const Header = ({ children }: HeaderProps) => {
 
     const pathname = usePathname();
     const isHome = pathname === '/';
@@ -29,7 +29,7 @@ export const Header = ({ authSlot }: HeaderProps) => {
                         <Link href="/players" data-active={pathname === '/players'}>Players</Link>
                         <Link href="/fantasy" data-active={pathname === '/fantasy'}>Fantasy</Link>
                         <div className={styles.user}>
-                            {authSlot}
+                            {children}
                         </div>
                     </nav>
                 </div>

@@ -6,7 +6,6 @@ interface FixturesLayoutProps {
 }
 
 export default function FixturesLayout({ children, modal }: FixturesLayoutProps) {
-  console.log('FixturesLayout rendering', { children, modal });
   return (
     <>
       {children}

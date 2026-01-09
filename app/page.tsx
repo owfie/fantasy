@@ -9,8 +9,7 @@ export default async function Home() {
 
   return (
     <main>
-      <h1>Super League Fantasy</h1>
-      <p>Welcome to the fantasy frisbee league application.</p>
+      wip
     </main>
   );
 }

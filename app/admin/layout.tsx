@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
+import styles from './admin.module.scss';
 
-export default async function TestLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -26,6 +27,9 @@ export default async function TestLayout({
     notFound();
   }
   
-  return <>{children}</>;
+  return (
+    <div className={styles.adminLayout}>
+      {children}
+    </div>
+  );
 }
-

@@ -7,7 +7,7 @@
 
 import { getUnitOfWork } from '@/lib/domain/server-uow';
 import { SeasonsService } from '@/lib/domain/services';
-import { InsertSeason, UpdateSeason, Season, SeasonPlayer } from '@/lib/domain/types';
+import { InsertSeason, UpdateSeason, Season, SeasonPlayer, Week, InsertWeek, UpdateWeek } from '@/lib/domain/types';
 import { SeasonPlayerWithPlayer } from '@/lib/domain/repositories';
 
 // ============================================
@@ -203,6 +203,143 @@ export async function updateSeasonPlayerTeam(
     return { success: true, message: 'Player team updated', data: seasonPlayer };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to update player team';
+    return { success: false, message, error: message };
+  }
+}
+
+// ============================================
+// Week Management
+// ============================================
+
+export async function getWeeks(seasonId: string): Promise<Week[]> {
+  const uow = await getUnitOfWork();
+  return uow.weeks.findBySeason(seasonId);
+}
+
+export async function createWeek(data: InsertWeek): Promise<TestResult<Week>> {
+  const uow = await getUnitOfWork();
+  try {
+    // Validate week_number is at least 1
+    if (data.week_number < 1) {
+      return { success: false, message: 'Week number must be at least 1', error: 'Invalid week number' };
+    }
+
+    // Check if week number already exists for this season
+    const existing = await uow.weeks.findByWeekNumber(data.season_id, data.week_number);
+    if (existing) {
+      return { success: false, message: `Week ${data.week_number} already exists for this season`, error: 'Duplicate week number' };
+    }
+
+    const week = await uow.weeks.create(data);
+    return { success: true, message: 'Week created successfully', data: week };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to create week';
+    return { success: false, message, error: message };
+  }
+}
+
+export async function updateWeek(data: UpdateWeek): Promise<TestResult<Week>> {
+  const uow = await getUnitOfWork();
+  try {
+    const existing = await uow.weeks.findById(data.id);
+    if (!existing) {
+      return { success: false, message: 'Week not found', error: 'Week not found' };
+    }
+
+    // If updating week_number, check for duplicates
+    if (data.week_number !== undefined && data.week_number !== existing.week_number) {
+      if (data.week_number < 1) {
+        return { success: false, message: 'Week number must be at least 1', error: 'Invalid week number' };
+      }
+
+      const duplicate = await uow.weeks.findByWeekNumber(existing.season_id, data.week_number);
+      if (duplicate && duplicate.id !== data.id) {
+        return { success: false, message: `Week ${data.week_number} already exists for this season`, error: 'Duplicate week number' };
+      }
+    }
+
+    const week = await uow.weeks.update(data);
+    return { success: true, message: 'Week updated successfully', data: week };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to update week';
+    return { success: false, message, error: message };
+  }
+}
+
+export async function deleteWeek(weekId: string): Promise<TestResult<null>> {
+  const uow = await getUnitOfWork();
+  try {
+    // Check if week has games
+    const games = await uow.games.findByWeek(weekId);
+    if (games.length > 0) {
+      return { success: false, message: 'Cannot delete week with games. Remove all games first.', error: 'Week has games' };
+    }
+
+    await uow.weeks.delete(weekId);
+    return { success: true, message: 'Week deleted successfully', data: null };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to delete week';
+    return { success: false, message, error: message };
+  }
+}
+
+export async function createWeeks(data: {
+  seasonId: string;
+  startWeekNumber: number;
+  count: number;
+  firstGameDate: string; // Monday date
+  namePattern?: string; // e.g., "Week {n} - Pool Play" or "Week {n}"
+  isDraftWeek?: boolean;
+}): Promise<TestResult<Week[]>> {
+  const uow = await getUnitOfWork();
+  try {
+    // Validate inputs
+    if (data.count < 1) {
+      return { success: false, message: 'Count must be at least 1', error: 'Invalid count' };
+    }
+
+    if (data.startWeekNumber < 1) {
+      return { success: false, message: 'Start week number must be at least 1', error: 'Invalid week number' };
+    }
+
+    // Check if any of the week numbers already exist
+    const existingWeeks = await uow.weeks.findBySeason(data.seasonId);
+    const existingWeekNumbers = new Set(existingWeeks.map(w => w.week_number));
+    
+    const weeksToCreate: InsertWeek[] = [];
+    for (let i = 0; i < data.count; i++) {
+      const weekNumber = data.startWeekNumber + i;
+      
+      if (existingWeekNumbers.has(weekNumber)) {
+        return { success: false, message: `Week ${weekNumber} already exists`, error: 'Duplicate week number' };
+      }
+
+      // Calculate game date (Monday) for this week (7 days apart)
+      const firstDate = new Date(data.firstGameDate);
+      const gameDate = new Date(firstDate);
+      gameDate.setDate(firstDate.getDate() + (i * 7));
+      const gameDateStr = gameDate.toISOString().split('T')[0];
+
+      // Generate name from pattern or default
+      let weekName: string | undefined;
+      if (data.namePattern) {
+        weekName = data.namePattern.replace(/{n}/g, weekNumber.toString());
+      }
+
+      weeksToCreate.push({
+        season_id: data.seasonId,
+        week_number: weekNumber,
+        name: weekName,
+        start_date: gameDateStr,
+        end_date: gameDateStr, // Same as start since games are on Monday
+        is_draft_week: data.isDraftWeek || false,
+      });
+    }
+
+    const weeks = await uow.weeks.createMany(weeksToCreate);
+    return { success: true, message: `Created ${weeks.length} weeks successfully`, data: weeks };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to create weeks';
     return { success: false, message, error: message };
   }
 }

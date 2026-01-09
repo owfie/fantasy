@@ -22,8 +22,13 @@ import {
   updateSeasonPlayerValue,
   setSeasonPlayerActive,
   updateSeasonPlayerTeam,
+  getWeeks,
+  createWeek,
+  createWeeks,
+  updateWeek,
+  deleteWeek,
 } from '@/lib/api';
-import { Season, InsertSeason, UpdateSeason } from '@/lib/domain/types';
+import { Season, InsertSeason, UpdateSeason, Week, InsertWeek, UpdateWeek } from '@/lib/domain/types';
 import { SeasonPlayerWithPlayer } from '@/lib/domain/repositories';
 import { testKeys } from './test.queries';
 
@@ -35,6 +40,7 @@ export const seasonKeys = {
   detail: (id: string) => [...seasonKeys.details(), id] as const,
   active: () => [...seasonKeys.all, 'active'] as const,
   players: (seasonId: string) => [...seasonKeys.all, 'players', seasonId] as const,
+  weeks: (seasonId: string) => [...seasonKeys.all, 'weeks', seasonId] as const,
 };
 
 // ============================================
@@ -400,6 +406,127 @@ export function useUpdateSeasonPlayerTeam() {
     },
     onError: (error) => {
       toast.error('Failed to update team', { description: error.message });
+    },
+  });
+}
+
+// ============================================
+// Week Query Hooks
+// ============================================
+
+/**
+ * Query hook to fetch weeks for a season
+ */
+export function useWeeks(seasonId: string) {
+  return useQuery({
+    queryKey: seasonKeys.weeks(seasonId),
+    queryFn: () => getWeeks(seasonId),
+    enabled: !!seasonId,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+}
+
+// ============================================
+// Week Mutation Hooks
+// ============================================
+
+/**
+ * Mutation hook to create a new week
+ */
+export function useCreateWeek() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: InsertWeek) => createWeek(data),
+    onSuccess: (result, data) => {
+      if (result.success && result.data) {
+        queryClient.invalidateQueries({ queryKey: seasonKeys.weeks(data.season_id) });
+        queryClient.invalidateQueries({ queryKey: testKeys.dashboard() });
+        toast.success('Week created', { description: result.message });
+      } else {
+        toast.error('Failed to create week', { description: result.message || result.error });
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to create week', { description: error.message });
+    },
+  });
+}
+
+/**
+ * Mutation hook to batch create weeks
+ */
+export function useCreateWeeks() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      seasonId: string;
+      startWeekNumber: number;
+      count: number;
+      firstGameDate: string;
+      namePattern?: string;
+      isDraftWeek?: boolean;
+    }) => createWeeks(data),
+    onSuccess: (result, data) => {
+      if (result.success && result.data) {
+        queryClient.invalidateQueries({ queryKey: seasonKeys.weeks(data.seasonId) });
+        queryClient.invalidateQueries({ queryKey: testKeys.dashboard() });
+        toast.success('Weeks created', { description: result.message });
+      } else {
+        toast.error('Failed to create weeks', { description: result.message || result.error });
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to create weeks', { description: error.message });
+    },
+  });
+}
+
+/**
+ * Mutation hook to update a week
+ */
+export function useUpdateWeek() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: UpdateWeek) => updateWeek(data),
+    onSuccess: (result, data) => {
+      if (result.success && result.data) {
+        // Need to get season_id from the updated week to invalidate the right cache
+        queryClient.invalidateQueries({ queryKey: seasonKeys.weeks(result.data.season_id) });
+        queryClient.invalidateQueries({ queryKey: testKeys.dashboard() });
+        toast.success('Week updated', { description: result.message });
+      } else {
+        toast.error('Failed to update week', { description: result.message || result.error });
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to update week', { description: error.message });
+    },
+  });
+}
+
+/**
+ * Mutation hook to delete a week
+ */
+export function useDeleteWeek() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ weekId, seasonId }: { weekId: string; seasonId: string }) => deleteWeek(weekId),
+    onSuccess: (result, { seasonId }) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: seasonKeys.weeks(seasonId) });
+        queryClient.invalidateQueries({ queryKey: testKeys.dashboard() });
+        toast.success('Week deleted', { description: result.message });
+      } else {
+        toast.error('Failed to delete week', { description: result.message || result.error });
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to delete week', { description: error.message });
     },
   });
 }

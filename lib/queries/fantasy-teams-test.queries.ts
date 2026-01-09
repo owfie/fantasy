@@ -97,18 +97,20 @@ export function useActiveSeason() {
 }
 
 /**
- * Hook to fetch all fantasy teams
+ * Hook to fetch fantasy teams for a specific season
  */
-export function useFantasyTeams() {
+export function useFantasyTeams(seasonId: string | null) {
   return useQuery({
-    queryKey: fantasyTeamKeys.lists(),
+    queryKey: fantasyTeamKeys.list(seasonId || ''),
     queryFn: async () => {
-      const result = await testGetAllFantasyTeams();
+      if (!seasonId) return [];
+      const result = await testGetAllFantasyTeams(seasonId);
       if (!result.success) {
         throw new Error(result.error || result.message);
       }
       return result.data || [];
     },
+    enabled: !!seasonId,
   });
 }
 

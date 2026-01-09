@@ -243,27 +243,45 @@ export async function testRestoreTeam(teamId: string) {
   }
 }
 
-// Test 2: Create a player with starting value
+// Test 2: Create a player
 export async function testCreatePlayer(
   teamId: string,
   firstName: string,
   lastName: string,
   role: 'captain' | 'player' | 'marquee' | 'rookie_marquee' | 'reserve',
-  startingValue: number,
+  startingValue?: number,
   draftOrder?: number
 ) {
   const uow = await getUnitOfWork();
   
   return uow.execute(async (uow) => {
-    const player = await uow.players.create({
+    const playerData: {
+      team_id: string;
+      first_name: string;
+      last_name: string;
+      player_role: string;
+      is_active: boolean;
+      starting_value?: number;
+      draft_order?: number;
+    } = {
       team_id: teamId,
       first_name: firstName,
       last_name: lastName,
       player_role: role,
-      starting_value: startingValue,
-      draft_order: draftOrder,
       is_active: true,
-    });
+    };
+    
+    // Only set starting_value if provided
+    if (startingValue !== undefined && startingValue !== null) {
+      playerData.starting_value = startingValue;
+    }
+    
+    // Only set draft_order if provided
+    if (draftOrder !== undefined && draftOrder !== null) {
+      playerData.draft_order = draftOrder;
+    }
+    
+    const player = await uow.players.create(playerData);
     
     return { success: true, message: 'Player created', data: player };
   });
@@ -319,15 +337,22 @@ export async function testHardDeletePlayer(playerId: string) {
       return { success: false, message: 'Player not found', error: 'Player not found' };
     }
     
-    // Check for related entities (stats, fantasy team players, etc.)
+    // Cascade delete: remove all player stats first
     const stats = await uow.playerStats.findAll({ player_id: playerId });
-    if (stats.length > 0) {
-      return { success: false, message: 'Cannot delete player with stats', error: 'Player has stats' };
+    for (const stat of stats) {
+      await uow.playerStats.delete(stat.id);
     }
     
     await uow.players.delete(playerId);
     
-    return { success: true, message: 'Player permanently deleted', data: null };
+    const deletedStatsCount = stats.length;
+    return { 
+      success: true, 
+      message: deletedStatsCount > 0 
+        ? `Player permanently deleted (${deletedStatsCount} stats also removed)` 
+        : 'Player permanently deleted', 
+      data: null 
+    };
   });
 }
 
@@ -986,18 +1011,24 @@ export async function testGetActiveSeason() {
   }
 }
 
-export async function testGetAllFantasyTeams() {
+export async function testGetAllFantasyTeams(seasonId?: string) {
   const uow = await getUnitOfWork();
   
   try {
-    const { data, error } = await uow.getClient()
+    let query = uow.getClient()
       .from('fantasy_teams')
       .select(`
         *,
         user_profiles!owner_id(email, display_name),
         seasons!season_id(name)
-      `)
-      .order('created_at', { ascending: false });
+      `);
+    
+    // Filter by season if provided
+    if (seasonId) {
+      query = query.eq('season_id', seasonId);
+    }
+    
+    const { data, error } = await query.order('created_at', { ascending: false });
     
     if (error) {
       return { success: false, message: `Failed to fetch fantasy teams: ${error.message}`, error: error.message };
@@ -1194,37 +1225,114 @@ export async function testSetPlayerBenchStatus(
   }
 }
 
-// Get available players (not on any fantasy team in this season)
+// Get available players for a season (registered for the season and not on any fantasy team)
 export async function testGetAvailablePlayers(seasonId: string) {
   const uow = await getUnitOfWork();
   
   try {
-    // Get all active players
-    const allPlayers = await uow.players.findAll({ is_active: true });
+    // Use the database function to get available players for this season
+    // This returns players registered in season_players but not on any fantasy team
+    const { data, error } = await uow.getClient()
+      .rpc('get_available_players_for_season', { p_season_id: seasonId });
+    
+    if (error) {
+      // Fallback to manual query if function doesn't exist yet
+      if (error.message.includes('function') && error.message.includes('does not exist')) {
+        return await testGetAvailablePlayersLegacy(seasonId);
+      }
+      return { success: false, message: `Failed to fetch available players: ${error.message}`, error: error.message };
+    }
+    
+    // Transform the result to match the Player interface
+    const availablePlayers = (data || []).map((row: {
+      player_id: string;
+      first_name: string;
+      last_name: string;
+      player_role: string;
+      starting_value: number;
+      team_id: string | null;
+    }) => ({
+      id: row.player_id,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      player_role: row.player_role,
+      starting_value: row.starting_value,
+      team_id: row.team_id,
+      is_active: true,
+    }));
+    
+    return { success: true, message: `Found ${availablePlayers.length} available players for this season`, data: availablePlayers };
+  } catch (error: unknown) {
+    const message = getErrorMessage(error);
+    return { success: false, message, error: message };
+  }
+}
+
+// Legacy fallback for when the database function doesn't exist yet
+async function testGetAvailablePlayersLegacy(seasonId: string) {
+  const uow = await getUnitOfWork();
+  
+  try {
+    // Get season players with player details
+    const { data: seasonPlayers, error: spError } = await uow.getClient()
+      .from('season_players')
+      .select(`
+        *,
+        players!player_id(id, first_name, last_name, player_role)
+      `)
+      .eq('season_id', seasonId)
+      .eq('is_active', true);
+    
+    if (spError) {
+      return { success: false, message: `Failed to fetch season players: ${spError.message}`, error: spError.message };
+    }
     
     // Get all fantasy teams in this season
     const fantasyTeams = await uow.fantasyTeams.findBySeason(seasonId);
     const fantasyTeamIds = fantasyTeams.map(t => t.id);
     
-    if (fantasyTeamIds.length === 0) {
-      // No fantasy teams, all players available
-      return { success: true, message: `Found ${allPlayers.length} available players`, data: allPlayers };
+    let takenPlayerIds = new Set<string>();
+    
+    if (fantasyTeamIds.length > 0) {
+      // Get all players already on fantasy teams
+      const { data: takenPlayers, error } = await uow.getClient()
+        .from('fantasy_team_players')
+        .select('player_id')
+        .in('fantasy_team_id', fantasyTeamIds);
+      
+      if (error) {
+        return { success: false, message: `Failed to fetch taken players: ${error.message}`, error: error.message };
+      }
+      
+      takenPlayerIds = new Set((takenPlayers || []).map(p => p.player_id));
     }
     
-    // Get all players already on fantasy teams
-    const { data: takenPlayers, error } = await uow.getClient()
-      .from('fantasy_team_players')
-      .select('player_id')
-      .in('fantasy_team_id', fantasyTeamIds);
-    
-    if (error) {
-      return { success: false, message: `Failed to fetch taken players: ${error.message}`, error: error.message };
+    // Filter to available players and transform
+    interface SeasonPlayerWithDetails {
+      player_id: string;
+      starting_value: number;
+      team_id?: string;
+      players: {
+        id: string;
+        first_name: string;
+        last_name: string;
+        player_role: string;
+      };
     }
     
-    const takenPlayerIds = new Set((takenPlayers || []).map(p => p.player_id));
-    const availablePlayers = allPlayers.filter(p => !takenPlayerIds.has(p.id));
+    const availablePlayers = (seasonPlayers || [])
+      .filter((sp: SeasonPlayerWithDetails) => !takenPlayerIds.has(sp.player_id))
+      .map((sp: SeasonPlayerWithDetails) => ({
+        id: sp.player_id,
+        first_name: sp.players.first_name,
+        last_name: sp.players.last_name,
+        player_role: sp.players.player_role,
+        starting_value: sp.starting_value, // Use season-specific value
+        team_id: sp.team_id,
+        is_active: true,
+      }));
     
-    return { success: true, message: `Found ${availablePlayers.length} available players`, data: availablePlayers };
+    return { success: true, message: `Found ${availablePlayers.length} available players for this season`, data: availablePlayers };
   } catch (error: unknown) {
     const message = getErrorMessage(error);
     return { success: false, message, error: message };

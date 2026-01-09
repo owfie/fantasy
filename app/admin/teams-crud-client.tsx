@@ -9,7 +9,7 @@ import {
   useTestHardDeleteTeam,
   useTestRestoreTeam,
 } from '@/lib/queries/teams-test.queries';
-import { useSeasonPlayers } from '@/lib/queries/seasons.queries';
+import { useSeasonPlayers, useUpdateSeasonPlayerTeam } from '@/lib/queries/seasons.queries';
 import { testGetTeam, testGetAllTeams } from '@/lib/api';
 import {
   TestResultDisplay,
@@ -18,7 +18,10 @@ import {
   FormSection,
   Button,
   formatDate,
+  FormSelect,
 } from './shared/crud-components';
+import { Card } from '@/components/Card';
+import { Modal } from '@/components/Modal';
 import { getErrorMessage } from '@/lib/utils';
 import { Team } from '@/lib/domain/types';
 
@@ -43,17 +46,18 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
   const softDeleteMutation = useTestSoftDeleteTeam();
   const hardDeleteMutation = useTestHardDeleteTeam();
   const restoreMutation = useTestRestoreTeam();
+  const updatePlayerTeamMutation = useUpdateSeasonPlayerTeam();
   
   // Local state for test results and form data
   const [results, setResults] = useState<Record<string, TestResult>>({});
   const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     createName: '',
     createColor: '',
-    updateId: '',
     updateName: '',
     updateColor: '',
-    deleteId: '',
     getById: '',
   });
 
@@ -86,6 +90,7 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
       });
       setResults((prev) => ({ ...prev, create: result }));
       setFormData((prev) => ({ ...prev, createName: '', createColor: '' }));
+      setIsCreateModalOpen(false);
     } catch (error: unknown) {
       const message = getErrorMessage(error);
       setResults((prev) => ({
@@ -101,15 +106,20 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editingTeam) return;
+    
     try {
       const result = await updateTeamMutation.mutateAsync({
-        teamId: formData.updateId,
+        teamId: editingTeam.id,
         updates: {
           name: formData.updateName || undefined,
           color: formData.updateColor || undefined,
         },
       });
       setResults((prev) => ({ ...prev, update: result }));
+      if (result.success) {
+        setEditingTeam(null);
+      }
     } catch (error: unknown) {
       const message = getErrorMessage(error);
       setResults((prev) => ({
@@ -122,9 +132,18 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
       }));
     }
   };
+  
+  const openEditModal = (team: Team) => {
+    setEditingTeam(team);
+    setFormData((prev) => ({
+      ...prev,
+      updateName: team.name,
+      updateColor: team.color || '',
+    }));
+  };
 
   const handleSoftDelete = async (teamId: string) => {
-    if (!confirm('Are you sure you want to soft delete this team?')) return;
+    if (!confirm('Are you sure you want to delete this team?')) return;
     try {
       const result = await softDeleteMutation.mutateAsync(teamId);
       setResults((prev) => ({ ...prev, softDelete: result }));
@@ -142,7 +161,7 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
   };
 
   const handleHardDelete = async (teamId: string) => {
-    if (!confirm('⚠️ WARNING: This will permanently delete the team. Are you sure?')) return;
+    if (!confirm('⚠️ WARNING: This will permanently delete the team and all their stats. Are you sure?')) return;
     try {
       const result = await hardDeleteMutation.mutateAsync(teamId);
       setResults((prev) => ({ ...prev, hardDelete: result }));
@@ -174,6 +193,15 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
         },
       }));
     }
+  };
+
+  const handleAssignPlayerToTeam = async (playerId: string, teamId: string | null) => {
+    if (!seasonId) return;
+    await updatePlayerTeamMutation.mutateAsync({
+      seasonId,
+      playerId,
+      teamId,
+    });
   };
 
 
@@ -212,10 +240,15 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
 
   return (
     <div>
-      <h3>Teams</h3>
-      <p style={{ color: '#666', marginBottom: '1.5rem' }}>
-        Test Create, Read, Update, Delete (Soft), and Delete (Hard) operations for teams
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h3>Teams</h3>
+        <Button
+          onClick={() => setIsCreateModalOpen(true)}
+          variant="success"
+        >
+          Create Team
+        </Button>
+      </div>
 
       {/* Team Roster Grid - Only show if season is selected */}
       {seasonId && seasonPlayers.length > 0 && (
@@ -228,22 +261,31 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
           </h4>
           <div style={{ 
             display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', 
-            gap: '1rem' 
+            gridTemplateColumns: '1fr auto',
+            gap: '1rem',
+            alignItems: 'start'
           }}>
-            {activeTeams.map((team) => {
-              const teamPlayers = playersByTeam.get(team.id) || [];
-              return (
-                <div
-                  key={team.id}
-                  style={{
-                    padding: '1rem',
-                    background: 'white',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '8px',
-                    borderTop: `4px solid ${team.color || '#6c757d'}`,
-                  }}
-                >
+            {/* Teams Grid */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(2, 1fr)', 
+              gap: '1rem' 
+            }}>
+              {activeTeams.map((team) => {
+                const teamPlayers = playersByTeam.get(team.id) || [];
+                return (
+                  <div
+                    key={team.id}
+                    style={{
+                      padding: '1rem',
+                      background: 'white',
+                      border: '1px solid #dee2e6',
+                      borderRadius: '8px',
+                      borderTop: `4px solid ${team.color || '#6c757d'}`,
+                      height: 'max-content',
+                      minHeight: '200px',
+                    }}
+                  >
                   <div style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
@@ -292,17 +334,37 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
+                            gap: '0.5rem',
                             opacity: sp.is_active ? 1 : 0.5,
                             borderBottom: '1px solid #f8f9fa'
                           }}
                         >
-                          <span>
+                          <span style={{ flex: 1 }}>
                             {sp.player?.first_name} {sp.player?.last_name}
                             {!sp.is_active && <span style={{ color: '#dc3545', marginLeft: '0.25rem' }}>✗</span>}
                           </span>
                           <span style={{ color: '#6c757d', fontSize: '0.8rem' }}>
                             ${sp.starting_value}
                           </span>
+                          <select
+                            value={sp.team_id || ''}
+                            onChange={(e) => handleAssignPlayerToTeam(sp.player_id, e.target.value || null)}
+                            disabled={updatePlayerTeamMutation.isPending}
+                            style={{
+                              fontSize: '0.75rem',
+                              padding: '0.2rem 0.4rem',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              cursor: updatePlayerTeamMutation.isPending ? 'not-allowed' : 'pointer',
+                            }}
+                          >
+                            <option value="">Unassign</option>
+                            {activeTeams.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name}
+                              </option>
+                            ))}
+                          </select>
                         </li>
                       ))}
                     </ul>
@@ -310,6 +372,8 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
                 </div>
               );
             })}
+            </div>
+            
             {/* Unassigned Players Card */}
             {unassignedPlayers.length > 0 && (
               <div
@@ -318,6 +382,9 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
                   background: '#fff8e1',
                   border: '1px dashed #ffc107',
                   borderRadius: '8px',
+                  height: 'max-content',
+                  minHeight: '200px',
+                  minWidth: '220px',
                 }}
               >
                 <div style={{ 
@@ -355,16 +422,37 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
+                        gap: '0.5rem',
                         opacity: sp.is_active ? 1 : 0.5,
                         borderBottom: '1px solid #ffe082'
                       }}
                     >
-                      <span>
+                      <span style={{ flex: 1 }}>
                         {sp.player?.first_name} {sp.player?.last_name}
                       </span>
                       <span style={{ color: '#856404', fontSize: '0.8rem' }}>
                         ${sp.starting_value}
                       </span>
+                      <select
+                        value=""
+                        onChange={(e) => handleAssignPlayerToTeam(sp.player_id, e.target.value || null)}
+                        disabled={updatePlayerTeamMutation.isPending}
+                        style={{
+                          fontSize: '0.75rem',
+                          padding: '0.2rem 0.4rem',
+                          border: '1px solid #ffc107',
+                          borderRadius: '4px',
+                          cursor: updatePlayerTeamMutation.isPending ? 'not-allowed' : 'pointer',
+                          background: 'white',
+                        }}
+                      >
+                        <option value="">Assign to team...</option>
+                        {activeTeams.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
                     </li>
                   ))}
                 </ul>
@@ -388,108 +476,8 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-        {/* Left Column: Forms */}image.pngimage.pngimage.pngimage.pngimage.pngimage.pngimage.pngimage.pngimage.png
-        <div>
-          {/* Create Team */}
-          <FormSection title="Create Team">
-            <form onSubmit={handleCreate}>
-              <FormField label="Name" required>
-                <FormInput
-                  value={formData.createName}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, createName: e.target.value }))}
-                  required
-                />
-              </FormField>
-              <FormField label="Color (hex)">
-                <FormInput
-                  value={formData.createColor}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, createColor: e.target.value }))}
-                  placeholder="#FF5733"
-                />
-              </FormField>
-              <Button
-                type="submit"
-                variant="success"
-                isLoading={createTeamMutation.isPending}
-              >
-                Create Team
-              </Button>
-              <TestResultDisplay
-                testName="create"
-                isLoading={createTeamMutation.isPending}
-                result={results.create}
-              />
-            </form>
-          </FormSection>
-
-          {/* Update Team */}
-          <FormSection title="Update Team">
-            <div data-update-form>
-              <form onSubmit={handleUpdate}>
-                <FormField label="Team ID" required>
-                  <FormInput
-                    value={formData.updateId}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, updateId: e.target.value }))}
-                    placeholder="Enter team UUID"
-                    required
-                  />
-                </FormField>
-                <FormField label="New Name">
-                  <FormInput
-                    value={formData.updateName}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, updateName: e.target.value }))}
-                  />
-                </FormField>
-                <FormField label="New Color">
-                  <FormInput
-                    value={formData.updateColor}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, updateColor: e.target.value }))}
-                    placeholder="#FF5733"
-                  />
-                </FormField>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  isLoading={updateTeamMutation.isPending}
-                >
-                  Update Team
-                </Button>
-                <TestResultDisplay
-                  testName="update"
-                  isLoading={updateTeamMutation.isPending}
-                  result={results.update}
-                />
-              </form>
-            </div>
-          </FormSection>
-
-          {/* Get Team by ID */}
-          <FormSection title="Get Team by ID">
-            <div style={{ marginBottom: '0.75rem' }}>
-              <FormInput
-                value={formData.getById}
-                onChange={(e) => setFormData((prev) => ({ ...prev, getById: e.target.value }))}
-                placeholder="Enter team UUID"
-                style={{ marginBottom: '0.5rem' }}
-              />
-              <Button
-                onClick={() => runTest('getById', () => testGetTeam(formData.getById))}
-                disabled={loading.getById || !formData.getById}
-                variant="info"
-              >
-                Get Team
-              </Button>
-            </div>
-            <TestResultDisplay
-              testName="getById"
-              isLoading={loading.getById}
-              result={results.getById}
-            />
-          </FormSection>
-        </div>
-
-        {/* Right Column: Teams List */}
+      <div>
+        {/* Left Column: Teams List */}
         <div>
           <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4>Teams ({teams.length})</h4>
@@ -504,99 +492,176 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
           <TestResultDisplay testName="getAll" isLoading={loading.getAll} result={results.getAll} />
           <TestResultDisplay testName="restore" isLoading={restoreMutation.isPending} result={results.restore} />
 
-          <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {teams.map((team) => {
               const isDeleted = !!team.deleted_at;
               return (
-                <div
-                  key={team.id}
-                  style={{
-                    padding: '1rem',
-                    marginBottom: '0.5rem',
-                    background: isDeleted ? '#f8f9fa' : 'white',
-                    border: `1px solid ${isDeleted ? '#dee2e6' : '#dee2e6'}`,
-                    borderRadius: '4px',
-                    opacity: isDeleted ? 0.7 : 1,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <strong style={{ textDecoration: isDeleted ? 'line-through' : 'none', color: isDeleted ? '#6c757d' : 'inherit' }}>
-                          {team.name}
-                        </strong>
-                        {isDeleted && (
-                          <span style={{ fontSize: '0.75rem', color: '#dc3545', fontWeight: 'bold' }}>
-                            [DELETED]
-                          </span>
-                        )}
-                        {team.color && (
-                          <span style={{ color: isDeleted ? '#999' : team.color }}>●</span>
+                <Card key={team.id}>
+                  <div style={{ opacity: isDeleted ? 0.6 : 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.5rem' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <strong style={{ textDecoration: isDeleted ? 'line-through' : 'none', color: isDeleted ? '#6c757d' : 'inherit' }}>
+                            {team.name}
+                          </strong>
+                          {isDeleted && (
+                            <span style={{ fontSize: '0.75rem', color: '#dc3545', fontWeight: 'bold' }}>
+                              [DELETED]
+                            </span>
+                          )}
+                          {team.color && (
+                            <span style={{ color: isDeleted ? '#999' : team.color }}>●</span>
+                          )}
+                        </div>
+                        {isDeleted && team.deleted_at && (
+                          <div style={{ fontSize: '0.75rem', color: '#6c757d', marginTop: '0.25rem' }}>
+                            Deleted: {formatDate(team.deleted_at)}
+                          </div>
                         )}
                       </div>
-                      {isDeleted && team.deleted_at && (
-                        <div style={{ fontSize: '0.75rem', color: '#6c757d', marginTop: '0.25rem' }}>
-                          Deleted: {formatDate(team.deleted_at)}
-                        </div>
+                      <div style={{ fontSize: '0.75rem', color: '#666', fontFamily: 'monospace' }}>
+                        {team.id.substring(0, 8)}...
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {!isDeleted && (
+                        <>
+                          <Button
+                            onClick={() => openEditModal(team)}
+                            variant="primary"
+                            style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            onClick={() => handleSoftDelete(team.id)}
+                            disabled={softDeleteMutation.isPending}
+                            variant="danger"
+                            style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
+                          >
+                            Delete
+                          </Button>
+                        </>
+                      )}
+                      {isDeleted && (
+                        <>
+                          <Button
+                            onClick={() => handleRestore(team.id)}
+                            disabled={restoreMutation.isPending}
+                            variant="success"
+                            style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
+                          >
+                            {restoreMutation.isPending ? 'Restoring...' : 'Restore'}
+                          </Button>
+                          <Button
+                            onClick={() => handleHardDelete(team.id)}
+                            disabled={hardDeleteMutation.isPending}
+                            variant="danger"
+                            style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
+                          >
+                            Delete Permanently
+                          </Button>
+                        </>
                       )}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#666', fontFamily: 'monospace' }}>
-                      {team.id.substring(0, 8)}...
-                    </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {!isDeleted && (
-                      <>
-                        <Button
-                          onClick={() => {
-                            setFormData((prev) => ({
-                              ...prev,
-                              updateId: team.id,
-                              updateName: team.name,
-                              updateColor: team.color || '',
-                            }));
-                            document.querySelector('[data-update-form]')?.scrollIntoView({ behavior: 'smooth' });
-                          }}
-                          variant="primary"
-                          style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
-                        >
-                          Edit
-                        </Button>
-                        <Button
-                          onClick={() => handleSoftDelete(team.id)}
-                          disabled={softDeleteMutation.isPending}
-                          variant="warning"
-                          style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
-                        >
-                          Soft Delete
-                        </Button>
-                        <Button
-                          onClick={() => handleHardDelete(team.id)}
-                          disabled={hardDeleteMutation.isPending}
-                          variant="danger"
-                          style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
-                        >
-                          Hard Delete
-                        </Button>
-                      </>
-                    )}
-                    {isDeleted && (
-                      <Button
-                        onClick={() => handleRestore(team.id)}
-                        disabled={restoreMutation.isPending}
-                        variant="success"
-                        style={{ fontSize: '0.85rem', padding: '0.25rem 0.5rem' }}
-                      >
-                        {restoreMutation.isPending ? 'Restoring...' : 'Restore'}
-                      </Button>
-                    )}
-                  </div>
-                </div>
+                </Card>
               );
             })}
           </div>
         </div>
+
       </div>
+
+      {/* Create Team Modal */}
+      <Modal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        title="Create Team"
+        width="550px"
+      >
+        <form onSubmit={handleCreate}>
+          <FormField label="Name" required>
+            <FormInput
+              value={formData.createName}
+              onChange={(e) => setFormData((prev) => ({ ...prev, createName: e.target.value }))}
+              required
+            />
+          </FormField>
+          <FormField label="Color (hex)">
+            <FormInput
+              value={formData.createColor}
+              onChange={(e) => setFormData((prev) => ({ ...prev, createColor: e.target.value }))}
+              placeholder="#FF5733"
+            />
+          </FormField>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+            <Button
+              type="submit"
+              variant="success"
+              isLoading={createTeamMutation.isPending}
+            >
+              Create Team
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsCreateModalOpen(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+          <TestResultDisplay
+            testName="create"
+            isLoading={createTeamMutation.isPending}
+            result={results.create}
+          />
+        </form>
+      </Modal>
+
+      {/* Edit Team Modal */}
+      <Modal
+        isOpen={!!editingTeam}
+        onClose={() => setEditingTeam(null)}
+        title={`Edit Team: ${editingTeam?.name || ''}`}
+      >
+        <form onSubmit={handleUpdate}>
+          <FormField label="Name">
+            <FormInput
+              value={formData.updateName}
+              onChange={(e) => setFormData((prev) => ({ ...prev, updateName: e.target.value }))}
+            />
+          </FormField>
+          <FormField label="Color (hex)">
+            <FormInput
+              value={formData.updateColor}
+              onChange={(e) => setFormData((prev) => ({ ...prev, updateColor: e.target.value }))}
+              placeholder="#FF5733"
+            />
+          </FormField>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+            <Button
+              type="submit"
+              variant="primary"
+              isLoading={updateTeamMutation.isPending}
+            >
+              Save Changes
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setEditingTeam(null)}
+            >
+              Cancel
+            </Button>
+          </div>
+          <TestResultDisplay
+            testName="update"
+            isLoading={updateTeamMutation.isPending}
+            result={results.update}
+          />
+        </form>
+      </Modal>
     </div>
   );
 }

@@ -1,8 +1,18 @@
 import styles from './index.module.scss';
 
-export const Card = ({ children }: { children: React.ReactNode }) => {
+interface CardProps {
+    children: React.ReactNode;
+    style?: React.CSSProperties;
+    onClick?: () => void;
+}
+
+export const Card = ({ children, style, onClick }: CardProps) => {
     return (
-        <div className={styles.Card}>
+        <div 
+            className={styles.Card}
+            style={style}
+            onClick={onClick}
+        >
             {children}
         </div>
     );

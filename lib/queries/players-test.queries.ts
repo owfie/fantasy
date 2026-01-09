@@ -45,7 +45,7 @@ export function useTestCreatePlayer() {
     firstName: string;
     lastName: string;
     role: 'captain' | 'player' | 'marquee' | 'rookie_marquee' | 'reserve';
-    startingValue: number;
+    startingValue?: number;
     draftOrder?: number;
   }>({
     mutationFn: ({ teamId, firstName, lastName, role, startingValue, draftOrder }) =>

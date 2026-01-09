@@ -94,21 +94,31 @@ export default function TestClient({ testData: initialTestData }: { testData: Te
   }) => {
     const result = results[testName];
     const isLoading = loading[testName];
+    const isDisabled = isLoading || disabled;
 
     return (
-      <div style={{ marginBottom: '1rem', padding: '1rem', background: '#f8f9fa', borderRadius: '4px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-          <strong>{label}</strong>
+      <div style={{ marginBottom: '0.75rem', paddingBottom: '0.75rem', borderBottom: '1px solid #e5e7eb' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: result ? '0.5rem' : 0 }}>
+          <span style={{ fontWeight: 500, fontSize: '0.9rem', color: '#374151' }}>{label}</span>
           <button
             onClick={() => runTest(testName, testFn, updateData)}
-            disabled={isLoading || disabled}
+            disabled={isDisabled}
             style={{
-              padding: '0.5rem 1rem',
-              background: isLoading ? '#ccc' : '#007bff',
-              color: 'white',
+              padding: '0.4rem 0.875rem',
+              background: isDisabled ? '#d1d5db' : '#007bff',
+              color: isDisabled ? '#9ca3af' : 'white',
               border: 'none',
-              borderRadius: '4px',
-              cursor: isLoading || disabled ? 'not-allowed' : 'pointer',
+              borderRadius: '6px',
+              cursor: isDisabled ? 'not-allowed' : 'pointer',
+              fontSize: '0.8rem',
+              fontWeight: 500,
+              transition: 'all 0.15s ease',
+            }}
+            onMouseOver={(e) => {
+              if (!isDisabled) e.currentTarget.style.background = '#0056b3';
+            }}
+            onMouseOut={(e) => {
+              if (!isDisabled) e.currentTarget.style.background = '#007bff';
             }}
           >
             {isLoading ? 'Running...' : 'Run Test'}
@@ -117,20 +127,21 @@ export default function TestClient({ testData: initialTestData }: { testData: Te
         {result && (
           <div
             style={{
-              padding: '0.5rem',
-              background: result.success ? '#d4edda' : '#f8d7da',
-              borderRadius: '4px',
-              fontSize: '0.9rem',
+              padding: '0.5rem 0.75rem',
+              background: result.success ? '#ecfdf5' : '#fef2f2',
+              borderRadius: '6px',
+              fontSize: '0.85rem',
+              border: `1px solid ${result.success ? '#a7f3d0' : '#fecaca'}`,
             }}
           >
             <div>
               <strong>{result.success ? '✅' : '❌'}</strong> {result.message}
             </div>
-            {result.error && <div style={{ color: '#721c24', marginTop: '0.5rem' }}>{result.error}</div>}
+            {result.error && <div style={{ color: '#dc2626', marginTop: '0.5rem' }}>{result.error}</div>}
             {result.data !== undefined && (
               <details style={{ marginTop: '0.5rem' }}>
                 <summary style={{ cursor: 'pointer', color: '#007bff' }}>View Data</summary>
-                <pre style={{ marginTop: '0.5rem', fontSize: '0.8rem', overflow: 'auto' }}>
+                <pre style={{ marginTop: '0.5rem', fontSize: '0.75rem', overflow: 'auto' }}>
                   {JSON.stringify(result.data, null, 2)}
                 </pre>
               </details>

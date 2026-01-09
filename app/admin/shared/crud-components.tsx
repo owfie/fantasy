@@ -5,7 +5,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 
 interface TestResult<T = unknown> {
   success: boolean;
@@ -144,30 +144,49 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 /**
  * Generic button with consistent styling and variants
  */
-export function Button({ variant = 'primary', isLoading, disabled, children, ...props }: ButtonProps) {
-  const variantStyles: Record<string, { background: string; color: string }> = {
-    primary: { background: '#007bff', color: 'white' },
-    success: { background: '#28a745', color: 'white' },
-    warning: { background: '#ffc107', color: 'black' },
-    danger: { background: '#dc3545', color: 'white' },
-    info: { background: '#17a2b8', color: 'white' },
-    secondary: { background: '#6c757d', color: 'white' },
+export function Button({ variant = 'primary', isLoading, disabled, children, style, ...props }: ButtonProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPressed, setIsPressed] = useState(false);
+  
+  const variantStyles: Record<string, { background: string; hover: string; color: string }> = {
+    primary: { background: '#007bff', hover: '#0056b3', color: 'white' },
+    success: { background: '#28a745', hover: '#1e7e34', color: 'white' },
+    warning: { background: '#ffc107', hover: '#e0a800', color: 'black' },
+    danger: { background: '#dc3545', hover: '#bd2130', color: 'white' },
+    info: { background: '#17a2b8', hover: '#117a8b', color: 'white' },
+    secondary: { background: '#6c757d', hover: '#545b62', color: 'white' },
   };
 
-  const style = variantStyles[variant] || variantStyles.primary;
+  const colors = variantStyles[variant] || variantStyles.primary;
   const isDisabled = disabled || isLoading;
+  
+  const getBackground = () => {
+    if (isDisabled) return '#d1d5db';
+    if (isPressed) return colors.hover;
+    if (isHovered) return colors.hover;
+    return colors.background;
+  };
 
   return (
     <button
       disabled={isDisabled}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => { setIsHovered(false); setIsPressed(false); }}
+      onMouseDown={() => setIsPressed(true)}
+      onMouseUp={() => setIsPressed(false)}
       style={{
         padding: '0.5rem 1rem',
-        background: isDisabled ? '#ccc' : style.background,
-        color: style.color,
+        background: getBackground(),
+        color: isDisabled ? '#9ca3af' : colors.color,
         border: 'none',
-        borderRadius: '4px',
+        borderRadius: '6px',
         cursor: isDisabled ? 'not-allowed' : 'pointer',
-        ...props.style,
+        fontWeight: 500,
+        fontSize: '0.875rem',
+        transition: 'all 0.15s ease',
+        transform: isPressed && !isDisabled ? 'scale(0.98)' : 'scale(1)',
+        boxShadow: isHovered && !isDisabled ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+        ...style,
       }}
       {...props}
     >
@@ -182,12 +201,19 @@ interface FormSectionProps {
 }
 
 /**
- * Generic form section wrapper
+ * Generic form section wrapper - styled as a Card for CRUD panels
  */
 export function FormSection({ title, children }: FormSectionProps) {
   return (
-    <div style={{ marginBottom: '2rem', padding: '1rem', background: '#f8f9fa', borderRadius: '4px' }}>
-      <h4>{title}</h4>
+    <div style={{ 
+      marginBottom: '1.5rem', 
+      padding: '1.25rem', 
+      background: '#fff',
+      border: '0.5px solid #f4f4f4',
+      borderRadius: '0.5rem',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+    }}>
+      <h4 style={{ margin: '0 0 1rem 0', fontSize: '1rem', fontWeight: 600, color: '#374151' }}>{title}</h4>
       {children}
     </div>
   );

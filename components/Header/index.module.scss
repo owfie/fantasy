@@ -22,6 +22,24 @@
                 left: 0;
                 top: 50%;
                 transform: translateY(-50%);
+                
+                img {
+                    width: 200px;
+                    height: auto;
+                }
+            }
+
+            .mobileMenuButton {
+                display: none;
+                position: absolute;
+                right: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                background: none;
+                border: none;
+                cursor: pointer;
+                color: #111;
+                z-index: 10;
             }
 
             .nav {
@@ -53,6 +71,67 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            .content {
+                margin: 1em;
+                min-height: 60px;
+
+                .logo {
+                    position: relative;
+                    transform: none;
+                    top: auto;
+                    
+                    img {
+                        width: 120px;
+                    }
+                }
+
+                .mobileMenuButton {
+                    display: block;
+                }
+
+                .nav {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: white;
+                    flex-direction: column;
+                    justify-content: flex-start;
+                    align-items: flex-start;
+                    padding: 80px 2em 2em;
+                    gap: 1.5em;
+                    z-index: 9;
+                    transform: translateX(-100%);
+                    transition: transform 0.3s ease;
+                    overflow-y: auto;
+
+                    &.mobileOpen {
+                        transform: translateX(0);
+                    }
+
+                    a {
+                        font-size: 1.2em;
+                        width: 100%;
+                    }
+
+                    .user {
+                        position: relative;
+                        transform: none;
+                        top: auto;
+                        right: auto;
+                        width: 100%;
+                        margin-top: 1em;
+                        padding-top: 1em;
+                        border-top: 1px solid #E7E7E7;
+                    }
+                }
+            }
         }
     }
 }

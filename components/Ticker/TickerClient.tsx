@@ -14,6 +14,7 @@ export default function TickerClient({ prices }: TickerClientProps) {
     const [isPaused, setIsPaused] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [animationDuration, setAnimationDuration] = useState(60);
 
     // Load preference from localStorage on mount
     useEffect(() => {
@@ -22,6 +23,21 @@ export default function TickerClient({ prices }: TickerClientProps) {
             setIsPaused(saved === 'true');
         }
         setMounted(true);
+    }, []);
+
+    // Calculate animation duration based on viewport width
+    useEffect(() => {
+        const updateDuration = () => {
+            const width = window.innerWidth;
+            // Base duration of 60s for desktop (1920px), scale up for smaller widths
+            // Formula: duration = 60 * (1920 / width)
+            const duration = Math.max(60, 60 * (1920 / width));
+            setAnimationDuration(duration);
+        };
+
+        updateDuration();
+        window.addEventListener('resize', updateDuration);
+        return () => window.removeEventListener('resize', updateDuration);
     }, []);
 
     const togglePause = () => {
@@ -41,6 +57,7 @@ export default function TickerClient({ prices }: TickerClientProps) {
         >
             <div 
                 className={`${styles.TickerTrack} ${isPaused ? styles.Paused : ''}`}
+                style={{ animationDuration: `${animationDuration}s` }}
             >
                 {tickerItems.map((player, index) => (
                     <div key={`${player.player_id}-${index}`} className={styles.TickerItem}>

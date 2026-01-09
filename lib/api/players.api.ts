@@ -11,12 +11,16 @@ import { Player } from '@/lib/domain/types';
 
 /**
  * Get current player prices with previous week comparison
- * Returns all active players with their current value and change from previous round
+ * Returns only players active in the current season with their current value and change from previous round
  */
 export async function getPlayerPrices(): Promise<PlayerWithPrices[]> {
   const uow = await getUnitOfWork();
   return uow.execute(async () => {
-    return await uow.valueChanges.getCurrentPlayerPrices();
+    // Get the active season to filter players
+    const activeSeason = await uow.seasons.findActive();
+    const seasonId = activeSeason?.id;
+    
+    return await uow.valueChanges.getCurrentPlayerPrices(seasonId);
   });
 }
 

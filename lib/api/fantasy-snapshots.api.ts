@@ -60,7 +60,8 @@ export async function createSnapshot(
     position: FantasyPosition;
     isBenched: boolean;
     isCaptain: boolean;
-  }>
+  }>,
+  allowPartial: boolean = false
 ): Promise<FantasyTeamSnapshot> {
   const uow = await getUnitOfWork();
   return uow.execute(async () => {
@@ -78,7 +79,7 @@ export async function createSnapshot(
       await uow.fantasyTeamSnapshots.delete(existing.id);
     }
     
-    return service.createSnapshotForWeek(fantasyTeamId, weekId, players);
+    return service.createSnapshotForWeek(fantasyTeamId, weekId, players, allowPartial);
   });
 }
 

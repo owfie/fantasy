@@ -13,6 +13,10 @@ interface TeamSelectionHeaderProps {
   teamId: string;
   onTeamNameUpdate: (newName: string) => Promise<void>;
   isUpdatingTeamName?: boolean;
+  hasUnsavedChanges?: boolean;
+  onSave?: () => void;
+  isSaving?: boolean;
+  validationErrors?: string[];
 }
 
 export function TeamSelectionHeader({ 
@@ -23,6 +27,10 @@ export function TeamSelectionHeader({
   teamId,
   onTeamNameUpdate,
   isUpdatingTeamName = false,
+  hasUnsavedChanges = false,
+  onSave,
+  isSaving = false,
+  validationErrors = [],
 }: TeamSelectionHeaderProps) {
   const [isEditingTeamName, setIsEditingTeamName] = useState(false);
   const [editedTeamName, setEditedTeamName] = useState(teamName);
@@ -112,20 +120,44 @@ export function TeamSelectionHeader({
             </div>
           </div>
         ) : (
-          <div 
-            className={styles.teamNameDisplay}
-            onClick={handleTeamNameClick}
-            title={teamId ? 'Click to edit team name' : ''}
-          >
-            <h1 className={styles.teamNameText}>
-              {teamName || 'Untitled Team'}
-            </h1>
-            {teamId && (
-              <span className={styles.editHint}>Click to edit</span>
+          <div className={styles.teamNameRowContent}>
+            <div 
+              className={styles.teamNameDisplay}
+              onClick={handleTeamNameClick}
+              title={teamId ? 'Click to edit team name' : ''}
+            >
+              <h1 className={styles.teamNameText}>
+                {teamName || 'Untitled Team'}
+                {hasUnsavedChanges && (
+                  <span className={styles.unsavedIndicator}> * Unsaved changes</span>
+                )}
+              </h1>
+              {teamId && !hasUnsavedChanges && (
+                <span className={styles.editHint}>Click to edit</span>
+              )}
+            </div>
+            {onSave && (
+              <button
+                onClick={onSave}
+                disabled={!hasUnsavedChanges || isSaving || validationErrors.length > 0}
+                className={styles.saveTeamButton}
+              >
+                {isSaving ? 'Saving...' : 'Save Team'}
+              </button>
             )}
           </div>
         )}
       </div>
+      {validationErrors.length > 0 && (
+        <div className={styles.validationErrors}>
+          <strong>Validation Errors:</strong>
+          <ul>
+            {validationErrors.map((error, idx) => (
+              <li key={idx}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className={styles.topRow}>
         <div className={styles.weekInfo}>
           {week?.name || `Week ${week?.week_number || ''}`}

@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { FantasyPosition } from '@/lib/domain/types';
 import { getPositionCode } from '@/lib/utils/fantasy-utils';
@@ -18,6 +19,7 @@ interface PitchPlayer {
 
 interface PitchFormationProps {
   players: PitchPlayer[];
+  draggedPlayerPosition?: FantasyPosition | null;
   onPlayerClick?: (playerId: string) => void;
 }
 
@@ -28,10 +30,11 @@ interface DroppablePositionProps {
   position: FantasyPosition;
   index: number;
   isBench?: boolean;
+  draggedPlayerPosition?: FantasyPosition | null;
   onPlayerClick?: (playerId: string) => void;
 }
 
-function DroppablePosition({ player, positionCode, row, position, index, isBench = false, onPlayerClick }: DroppablePositionProps) {
+function DroppablePosition({ player, positionCode, row, position, index, isBench = false, draggedPlayerPosition, onPlayerClick }: DroppablePositionProps) {
   const dropId = isBench ? `bench-${position}-${index}` : `position-${position}-${index}`;
   const { setNodeRef, isOver } = useDroppable({
     id: dropId,
@@ -42,16 +45,20 @@ function DroppablePosition({ player, positionCode, row, position, index, isBench
     },
   });
 
+  // Check if this position can accept the dragged player
+  const canDrop = !draggedPlayerPosition || draggedPlayerPosition === position;
+  const isDisabled = draggedPlayerPosition !== null && !canDrop;
+
   return (
     <div
       key={player?.playerId || `empty-${row}-${positionCode}`}
       ref={setNodeRef}
-      className={`${styles.position} ${isBench ? styles.benchPosition : ''} ${!player ? styles.empty : ''} ${player?.isCaptain ? styles.captain : ''} ${isOver ? styles.dragOver : ''}`}
+      className={`${styles.position} ${isBench ? styles.benchPosition : ''} ${!player ? styles.empty : ''} ${player?.isCaptain ? styles.captain : ''} ${isOver && !isDisabled ? styles.dragOver : ''} ${isDisabled ? styles.disabled : ''}`}
       onClick={() => player && onPlayerClick?.(player.playerId)}
     >
       {player ? (
         <>
-          <div className={styles.positionLabel}>{positionCode}</div>
+          <div className={styles.positionIndicator}>{positionCode}</div>
           {player.player && (
             <>
               <div className={styles.emoji}>{getTeamEmoji(player.player.teamSlug || player.player.teamName)}</div>
@@ -66,7 +73,7 @@ function DroppablePosition({ player, positionCode, row, position, index, isBench
   );
 }
 
-export function PitchFormation({ players, onPlayerClick }: PitchFormationProps) {
+export const PitchFormation = memo(function PitchFormation({ players, draggedPlayerPosition, onPlayerClick }: PitchFormationProps) {
   const receivers = players.filter(p => p.position === 'receiver' && !p.isBenched);
   const cutters = players.filter(p => p.position === 'cutter' && !p.isBenched);
   const handlers = players.filter(p => p.position === 'handler' && !p.isBenched);
@@ -97,21 +104,21 @@ export function PitchFormation({ players, onPlayerClick }: PitchFormationProps) 
       <div className={styles.positionOverlay}>
         {/* Receivers Row (2 positions) */}
         <div className={styles.row}>
-          <DroppablePosition player={receivers[0]} positionCode="RCV" row="receiver-1" position="receiver" index={0} onPlayerClick={onPlayerClick} />
-          <DroppablePosition player={receivers[1]} positionCode="RCV" row="receiver-2" position="receiver" index={1} onPlayerClick={onPlayerClick} />
+          <DroppablePosition player={receivers[0]} positionCode="RCV" row="receiver-1" position="receiver" index={0} draggedPlayerPosition={draggedPlayerPosition} onPlayerClick={onPlayerClick} />
+          <DroppablePosition player={receivers[1]} positionCode="RCV" row="receiver-2" position="receiver" index={1} draggedPlayerPosition={draggedPlayerPosition} onPlayerClick={onPlayerClick} />
         </div>
 
         {/* Cutters Row (2 positions) */}
         <div className={styles.row}>
-          <DroppablePosition player={cutters[0]} positionCode="CTR" row="cutter-1" position="cutter" index={0} onPlayerClick={onPlayerClick} />
-          <DroppablePosition player={cutters[1]} positionCode="CTR" row="cutter-2" position="cutter" index={1} onPlayerClick={onPlayerClick} />
+          <DroppablePosition player={cutters[0]} positionCode="CTR" row="cutter-1" position="cutter" index={0} draggedPlayerPosition={draggedPlayerPosition} onPlayerClick={onPlayerClick} />
+          <DroppablePosition player={cutters[1]} positionCode="CTR" row="cutter-2" position="cutter" index={1} draggedPlayerPosition={draggedPlayerPosition} onPlayerClick={onPlayerClick} />
         </div>
 
         {/* Handlers Row (3 positions) */}
         <div className={styles.row}>
-          <DroppablePosition player={handlers[0]} positionCode="HND" row="handler-1" position="handler" index={0} onPlayerClick={onPlayerClick} />
-          <DroppablePosition player={handlers[1]} positionCode="HND" row="handler-2" position="handler" index={1} onPlayerClick={onPlayerClick} />
-          <DroppablePosition player={handlers[2]} positionCode="HND" row="handler-3" position="handler" index={2} onPlayerClick={onPlayerClick} />
+          <DroppablePosition player={handlers[0]} positionCode="HND" row="handler-1" position="handler" index={0} draggedPlayerPosition={draggedPlayerPosition} onPlayerClick={onPlayerClick} />
+          <DroppablePosition player={handlers[1]} positionCode="HND" row="handler-2" position="handler" index={1} draggedPlayerPosition={draggedPlayerPosition} onPlayerClick={onPlayerClick} />
+          <DroppablePosition player={handlers[2]} positionCode="HND" row="handler-3" position="handler" index={2} draggedPlayerPosition={draggedPlayerPosition} onPlayerClick={onPlayerClick} />
         </div>
       </div>
       
@@ -119,12 +126,12 @@ export function PitchFormation({ players, onPlayerClick }: PitchFormationProps) 
       <div className={styles.benchSection}>
         <div className={styles.benchLabel}>BENCH</div>
         <div className={styles.benchPositions}>
-          <DroppablePosition player={benchHandlers[0]} positionCode="HND" row="bench-handler-1" position="handler" index={0} isBench onPlayerClick={onPlayerClick} />
-          <DroppablePosition player={benchCutters[0]} positionCode="CTR" row="bench-cutter-1" position="cutter" index={0} isBench onPlayerClick={onPlayerClick} />
-          <DroppablePosition player={benchReceivers[0]} positionCode="RCV" row="bench-receiver-1" position="receiver" index={0} isBench onPlayerClick={onPlayerClick} />
+          <DroppablePosition player={benchHandlers[0]} positionCode="HND" row="bench-handler-1" position="handler" index={0} isBench draggedPlayerPosition={draggedPlayerPosition} onPlayerClick={onPlayerClick} />
+          <DroppablePosition player={benchCutters[0]} positionCode="CTR" row="bench-cutter-1" position="cutter" index={0} isBench draggedPlayerPosition={draggedPlayerPosition} onPlayerClick={onPlayerClick} />
+          <DroppablePosition player={benchReceivers[0]} positionCode="RCV" row="bench-receiver-1" position="receiver" index={0} isBench draggedPlayerPosition={draggedPlayerPosition} onPlayerClick={onPlayerClick} />
         </div>
       </div>
     </div>
   );
-}
+});
 

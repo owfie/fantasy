@@ -55,6 +55,7 @@ export function useCreateSnapshot() {
       fantasyTeamId,
       weekId,
       players,
+      allowPartial = false,
     }: {
       fantasyTeamId: string;
       weekId: string;
@@ -64,15 +65,23 @@ export function useCreateSnapshot() {
         isBenched: boolean;
         isCaptain: boolean;
       }>;
-    }) => createSnapshot(fantasyTeamId, weekId, players),
+      allowPartial?: boolean;
+    }) => createSnapshot(fantasyTeamId, weekId, players, allowPartial),
     onSuccess: (data, variables) => {
       // Invalidate all snapshot-related queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: snapshotKeys.byTeam(variables.fantasyTeamId) });
       queryClient.invalidateQueries({ queryKey: snapshotKeys.byWeek(variables.fantasyTeamId, variables.weekId) });
-      // Invalidate all detail queries for this team/week (to catch snapshotWithPlayers)
+      // Invalidate the specific snapshot detail query (for snapshotWithPlayers)
+      if (data?.id) {
+        queryClient.invalidateQueries({ queryKey: snapshotKeys.detail(data.id) });
+      }
+      // Also invalidate all detail queries to catch any snapshotWithPlayers queries
       queryClient.invalidateQueries({ queryKey: [...snapshotKeys.all, 'detail'] });
-      // Also invalidate fantasy team queries since snapshot affects team value
+      // Invalidate fantasy team queries since snapshot affects team value
       queryClient.invalidateQueries({ queryKey: ['fantasy-teams', 'detail', variables.fantasyTeamId] });
+      // Invalidate transfers list to refresh transfers table
+      queryClient.invalidateQueries({ queryKey: ['transfers', 'week', variables.weekId] });
+      queryClient.invalidateQueries({ queryKey: ['transfers'] });
       toast.success('Team updated successfully');
     },
     onError: (error: Error) => {

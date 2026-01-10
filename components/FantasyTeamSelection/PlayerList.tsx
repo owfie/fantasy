@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { PlayerWithValue } from '@/lib/api/players.api';
 import { FantasyPosition } from '@/lib/domain/types';
 import { Card } from '@/components/Card';
 import { PlayerCard } from './PlayerCard';
+import { PlayerCardSkeleton } from './PlayerCardSkeleton';
 import { SegmentedController } from '@/components/SegmentedController';
 import styles from './PlayerList.module.scss';
 
@@ -16,11 +17,12 @@ interface PlayerListProps {
   teamPlayerIds?: Set<string>;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
+  isLoading?: boolean;
 }
 
 const ALL_POSITIONS: FantasyPosition[] = ['handler', 'cutter', 'receiver'];
 
-export function PlayerList({
+export const PlayerList = memo(function PlayerList({
   players,
   selectedPositions,
   onPositionChange,
@@ -28,6 +30,7 @@ export function PlayerList({
   teamPlayerIds = new Set(),
   searchQuery = '',
   onSearchChange,
+  isLoading = false,
 }: PlayerListProps) {
   type SortOption = 'price-high' | 'price-low' | 'draft-order' | 'points' | 'name' | 'team';
   const [sortBy, setSortBy] = useState<SortOption>('price-high');
@@ -168,7 +171,13 @@ export function PlayerList({
           </div>
 
       <div className={styles.playersContainer}>
-        {sortedPlayers.length === 0 ? (
+        {isLoading ? (
+          <>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <PlayerCardSkeleton key={`skeleton-${i}`} />
+            ))}
+          </>
+        ) : sortedPlayers.length === 0 ? (
           <div className={styles.empty}>No players found</div>
         ) : (
           sortedPlayers.map(player => (
@@ -184,5 +193,5 @@ export function PlayerList({
       </div>
 
   );
-}
+});
 

@@ -1,9 +1,11 @@
 'use client';
 
+import { memo } from 'react';
 import { formatCurrency } from '@/lib/utils/fantasy-utils';
 import { UNLIMITED_TRANSFERS } from '@/lib/queries/transfers.queries';
 import { Card } from '@/components/Card';
 import { PitchFormation } from './PitchFormation';
+import { FantasyPosition } from '@/lib/domain/types';
 import styles from './TeamOverview.module.scss';
 
 interface PitchPlayer {
@@ -22,10 +24,11 @@ interface TeamOverviewProps {
   salary: number;
   salaryCap?: number;
   pitchPlayers: PitchPlayer[];
+  draggedPlayerPosition?: FantasyPosition | null;
   onPlayerClick?: (playerId: string) => void;
 }
 
-export function TeamOverview({
+export const TeamOverview = memo(function TeamOverview({
   transfersUsed,
   transfersRemaining,
   playerCount,
@@ -33,6 +36,7 @@ export function TeamOverview({
   salary,
   salaryCap = 450,
   pitchPlayers,
+  draggedPlayerPosition,
   onPlayerClick,
 }: TeamOverviewProps) {
   const transfersDisplay = transfersRemaining === UNLIMITED_TRANSFERS 
@@ -73,9 +77,13 @@ export function TeamOverview({
       </div>
 
       <div className={styles.pitchContainer}>
-        <PitchFormation players={pitchPlayers} onPlayerClick={onPlayerClick} />
+        <PitchFormation 
+          players={pitchPlayers} 
+          draggedPlayerPosition={draggedPlayerPosition}
+          onPlayerClick={onPlayerClick} 
+        />
       </div>
     </div>
   );
-}
+});
 

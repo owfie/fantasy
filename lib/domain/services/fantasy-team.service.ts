@@ -124,7 +124,10 @@ export class FantasyTeamService {
       // Check if player already exists on team
       const existing = await uow.fantasyTeamPlayers.findByFantasyTeam(fantasyTeamId);
       if (existing.some((p) => p.player_id === playerId)) {
-        throw new Error('Player already exists on this team');
+        // Player already exists - this is not an error, just return silently
+        // The desired state (player on team) is already achieved
+        // No need to throw error or update team value since player is already there
+        return;
       }
 
       // Add player

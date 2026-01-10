@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { DndContext, DragEndEvent, DragStartEvent, DragOverEvent, DragOverlay, pointerWithin, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -16,12 +16,16 @@ import { TeamOverview } from '@/components/FantasyTeamSelection/TeamOverview';
 import { TransfersList } from '@/components/FantasyTeamSelection/TransfersList';
 import { PlayerCard } from '@/components/FantasyTeamSelection/PlayerCard';
 import { PlayerWithValue } from '@/lib/api/players.api';
-import { formatCurrency } from '@/lib/utils/fantasy-utils';
+import { formatCurrency, formatPlayerName, getPositionCode } from '@/lib/utils/fantasy-utils';
+import { getTeamJerseyPath } from '@/lib/utils/team-utils';
 import { DiscordLogin } from '@/components/discord-login';
 import { Card } from '@/components/Card';
+import { Modal } from '@/components/Modal';
 import { toast } from 'sonner';
 import { DraftRosterPlayer, validateFantasyTeam, getMaxPlayersPerPosition } from '@/lib/utils/fantasy-team-validation';
+import Image from 'next/image';
 import styles from './page.module.scss';
+import positionStyles from '@/components/FantasyTeamSelection/PitchFormation.module.scss';
 
 export default function FantasyPage() {
   const router = useRouter();
@@ -40,6 +44,9 @@ export default function FantasyPage() {
   const [draftRoster, setDraftRoster] = useState<DraftRosterPlayer[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [showNavigateAwayDialog, setShowNavigateAwayDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const hasGuardState = useRef(false);
 
   // Check authentication
   useEffect(() => {
@@ -193,6 +200,87 @@ export default function FantasyPage() {
   );
 
   const [activePlayer, setActivePlayer] = useState<PlayerWithValue | null>(null);
+  const [activePositionPlayer, setActivePositionPlayer] = useState<DraftRosterPlayer | null>(null);
+
+  // Warn before leaving page if there are unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        // Modern browsers ignore custom messages, but we still need to call preventDefault
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // Intercept browser back/forward navigation
+  useEffect(() => {
+    if (!hasUnsavedChanges) {
+      // Reset guard state flag when no unsaved changes
+      hasGuardState.current = false;
+      return;
+    }
+
+    const handlePopState = () => {
+      if (hasUnsavedChanges && hasGuardState.current) {
+        // Push the state back to prevent navigation
+        window.history.pushState(null, '', window.location.pathname);
+        setShowNavigateAwayDialog(true);
+      }
+    };
+
+    // Push a state when we have unsaved changes so we can detect back button
+    // Only do this once per unsaved changes session
+    if (!hasGuardState.current) {
+      window.history.pushState(null, '', window.location.pathname);
+      hasGuardState.current = true;
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [hasUnsavedChanges]);
+
+  // Handle navigation confirmation dialog actions
+  const handleConfirmNavigateAway = useCallback(() => {
+    setShowNavigateAwayDialog(false);
+    const navPath = pendingNavigation;
+    setPendingNavigation(null);
+    
+    // Clear unsaved changes flag and guard state
+    setHasUnsavedChanges(false);
+    hasGuardState.current = false;
+    
+    if (navPath) {
+      // Programmatic navigation
+      router.push(navPath);
+    } else {
+      // Browser back/forward - allow navigation by going back
+      // Remove the guard state we added, then navigate back
+      window.history.back();
+    }
+  }, [router, pendingNavigation]);
+
+  const handleCancelNavigateAway = useCallback(() => {
+    setShowNavigateAwayDialog(false);
+    setPendingNavigation(null);
+  }, []);
+
+  // Helper function to navigate with unsaved changes check
+  const navigateWithCheck = useCallback((path: string) => {
+    if (hasUnsavedChanges) {
+      setPendingNavigation(path);
+      setShowNavigateAwayDialog(true);
+    } else {
+      router.push(path);
+    }
+  }, [hasUnsavedChanges, router]);
 
   // Validate roster whenever it changes
   // Always require complete roster (10 players: 4 handlers, 3 cutters, 3 receivers, and a captain)
@@ -229,13 +317,22 @@ export default function FantasyPage() {
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const { active } = event;
-    if (active.data.current?.type === 'player') {
-      setActivePlayer(active.data.current.player);
+    const data = active.data.current;
+    
+    if (data?.type === 'player') {
+      // Dragging from player list
+      setActivePlayer(data.player);
+      setActivePositionPlayer(null);
+    } else if (data?.type === 'position-player' && data.player) {
+      // Dragging from position circle
+      setActivePlayer(data.player);
+      setActivePositionPlayer(data.positionPlayer || null);
     }
   }, []);
 
   const handleDragCancel = useCallback(() => {
     setActivePlayer(null);
+    setActivePositionPlayer(null);
   }, []);
 
   const handleDragOver = useCallback((event: DragOverEvent) => {
@@ -315,13 +412,17 @@ export default function FantasyPage() {
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     setActivePlayer(null);
+    setActivePositionPlayer(null);
     
     if (!over || !selectedTeamId || !currentWeekId) {
       return;
     }
 
-    // Get player from active data
-    const player = active.data.current?.player as PlayerWithValue | undefined;
+    const activeData = active.data.current;
+    const isPositionDrag = activeData?.type === 'position-player';
+    
+    // Get player from active data - either from player list or position circle
+    const player = activeData?.player as PlayerWithValue | undefined;
     if (!player || !player.position) {
       return;
     }
@@ -351,6 +452,199 @@ export default function FantasyPage() {
     if (player.position !== targetPosition) {
       toast.error(`Cannot place ${player.position} in ${targetPosition} position`);
       return;
+    }
+
+    // If dragging from a position circle, handle reordering/swapping
+    if (isPositionDrag && activeData.positionPlayer) {
+      const sourcePositionPlayer = activeData.positionPlayer as DraftRosterPlayer;
+      const sourceDropId = activeData.dropId as string;
+      
+      // Check if dropping on the same slot (no-op)
+      if (sourceDropId === dropZoneId) {
+        return;
+      }
+      
+      setDraftRoster((prevRoster) => {
+        // Find what player (if any) is at the target drop location
+        const targetPositionPlayers = prevRoster.filter(p => p.position === targetPosition);
+        let targetPlayer: DraftRosterPlayer | undefined;
+        
+        if (isBench) {
+          const benchPlayers = targetPositionPlayers.filter(p => p.isBenched);
+          targetPlayer = benchPlayers[slotIndex];
+        } else {
+          const fieldPlayers = targetPositionPlayers.filter(p => !p.isBenched);
+          targetPlayer = fieldPlayers[slotIndex];
+        }
+        
+        // Remove source and target from roster
+        const newRoster = prevRoster.filter(
+          p => p.playerId !== sourcePositionPlayer.playerId && 
+               (!targetPlayer || p.playerId !== targetPlayer.playerId)
+        );
+        
+        // Process each position to rebuild in correct order
+        const positions: FantasyPosition[] = ['handler', 'cutter', 'receiver'];
+        const maxPlayersPerPosition = getMaxPlayersPerPosition();
+        const finalRoster: DraftRosterPlayer[] = [];
+        
+        for (const pos of positions) {
+          const positionPlayers = newRoster.filter(p => p.position === pos);
+          const fieldPlayers = positionPlayers.filter(p => !p.isBenched);
+          const benchPlayers = positionPlayers.filter(p => p.isBenched);
+          
+          if (pos === targetPosition) {
+            // This is the target position - insert source and handle target swap
+            const positionLimits = maxPlayersPerPosition[pos];
+            
+            if (isBench) {
+              // Moving to bench
+              // Add source to bench at correct slot
+              const updatedBench = [...benchPlayers];
+              updatedBench.splice(Math.min(slotIndex, updatedBench.length), 0, {
+                ...sourcePositionPlayer,
+                isBenched: true,
+              });
+              
+              // If target exists and was swapping, add target to source's old position
+              if (targetPlayer && targetPlayer.playerId !== sourcePositionPlayer.playerId) {
+                if (sourcePositionPlayer.isBenched) {
+                  // Source was on bench, target goes to bench (simple swap)
+                  // Already handled above
+                } else {
+                  // Source was on field, target goes to field
+                  const updatedField = [...fieldPlayers, { ...targetPlayer, isBenched: false }];
+                  finalRoster.push(...updatedField.slice(0, positionLimits.starting));
+                  
+                  // Excess to bench
+                  const excess = updatedField.slice(positionLimits.starting).map(p => ({ ...p, isBenched: true }));
+                  updatedBench.push(...excess);
+                }
+              } else {
+                // No target, just add field players
+                finalRoster.push(...fieldPlayers.slice(0, positionLimits.starting));
+              }
+              
+              finalRoster.push(...updatedBench.slice(0, positionLimits.bench));
+            } else {
+              // Moving to field
+              if (targetPlayer && targetPlayer.playerId !== sourcePositionPlayer.playerId) {
+                if (targetPlayer.isBenched) {
+                  // Target was on bench, source goes to field at slotIndex, target goes to bench
+                  const updatedField = [...fieldPlayers, { ...sourcePositionPlayer, isBenched: false }];
+                  // Reorder to place source at slotIndex
+                  const sourceIndex = updatedField.findIndex(p => p.playerId === sourcePositionPlayer.playerId);
+                  if (sourceIndex !== -1 && sourceIndex !== slotIndex) {
+                    updatedField.splice(sourceIndex, 1);
+                    updatedField.splice(Math.min(slotIndex, updatedField.length), 0, { ...sourcePositionPlayer, isBenched: false });
+                  }
+                  const starting = updatedField.slice(0, positionLimits.starting);
+                  const excess = updatedField.slice(positionLimits.starting).map(p => ({ ...p, isBenched: true }));
+                  
+                  // Add target to bench
+                  const updatedBench = [...benchPlayers, { ...targetPlayer, isBenched: true }];
+                  
+                  finalRoster.push(...starting);
+                  finalRoster.push(...excess, ...updatedBench.slice(0, positionLimits.bench));
+                } else {
+                  // Both on field - swap their positions
+                  // Get all field players for this position in current order from original roster
+                  const allFieldPlayers = prevRoster.filter(p => p.position === pos && !p.isBenched);
+                  
+                  // Find indices of source and target in the original array
+                  const sourceIndex = allFieldPlayers.findIndex(p => p.playerId === sourcePositionPlayer.playerId);
+                  const targetIndex = allFieldPlayers.findIndex(p => p.playerId === targetPlayer.playerId);
+                  
+                  if (sourceIndex !== -1 && targetIndex !== -1) {
+                    // Create new array by copying and swapping
+                    const swappedField = allFieldPlayers.map((p, idx) => {
+                      if (idx === sourceIndex) {
+                        // Put target at source's position
+                        return { ...targetPlayer, isBenched: false, isCaptain: targetPlayer.isCaptain };
+                      } else if (idx === targetIndex) {
+                        // Put source at target's position
+                        return { ...sourcePositionPlayer, isBenched: false, isCaptain: sourcePositionPlayer.isCaptain };
+                      }
+                      return p;
+                    });
+                    
+                    const starting = swappedField.slice(0, positionLimits.starting);
+                    const excess = swappedField.slice(positionLimits.starting).map(p => ({ ...p, isBenched: true }));
+                    
+                    finalRoster.push(...starting);
+                    finalRoster.push(...benchPlayers, ...excess.slice(0, positionLimits.bench));
+                  } else {
+                    // Fallback - shouldn't happen, but add both back
+                    const updatedField = [...fieldPlayers, 
+                      { ...sourcePositionPlayer, isBenched: false },
+                      { ...targetPlayer, isBenched: false }
+                    ];
+                    const starting = updatedField.slice(0, positionLimits.starting);
+                    const excess = updatedField.slice(positionLimits.starting).map(p => ({ ...p, isBenched: true }));
+                    finalRoster.push(...starting);
+                    finalRoster.push(...benchPlayers, ...excess);
+                  }
+                }
+              } else {
+                // No target player, just move source to field
+                const updatedField = [...fieldPlayers, { ...sourcePositionPlayer, isBenched: false }];
+                const starting = updatedField.slice(0, positionLimits.starting);
+                const excess = updatedField.slice(positionLimits.starting).map(p => ({ ...p, isBenched: true }));
+                
+                finalRoster.push(...starting);
+                finalRoster.push(...benchPlayers, ...excess);
+              }
+            }
+          } else {
+            // Other positions - keep as-is, but add target if it's moving here
+            if (targetPlayer && targetPlayer.position === pos) {
+              if (targetPlayer.isBenched) {
+                benchPlayers.push({ ...targetPlayer, isBenched: true });
+              } else {
+                fieldPlayers.push({ ...targetPlayer, isBenched: false });
+              }
+            }
+            const positionLimits = maxPlayersPerPosition[pos];
+            finalRoster.push(...fieldPlayers.slice(0, positionLimits.starting));
+            finalRoster.push(...benchPlayers.slice(0, positionLimits.bench));
+          }
+        }
+        
+        // Preserve captain status
+        if (sourcePositionPlayer.isCaptain) {
+          finalRoster.forEach(p => {
+            p.isCaptain = p.playerId === sourcePositionPlayer.playerId;
+          });
+        } else {
+          // Ensure exactly one captain
+          const captains = finalRoster.filter(p => p.isCaptain);
+          if (captains.length === 0 && finalRoster.length > 0) {
+            const highestValue = finalRoster.map((p, idx) => ({
+              ...p,
+              idx,
+              value: allPlayers.find(pl => pl.id === p.playerId)?.currentValue || 0,
+            })).sort((a, b) => b.value - a.value)[0];
+            if (highestValue) {
+              finalRoster[highestValue.idx].isCaptain = true;
+            }
+          } else if (captains.length > 1) {
+            const captainsWithValues = captains.map(p => ({
+              ...p,
+              value: allPlayers.find(pl => pl.id === p.playerId)?.currentValue || 0,
+            }));
+            captainsWithValues.sort((a, b) => b.value - a.value);
+            const captainToKeep = captainsWithValues[0].playerId;
+            finalRoster.forEach(p => {
+              p.isCaptain = p.playerId === captainToKeep;
+            });
+          }
+        }
+
+        setHasUnsavedChanges(true);
+        return finalRoster;
+      });
+      
+      return; // Early return for position drag handling
     }
 
     const maxPlayersPerPosition = getMaxPlayersPerPosition();
@@ -717,7 +1011,43 @@ export default function FantasyPage() {
           pointerEvents: 'none',
         }}
       >
-        {activePlayer ? (
+        {activePlayer && activePositionPlayer ? (
+          // Dragging from position circle - show position circle
+          <div
+            className={positionStyles.position}
+            style={{
+              opacity: 0.95,
+              transform: 'rotate(2deg) scale(1.05)',
+              cursor: 'grabbing',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
+              border: '2px solid rgba(59, 130, 246, 1)',
+            }}
+          >
+            <div className={positionStyles.positionIndicator}>
+              {getPositionCode(activePositionPlayer.position)}
+            </div>
+            {(() => {
+              const jerseyPath = getTeamJerseyPath(activePlayer.teamSlug || activePlayer.teamName);
+              return jerseyPath ? (
+                <div className={positionStyles.jerseyContainer}>
+                  <Image
+                    src={jerseyPath}
+                    alt={activePlayer.teamSlug || activePlayer.teamName || 'Team jersey'}
+                    className={positionStyles.jerseyImage}
+                    width={48}
+                    height={48}
+                  />
+                </div>
+              ) : (
+                <div className={positionStyles.jerseyPlaceholder} />
+              );
+            })()}
+            <div className={positionStyles.playerName}>
+              {formatPlayerName(activePlayer.first_name, activePlayer.last_name)}
+            </div>
+          </div>
+        ) : activePlayer ? (
+          // Dragging from player list - show player card
           <div
             style={{
               opacity: 0.95,
@@ -730,6 +1060,52 @@ export default function FantasyPage() {
           </div>
         ) : null}
       </DragOverlay>
+
+      {/* Navigation confirmation dialog */}
+      <Modal
+        isOpen={showNavigateAwayDialog}
+        onClose={handleCancelNavigateAway}
+        title="Unsaved Changes"
+        width="400px"
+      >
+        <div style={{ marginBottom: '1.5rem' }}>
+          <p style={{ marginBottom: '1rem', color: '#374151' }}>
+            You have unsaved changes to your team. Are you sure you want to leave? Your changes will be lost.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <button
+            onClick={handleCancelNavigateAway}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#f3f4f6',
+              color: '#374151',
+              border: '1px solid #d1d5db',
+              borderRadius: '0.375rem',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirmNavigateAway}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '0.375rem',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+          >
+            Leave Without Saving
+          </button>
+        </div>
+      </Modal>
     </DndContext>
   );
 }

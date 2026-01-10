@@ -1,12 +1,13 @@
 'use client';
 
 import { memo } from 'react';
-import { useDroppable } from '@dnd-kit/core';
+import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { FantasyPosition } from '@/lib/domain/types';
 import { getPositionCode } from '@/lib/utils/fantasy-utils';
 import { formatPlayerName } from '@/lib/utils/fantasy-utils';
-import { getTeamEmoji } from '@/lib/utils/team-emojis';
+import { getTeamJerseyPath } from '@/lib/utils/team-utils';
 import { PlayerWithValue } from '@/lib/api/players.api';
+import Image from 'next/image';
 import styles from './PitchFormation.module.scss';
 
 interface PitchPlayer {
@@ -36,7 +37,7 @@ interface DroppablePositionProps {
 
 function DroppablePosition({ player, positionCode, row, position, index, isBench = false, draggedPlayerPosition, onPlayerClick }: DroppablePositionProps) {
   const dropId = isBench ? `bench-${position}-${index}` : `position-${position}-${index}`;
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef: setDropRef, isOver } = useDroppable({
     id: dropId,
     data: {
       position,
@@ -45,23 +46,66 @@ function DroppablePosition({ player, positionCode, row, position, index, isBench
     },
   });
 
+  // Make the position draggable if it contains a player
+  const dragId = player ? `position-player-${player.playerId}` : null;
+  const { 
+    attributes, 
+    listeners, 
+    setNodeRef: setDragRef, 
+    isDragging 
+  } = useDraggable({
+    id: dragId || `empty-${dropId}`,
+    data: {
+      type: 'position-player',
+      player: player?.player,
+      positionPlayer: player, // Include the full position player data
+      position,
+      index,
+      isBench,
+      dropId, // Keep reference to original drop zone
+    },
+    disabled: !player, // Only draggable if it contains a player
+  });
+
+  // Combine refs for both drag and drop
+  const setNodeRef = (node: HTMLElement | null) => {
+    setDropRef(node);
+    setDragRef(node);
+  };
+
   // Check if this position can accept the dragged player
   const canDrop = !draggedPlayerPosition || draggedPlayerPosition === position;
   const isDisabled = draggedPlayerPosition !== null && !canDrop;
+
+  const jerseyPath = player?.player ? getTeamJerseyPath(player.player.teamSlug || player.player.teamName) : null;
 
   return (
     <div
       key={player?.playerId || `empty-${row}-${positionCode}`}
       ref={setNodeRef}
-      className={`${styles.position} ${isBench ? styles.benchPosition : ''} ${!player ? styles.empty : ''} ${player?.isCaptain ? styles.captain : ''} ${isOver && !isDisabled ? styles.dragOver : ''} ${isDisabled ? styles.disabled : ''}`}
+      className={`${styles.position} ${isBench ? styles.benchPosition : ''} ${!player ? styles.empty : ''} ${player?.isCaptain ? styles.captain : ''} ${isOver && !isDisabled ? styles.dragOver : ''} ${isDisabled ? styles.disabled : ''} ${isDragging ? styles.dragging : ''}`}
       onClick={() => player && onPlayerClick?.(player.playerId)}
+      {...(player ? { ...attributes, ...listeners } : {})}
+      style={player ? { cursor: 'grab' } : undefined}
     >
       {player ? (
         <>
           <div className={styles.positionIndicator}>{positionCode}</div>
           {player.player && (
             <>
-              <div className={styles.emoji}>{getTeamEmoji(player.player.teamSlug || player.player.teamName)}</div>
+              {jerseyPath ? (
+                <div className={styles.jerseyContainer}>
+                  <Image
+                    src={jerseyPath}
+                    alt={player.player.teamSlug || player.player.teamName || 'Team jersey'}
+                    className={styles.jerseyImage}
+                    width={48}
+                    height={48}
+                  />
+                </div>
+              ) : (
+                <div className={styles.jerseyPlaceholder} />
+              )}
               <div className={styles.playerName}>{formatPlayerName(player.player.first_name, player.player.last_name)}</div>
             </>
           )}

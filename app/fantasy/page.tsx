@@ -1,144 +1,137 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { DndContext, DragEndEvent, DragStartEvent, DragOverEvent, DragOverlay, pointerWithin, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { useActiveSeason, useFantasyTeams, useAddPlayerToFantasyTeam, useUpdateFantasyTeam } from '@/lib/queries/fantasy-teams-test.queries';
-import { useSnapshotForWeek, useSnapshotWithPlayers, useCreateSnapshot } from '@/lib/queries/fantasy-snapshots.queries';
-import { useRemainingTransfers, useIsFirstWeek, useTransfersByWeek, useExecuteTransfer, UNLIMITED_TRANSFERS } from '@/lib/queries/transfers.queries';
-import { useWeeks } from '@/lib/queries/seasons.queries';
-import { usePlayersForWeek } from '@/lib/queries/players.queries';
+import { useState, useMemo, useCallback } from 'react';
+import { DndContext, DragEndEvent, DragOverlay, pointerWithin, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { useUpdateFantasyTeam } from '@/lib/queries/fantasy-teams-test.queries';
+import { useCreateSnapshot } from '@/lib/queries/fantasy-snapshots.queries';
+import { useExecuteTransfer, UNLIMITED_TRANSFERS } from '@/lib/queries/transfers.queries';
 import { FantasyPosition } from '@/lib/domain/types';
 import { TeamSelectionHeader } from '@/components/FantasyTeamSelection/TeamSelectionHeader';
 import { PlayerList } from '@/components/FantasyTeamSelection/PlayerList';
 import { TeamOverview } from '@/components/FantasyTeamSelection/TeamOverview';
 import { TransfersList } from '@/components/FantasyTeamSelection/TransfersList';
-import { PlayerCard } from '@/components/FantasyTeamSelection/PlayerCard';
 import { TransferModal } from '@/components/FantasyTeamSelection/TransferModal';
 import { CaptainSelectionModal } from '@/components/FantasyTeamSelection/CaptainSelectionModal';
 import { PlayerWithValue } from '@/lib/api/players.api';
-import { formatCurrency, formatPlayerName, getPositionCode } from '@/lib/utils/fantasy-utils';
-import { getTeamJerseyPath } from '@/lib/utils/team-utils';
-import { DiscordLogin } from '@/components/discord-login';
-import { Card } from '@/components/Card';
-import { Modal } from '@/components/Modal';
-import { toast } from 'sonner';
 import { DraftRosterPlayer, validateFantasyTeam, getMaxPlayersPerPosition } from '@/lib/utils/fantasy-team-validation';
-import Image from 'next/image';
+import { toast } from 'sonner';
 import styles from './page.module.scss';
-import positionStyles from '@/components/FantasyTeamSelection/PitchFormation.module.scss';
+
+import { useFantasyAuth } from '@/lib/hooks/useFantasyAuth';
+import { useFantasyTeamSelection } from '@/lib/hooks/useFantasyTeamSelection';
+import { useDraftRoster } from '@/lib/hooks/useDraftRoster';
+import { useFantasyTeamData } from '@/lib/hooks/useFantasyTeamData';
+import { useFantasyTeamValidation } from '@/lib/hooks/useFantasyTeamValidation';
+import { useUnsavedChangesGuard } from '@/lib/hooks/useUnsavedChangesGuard';
+import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop';
+import { useTransferModal } from '@/lib/hooks/useTransferModal';
+
+import {
+  calculateRosterSalary,
+  parseDropZoneId,
+  isPositionFull,
+  createPlayersMap,
+  createPlayersValueMap,
+  getSwapCandidates,
+  ensureSingleCaptain,
+} from '@/lib/utils/fantasy-roster-utils';
+import {
+  calculateTransferLimitStatus,
+  createUnsavedTransfer,
+  UnsavedTransfer,
+} from '@/lib/utils/fantasy-transfer-utils';
+import {
+  addPlayerToRoster,
+  swapPlayersInRoster,
+  setCaptain,
+  canAddPlayer,
+  isPlayerInRoster,
+} from '@/lib/utils/fantasy-roster-operations';
+
+import {
+  LoadingState,
+  UnauthenticatedState,
+  NoTeamState,
+  NoSeasonState,
+  NoWeekState,
+} from '@/components/FantasyTeamSelection/FantasyTeamEmptyStates';
+import { UnsavedChangesDialog } from '@/components/FantasyTeamSelection/UnsavedChangesDialog';
+import { DebugRosterDisplay } from '@/components/FantasyTeamSelection/DebugRosterDisplay';
+import { DragOverlayContent } from '@/components/FantasyTeamSelection/DragOverlayContent';
 
 export default function FantasyPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  const { user, isLoading: isLoadingAuth } = useFantasyAuth();
   
-  const { data: activeSeason } = useActiveSeason();
-  const { data: fantasyTeams = [] } = useFantasyTeams(activeSeason?.id || null);
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
-  const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
+  const initialData = useFantasyTeamData(null, null);
+  const {
+    activeSeason,
+    fantasyTeams,
+    weeks: initialWeeks,
+    isLoading: isLoadingInitialData,
+  } = initialData;
+
+  const {
+    selectedTeamId,
+    selectedWeekId,
+    selectedTeam,
+    selectedWeek,
+    setSelectedTeamId,
+    setSelectedWeekId,
+  } = useFantasyTeamSelection(fantasyTeams, initialWeeks);
+
+  const teamData = useFantasyTeamData(selectedTeamId, selectedWeekId);
+  const {
+    snapshotWithPlayers,
+    remainingTransfers,
+    weekTransfers,
+    allPlayers,
+    isLoading: isLoadingTeamData,
+  } = teamData;
+
+  const isLoadingData = isLoadingInitialData || isLoadingTeamData;
+
+  const {
+    draftRoster,
+    setDraftRoster,
+    hasUnsavedChanges,
+    setHasUnsavedChanges,
+  } = useDraftRoster(snapshotWithPlayers, selectedWeekId, selectedTeamId);
+
+  const { validationErrors } = useFantasyTeamValidation(draftRoster, allPlayers);
+
+  const {
+    showNavigateAwayDialog,
+    handleConfirmNavigateAway,
+    handleCancelNavigateAway,
+  } = useUnsavedChangesGuard(hasUnsavedChanges);
+
+  const {
+    activePlayer,
+    activePositionPlayer,
+    handleDragStart,
+    handleDragCancel,
+    handleDragOver,
+    handleDragEnd: resetDragState,
+  } = useDragAndDrop();
+
+  const {
+    isOpen: transferModalOpen,
+    playerIn: transferModalPlayerIn,
+    selectedPlayerOutId: transferModalSelectedPlayerOutId,
+    openModal: openTransferModal,
+    closeModal: closeTransferModal,
+    setSelectedPlayerOutId: setTransferModalSelectedPlayerOutId,
+  } = useTransferModal();
+
   const [selectedPositions, setSelectedPositions] = useState<FantasyPosition[]>(['handler']);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'pitch' | 'list'>('pitch');
-  
-  // Local state for draft roster (unsaved changes)
-  const [draftRoster, setDraftRoster] = useState<DraftRosterPlayer[]>([]);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const [showNavigateAwayDialog, setShowNavigateAwayDialog] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-  const hasGuardState = useRef(false);
-
-  // Transfer modal state
-  const [transferModalOpen, setTransferModalOpen] = useState(false);
-  const [transferModalPlayerIn, setTransferModalPlayerIn] = useState<PlayerWithValue | null>(null);
-  const [transferModalSelectedPlayerOutId, setTransferModalSelectedPlayerOutId] = useState<string | null>(null);
-  
-  // Unsaved transfers state
-  interface UnsavedTransfer {
-    playerInId: string;
-    playerOutId: string;
-    id: string;
-  }
   const [unsavedTransfers, setUnsavedTransfers] = useState<UnsavedTransfer[]>([]);
-
-  // Captain modal state
   const [captainModalOpen, setCaptainModalOpen] = useState(false);
 
-  // Check authentication
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
-      setUser(authUser);
-      setIsLoadingAuth(false);
-    });
+  const playersValueMap = useMemo(() => createPlayersValueMap(allPlayers), [allPlayers]);
+  const playersMap = useMemo(() => createPlayersMap(allPlayers), [allPlayers]);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Sync selectedTeamId when fantasyTeams changes
-  useEffect(() => {
-    if (fantasyTeams.length > 0) {
-      // If no team is selected or selected team doesn't exist in array, select the first one
-      const targetTeamId = fantasyTeams[0]?.id || null;
-      if (!selectedTeamId || !fantasyTeams.find(t => t.id === selectedTeamId)) {
-        // Only update if the value actually changes
-        if (selectedTeamId !== targetTeamId) {
-          setSelectedTeamId(targetTeamId);
-        }
-      }
-    } else {
-      // Only update if selectedTeamId is not already null
-      if (selectedTeamId !== null) {
-        setSelectedTeamId(null);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fantasyTeams]); // Only depend on fantasyTeams, not selectedTeamId to avoid infinite loop
-
-  const { data: weeks = [] } = useWeeks(activeSeason?.id || '');
-  
-  // Auto-select first week if available
-  const firstWeekId = weeks[0]?.id || null;
-  const currentWeekId = selectedWeekId || firstWeekId;
-  const selectedWeek = weeks.find(w => w.id === currentWeekId) || weeks[0];
-
-  const { data: snapshot } = useSnapshotForWeek(selectedTeamId || '', currentWeekId || '');
-  const { data: snapshotWithPlayers } = useSnapshotWithPlayers(snapshot?.id || '');
-
-  // Initialize draft roster from snapshot when it loads or week/team changes
-  useEffect(() => {
-    if (snapshotWithPlayers?.players) {
-      const roster: DraftRosterPlayer[] = snapshotWithPlayers.players.map(sp => ({
-        playerId: sp.player_id,
-        position: sp.position as FantasyPosition,
-        isBenched: sp.is_benched,
-        isCaptain: sp.is_captain,
-      }));
-      setDraftRoster(roster);
-      setHasUnsavedChanges(false);
-    } else {
-      setDraftRoster([]);
-      setHasUnsavedChanges(false);
-    }
-  }, [snapshotWithPlayers, currentWeekId, selectedTeamId]);
-  const { data: remainingTransfers } = useRemainingTransfers(selectedTeamId || '', currentWeekId || '');
-  const { data: isFirstWeek } = useIsFirstWeek(selectedTeamId || '', currentWeekId || '');
-  const { data: weekTransfers = [] } = useTransfersByWeek(currentWeekId || '');
-  // For API call, if all positions selected, pass undefined. Otherwise, we'll filter client-side.
-  // Since usePlayersForWeek only accepts single position, we'll get all players and filter client-side
-  const { data: allPlayers = [], isLoading: isLoadingPlayers } = usePlayersForWeek(
-    currentWeekId || null,
-    activeSeason?.id || null,
-    undefined // Get all players, filter by position in component
-  );
-  
-  // Filter players by selected position (tab behavior - single selection)
   const players = useMemo(() => {
     const selectedPosition = selectedPositions[0];
     if (!selectedPosition) {
@@ -147,60 +140,8 @@ export default function FantasyPage() {
     return allPlayers.filter(p => p.position === selectedPosition);
   }, [allPlayers, selectedPositions]);
 
-  // Use draft roster for team player tracking (includes unsaved changes)
-  const teamPlayerIds = useMemo(() => {
-    return new Set(draftRoster.map(p => p.playerId));
-  }, [draftRoster]);
+  const teamPlayerIds = useMemo(() => new Set(draftRoster.map(p => p.playerId)), [draftRoster]);
 
-  // Helper function to check if position slots are full
-  const isPositionFull = useCallback((position: FantasyPosition): boolean => {
-    const maxPlayersPerPosition = getMaxPlayersPerPosition();
-    const positionLimits = maxPlayersPerPosition[position];
-    const positionPlayersOnField = draftRoster.filter(
-      p => p.position === position && !p.isBenched
-    );
-    const positionPlayersOnBench = draftRoster.filter(
-      p => p.position === position && p.isBenched
-    );
-    return positionPlayersOnField.length >= positionLimits.starting && 
-           positionPlayersOnBench.length >= positionLimits.bench;
-  }, [draftRoster]);
-
-  // Helper function to get swap candidates for a position
-  const getSwapCandidates = useCallback((position: FantasyPosition) => {
-    return draftRoster
-      .filter(p => p.position === position)
-      .map(rosterPlayer => {
-        const player = allPlayers.find(p => p.id === rosterPlayer.playerId);
-        return player ? { player, rosterPlayer } : null;
-      })
-      .filter((item): item is { player: PlayerWithValue; rosterPlayer: DraftRosterPlayer } => item !== null);
-  }, [draftRoster, allPlayers]);
-
-  // Get player details map for transfers
-  const playersMap = useMemo(() => {
-    const map = new Map<string, { firstName: string; lastName: string }>();
-    allPlayers.forEach(p => {
-      map.set(p.id, { firstName: p.first_name, lastName: p.last_name });
-    });
-    return map;
-  }, [allPlayers]);
-
-  // Create players map with full PlayerWithValue for validation
-  const playersValueMap = useMemo(() => {
-    const map = new Map<string, PlayerWithValue>();
-    allPlayers.forEach(p => {
-      map.set(p.id, p);
-    });
-    return map;
-  }, [allPlayers]);
-
-  // Filter transfers for selected team
-  const teamTransfers = useMemo(() => {
-    return weekTransfers.filter(t => t.fantasy_team_id === selectedTeamId);
-  }, [weekTransfers, selectedTeamId]);
-
-  // Build pitch players from draft roster (includes unsaved changes)
   const pitchPlayers = useMemo(() => {
     return draftRoster.map(sp => ({
       playerId: sp.playerId,
@@ -211,323 +152,208 @@ export default function FantasyPage() {
     }));
   }, [draftRoster, allPlayers]);
 
-  // Calculate transfers used
+  const teamTransfers = useMemo(() => {
+    return weekTransfers.filter(t => t.fantasy_team_id === selectedTeamId);
+  }, [weekTransfers, selectedTeamId]);
+
   const transfersUsed = teamTransfers.length;
-  // remainingTransfers can be undefined, null, a number, or UNLIMITED_TRANSFERS (-1)
   const transfersRemaining = remainingTransfers ?? 0;
 
-  // Check if transfer limit has been reached
   const isTransferLimitReached = useMemo(() => {
-    // First week has unlimited transfers (UNLIMITED_TRANSFERS = -1)
-    if (remainingTransfers === UNLIMITED_TRANSFERS) {
-      return false; // First week - unlimited transfers, button should be enabled
-    }
-    const totalTransfers = transfersUsed + unsavedTransfers.length;
-    // Block if total transfers >= 2 or remaining transfers <= 0
-    return totalTransfers >= 2 || transfersRemaining <= 0;
-  }, [transfersUsed, unsavedTransfers.length, transfersRemaining, remainingTransfers]);
+    return calculateTransferLimitStatus(
+      remainingTransfers,
+      transfersUsed,
+      unsavedTransfers.length
+    );
+  }, [remainingTransfers, transfersUsed, unsavedTransfers.length]);
 
-  // Calculate salary from draft roster
-  const selectedTeam = fantasyTeams.find(t => t.id === selectedTeamId);
   const salary = useMemo(() => {
-    let total = 0;
-    for (const player of draftRoster) {
-      const playerData = playersValueMap.get(player.playerId);
-      if (playerData) {
-        total += playerData.currentValue;
-      }
-    }
-    return total;
+    return calculateRosterSalary(draftRoster, playersValueMap);
   }, [draftRoster, playersValueMap]);
 
+  const isPositionFullCallback = useCallback(
+    (position: FantasyPosition) => isPositionFull(draftRoster, position),
+    [draftRoster]
+  );
+
+  const getSwapCandidatesCallback = useCallback(
+    (position: FantasyPosition) => getSwapCandidates(draftRoster, position, allPlayers),
+    [draftRoster, allPlayers]
+  );
+
   const createSnapshotMutation = useCreateSnapshot();
-  const addPlayerMutation = useAddPlayerToFantasyTeam();
   const updateTeamMutation = useUpdateFantasyTeam();
   const executeTransferMutation = useExecuteTransfer();
 
-  // Configure sensors for better drag performance
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // Require 8px of movement before starting drag
+        distance: 8,
       },
     })
   );
 
-  const [activePlayer, setActivePlayer] = useState<PlayerWithValue | null>(null);
-  const [activePositionPlayer, setActivePositionPlayer] = useState<DraftRosterPlayer | null>(null);
+  const handleAddPlayer = useCallback(
+    (playerId: string) => {
+      if (!selectedTeamId || !selectedWeekId) return;
 
-  // Warn before leaving page if there are unsaved changes
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        // Modern browsers ignore custom messages, but we still need to call preventDefault
-        e.returnValue = '';
-        return '';
+      const player = allPlayers.find(p => p.id === playerId);
+      if (!player || !player.position) return;
+
+      const result = canAddPlayer(draftRoster, player);
+      if (!result.success) {
+        if (result.error) {
+          toast.error(result.error);
+        }
+        if (result.needsTransfer) {
+          if (isTransferLimitReached) {
+            toast.error('Transfer limit has been reached. You cannot make any more transfers this week.');
+      return;
+    }
+          openTransferModal(player);
+        }
+        return;
       }
-    };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [hasUnsavedChanges]);
+      const newRoster = addPlayerToRoster(draftRoster, player, playersValueMap);
+      setDraftRoster(newRoster);
+      setHasUnsavedChanges(true);
+    },
+    [selectedTeamId, selectedWeekId, allPlayers, draftRoster, isTransferLimitReached, playersValueMap, openTransferModal]
+  );
 
-  // Intercept browser back/forward navigation
-  useEffect(() => {
-    if (!hasUnsavedChanges) {
-      // Reset guard state flag when no unsaved changes
-      hasGuardState.current = false;
+  const handleSwapPlayer = useCallback(
+    (playerId: string) => {
+      if (isTransferLimitReached) {
+        toast.error('Transfer limit has been reached. You cannot make any more transfers this week.');
       return;
     }
 
-    const handlePopState = () => {
-      if (hasUnsavedChanges && hasGuardState.current) {
-        // Push the state back to prevent navigation
-        window.history.pushState(null, '', window.location.pathname);
-        setShowNavigateAwayDialog(true);
-      }
-    };
+    const player = allPlayers.find(p => p.id === playerId);
+      if (!player || !player.position) return;
 
-    // Push a state when we have unsaved changes so we can detect back button
-    // Only do this once per unsaved changes session
-    if (!hasGuardState.current) {
-      window.history.pushState(null, '', window.location.pathname);
-      hasGuardState.current = true;
+    const playerPosition = player.position as FantasyPosition;
+      if (!isPositionFullCallback(playerPosition)) {
+        handleAddPlayer(playerId);
+      return;
     }
 
-    window.addEventListener('popstate', handlePopState);
-    
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, [hasUnsavedChanges]);
+      openTransferModal(player);
+    },
+    [allPlayers, isPositionFullCallback, handleAddPlayer, isTransferLimitReached, openTransferModal]
+  );
 
-  // Handle navigation confirmation dialog actions
-  const handleConfirmNavigateAway = useCallback(() => {
-    setShowNavigateAwayDialog(false);
-    const navPath = pendingNavigation;
-    setPendingNavigation(null);
-    
-    // Clear unsaved changes flag and guard state
-    setHasUnsavedChanges(false);
-    hasGuardState.current = false;
-    
-    if (navPath) {
-      // Programmatic navigation
-      router.push(navPath);
-    } else {
-      // Browser back/forward - allow navigation by going back
-      // Remove the guard state we added, then navigate back
-      window.history.back();
-    }
-  }, [router, pendingNavigation]);
+  const handleTransferConfirm = useCallback(
+    (playerInId: string, playerOutId: string) => {
+      const playerIn = allPlayers.find(p => p.id === playerInId);
+      if (!playerIn || !playerIn.position) return;
 
-  const handleCancelNavigateAway = useCallback(() => {
-    setShowNavigateAwayDialog(false);
-    setPendingNavigation(null);
-  }, []);
+      const newRoster = swapPlayersInRoster(draftRoster, playerIn, playerOutId, playersValueMap);
+      setDraftRoster(newRoster);
+      setHasUnsavedChanges(true);
 
-  // Helper function to navigate with unsaved changes check
-  const navigateWithCheck = useCallback((path: string) => {
-    if (hasUnsavedChanges) {
-      setPendingNavigation(path);
-      setShowNavigateAwayDialog(true);
-    } else {
-      router.push(path);
-    }
-  }, [hasUnsavedChanges, router]);
+      setUnsavedTransfers((prev) => [...prev, createUnsavedTransfer(playerInId, playerOutId)]);
+      closeTransferModal();
+    },
+    [allPlayers, draftRoster, playersValueMap, closeTransferModal]
+  );
 
-  // Validate roster whenever it changes
-  // Always require complete roster (10 players: 4 handlers, 3 cutters, 3 receivers, and a captain)
-  useEffect(() => {
-    if (draftRoster.length === 0) {
-      // Use functional update to check current state and only update if not empty
-      setValidationErrors((prevErrors) => {
-        if (prevErrors.length === 0) {
-          return prevErrors; // Return same reference to prevent re-render
-        }
-        return [];
+  const handleCaptainSelect = useCallback(
+    (playerId: string) => {
+      const newRoster = setCaptain(draftRoster, playerId);
+      setDraftRoster(newRoster);
+      setHasUnsavedChanges(true);
+    },
+    [draftRoster]
+  );
+
+  const handleSave = useCallback(async () => {
+    if (!selectedTeamId || !selectedWeekId) return;
+
+    const validation = validateFantasyTeam(draftRoster, playersValueMap, false);
+    if (!validation.valid) {
+      const errorMessage = validation.errors.join('\n');
+      toast.error(`Cannot save team:\n${errorMessage}`, {
+        duration: 5000,
       });
       return;
     }
 
-    // Always validate for complete roster (allowPartial = false)
-    const validation = validateFantasyTeam(draftRoster, playersValueMap, false);
-    
-    // Use functional update to compare and only update if changed
-    setValidationErrors((prevErrors) => {
-      // Compare by length first (fast check)
-      if (validation.errors.length !== prevErrors.length) {
-        return validation.errors;
+    try {
+      for (const transfer of unsavedTransfers) {
+        await executeTransferMutation.mutateAsync({
+          fantasyTeamId: selectedTeamId,
+          playerInId: transfer.playerInId,
+          playerOutId: transfer.playerOutId,
+          weekId: selectedWeekId,
+        });
       }
-      
-      // Compare by content if lengths match
-      if (validation.errors.some((err, idx) => err !== prevErrors[idx])) {
-        return validation.errors;
-      }
-      
-      return prevErrors; // Return same reference to prevent re-render
-    });
-  }, [draftRoster, playersValueMap]);
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const { active } = event;
-    const data = active.data.current;
-    
-    if (data?.type === 'player') {
-      // Dragging from player list
-      setActivePlayer(data.player);
-      setActivePositionPlayer(null);
-    } else if (data?.type === 'position-player' && data.player) {
-      // Dragging from position circle
-      setActivePlayer(data.player);
-      setActivePositionPlayer(data.positionPlayer || null);
+      await createSnapshotMutation.mutateAsync({
+        fantasyTeamId: selectedTeamId,
+        weekId: selectedWeekId,
+        players: draftRoster,
+        allowPartial: false,
+      });
+
+      setUnsavedTransfers([]);
+      setHasUnsavedChanges(false);
+    } catch (error: any) {
+      // Error toast is handled by mutation's onError
     }
-  }, []);
+  }, [
+    selectedTeamId,
+    selectedWeekId,
+    draftRoster,
+    playersValueMap,
+    unsavedTransfers,
+    createSnapshotMutation,
+    executeTransferMutation,
+  ]);
 
-  const handleDragCancel = useCallback(() => {
-    setActivePlayer(null);
-    setActivePositionPlayer(null);
-  }, []);
-
-  const handleDragOver = useCallback((event: DragOverEvent) => {
-    // Track drag over state for visual feedback
-    // The activePlayer state already contains the dragged player info
-  }, []);
-
-  const handleAddPlayer = useCallback((playerId: string) => {
-    if (!selectedTeamId || !currentWeekId) return;
-
-    const player = allPlayers.find(p => p.id === playerId);
-    if (!player || !player.position) {
-      return; // Player must have a position
-    }
-
-    const playerPosition = player.position as FantasyPosition;
-
-    // Check if player already in draft roster
-    if (draftRoster.some(p => p.playerId === playerId)) {
-      toast.error('Player is already on your team');
-      return;
-    }
-
-    // Check if position slots are full - if so, check transfer limit and open transfer modal
-    if (isPositionFull(playerPosition)) {
-      if (isTransferLimitReached) {
-        toast.error('Transfer limit has been reached. You cannot make any more transfers this week.');
-        return;
-      }
-      setTransferModalPlayerIn(player);
-      setTransferModalSelectedPlayerOutId(null);
-      setTransferModalOpen(true);
-      return;
-    }
-
-    // Position has space, add directly
-    setDraftRoster((prevRoster) => {
-      const maxPlayersPerPosition = getMaxPlayersPerPosition();
-      const positionLimits = maxPlayersPerPosition[playerPosition];
-
-      const positionPlayersOnField = prevRoster.filter(
-        p => p.position === playerPosition && !p.isBenched
-      );
-      const positionPlayersOnBench = prevRoster.filter(
-        p => p.position === playerPosition && p.isBenched
-      );
-
-      let newRoster: DraftRosterPlayer[];
-      
-      if (positionPlayersOnField.length >= positionLimits.starting) {
-        // Add to bench
-        newRoster = [...prevRoster, {
-          playerId: player.id,
-          position: playerPosition,
-          isBenched: true,
-          isCaptain: false,
-        }];
-      } else {
-        // Add to starting lineup
-        newRoster = [...prevRoster, {
-          playerId: player.id,
-          position: playerPosition,
-          isBenched: false,
-          isCaptain: false,
-        }];
-      }
-
-      // Ensure we have at least one captain
-      const hasCaptain = newRoster.some(p => p.isCaptain);
-      if (!hasCaptain && newRoster.length > 0) {
-        const highestValueIndex = newRoster
-          .map((p, idx) => ({ ...p, idx, value: allPlayers.find(pl => pl.id === p.playerId)?.currentValue || 0 }))
-          .sort((a, b) => b.value - a.value)[0]?.idx;
-        if (highestValueIndex !== undefined) {
-          newRoster[highestValueIndex].isCaptain = true;
-        }
-      }
-
-      setHasUnsavedChanges(true);
-      return newRoster;
-    });
-  }, [selectedTeamId, currentWeekId, allPlayers, draftRoster, isPositionFull, isTransferLimitReached]);
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
     const { active, over } = event;
-    setActivePlayer(null);
-    setActivePositionPlayer(null);
+      resetDragState();
     
-    if (!over || !selectedTeamId || !currentWeekId) {
+      if (!over || !selectedTeamId || !selectedWeekId) {
       return;
     }
 
     const activeData = active.data.current;
     const isPositionDrag = activeData?.type === 'position-player';
-    
-    // Get player from active data - either from player list or position circle
     const player = activeData?.player as PlayerWithValue | undefined;
+
     if (!player || !player.position) {
       return;
     }
     
-    // Validate player position is valid
     if (!['handler', 'cutter', 'receiver'].includes(player.position)) {
       toast.error(`Invalid player position: ${player.position}`);
       return;
     }
 
-    const dropZoneId = over.id.toString();
-    
-    // Parse drop zone (e.g., "position-handler-1" or "bench-handler-0")
-    const fieldMatch = dropZoneId.match(/^position-(handler|cutter|receiver)-(\d+)$/);
-    const benchMatch = dropZoneId.match(/^bench-(handler|cutter|receiver)-(\d+)$/);
-    
-    if (!fieldMatch && !benchMatch) {
+      const dropZoneInfo = parseDropZoneId(over.id.toString());
+      if (!dropZoneInfo) {
       return;
     }
 
-    const isBench = !!benchMatch;
-    const match = fieldMatch || benchMatch;
-    const [, targetPosition, slotIndexStr] = match!;
-    const slotIndex = parseInt(slotIndexStr, 10);
+      const { targetPosition, slotIndex, isBench } = dropZoneInfo;
     
-    // Check if player position matches target position
     if (player.position !== targetPosition) {
       toast.error(`Cannot place ${player.position} in ${targetPosition} position`);
       return;
     }
 
-    // If dragging from a position circle, handle reordering/swapping
     if (isPositionDrag && activeData.positionPlayer) {
       const sourcePositionPlayer = activeData.positionPlayer as DraftRosterPlayer;
       const sourceDropId = activeData.dropId as string;
       
-      // Check if dropping on the same slot (no-op)
-      if (sourceDropId === dropZoneId) {
+        if (sourceDropId === over.id.toString()) {
         return;
       }
       
       setDraftRoster((prevRoster) => {
-        // Find what player (if any) is at the target drop location
         const targetPositionPlayers = prevRoster.filter(p => p.position === targetPosition);
         let targetPlayer: DraftRosterPlayer | undefined;
         
@@ -539,13 +365,10 @@ export default function FantasyPage() {
           targetPlayer = fieldPlayers[slotIndex];
         }
         
-        // Remove source and target from roster
         const newRoster = prevRoster.filter(
-          p => p.playerId !== sourcePositionPlayer.playerId && 
-               (!targetPlayer || p.playerId !== targetPlayer.playerId)
+            p => p.playerId !== sourcePositionPlayer.playerId && (!targetPlayer || p.playerId !== targetPlayer.playerId)
         );
         
-        // Process each position to rebuild in correct order
         const positions: FantasyPosition[] = ['handler', 'cutter', 'receiver'];
         const maxPlayersPerPosition = getMaxPlayersPerPosition();
         const finalRoster: DraftRosterPlayer[] = [];
@@ -556,90 +379,67 @@ export default function FantasyPage() {
           const benchPlayers = positionPlayers.filter(p => p.isBenched);
           
           if (pos === targetPosition) {
-            // This is the target position - insert source and handle target swap
             const positionLimits = maxPlayersPerPosition[pos];
             
             if (isBench) {
-              // Moving to bench
-              // Add source to bench at correct slot
               const updatedBench = [...benchPlayers];
               updatedBench.splice(Math.min(slotIndex, updatedBench.length), 0, {
                 ...sourcePositionPlayer,
                 isBenched: true,
               });
               
-              // If target exists and was swapping, add target to source's old position
               if (targetPlayer && targetPlayer.playerId !== sourcePositionPlayer.playerId) {
-                if (sourcePositionPlayer.isBenched) {
-                  // Source was on bench, target goes to bench (simple swap)
-                  // Already handled above
-                } else {
-                  // Source was on field, target goes to field
+                  if (!sourcePositionPlayer.isBenched) {
                   const updatedField = [...fieldPlayers, { ...targetPlayer, isBenched: false }];
                   finalRoster.push(...updatedField.slice(0, positionLimits.starting));
-                  
-                  // Excess to bench
                   const excess = updatedField.slice(positionLimits.starting).map(p => ({ ...p, isBenched: true }));
                   updatedBench.push(...excess);
                 }
               } else {
-                // No target, just add field players
                 finalRoster.push(...fieldPlayers.slice(0, positionLimits.starting));
               }
               
               finalRoster.push(...updatedBench.slice(0, positionLimits.bench));
             } else {
-              // Moving to field
               if (targetPlayer && targetPlayer.playerId !== sourcePositionPlayer.playerId) {
                 if (targetPlayer.isBenched) {
-                  // Target was on bench, source goes to field at slotIndex, target goes to bench
                   const updatedField = [...fieldPlayers, { ...sourcePositionPlayer, isBenched: false }];
-                  // Reorder to place source at slotIndex
                   const sourceIndex = updatedField.findIndex(p => p.playerId === sourcePositionPlayer.playerId);
                   if (sourceIndex !== -1 && sourceIndex !== slotIndex) {
                     updatedField.splice(sourceIndex, 1);
-                    updatedField.splice(Math.min(slotIndex, updatedField.length), 0, { ...sourcePositionPlayer, isBenched: false });
+                      updatedField.splice(Math.min(slotIndex, updatedField.length), 0, {
+                        ...sourcePositionPlayer,
+                        isBenched: false,
+                      });
                   }
                   const starting = updatedField.slice(0, positionLimits.starting);
                   const excess = updatedField.slice(positionLimits.starting).map(p => ({ ...p, isBenched: true }));
-                  
-                  // Add target to bench
                   const updatedBench = [...benchPlayers, { ...targetPlayer, isBenched: true }];
-                  
                   finalRoster.push(...starting);
                   finalRoster.push(...excess, ...updatedBench.slice(0, positionLimits.bench));
                 } else {
-                  // Both on field - swap their positions
-                  // Get all field players for this position in current order from original roster
                   const allFieldPlayers = prevRoster.filter(p => p.position === pos && !p.isBenched);
-                  
-                  // Find indices of source and target in the original array
                   const sourceIndex = allFieldPlayers.findIndex(p => p.playerId === sourcePositionPlayer.playerId);
                   const targetIndex = allFieldPlayers.findIndex(p => p.playerId === targetPlayer.playerId);
                   
                   if (sourceIndex !== -1 && targetIndex !== -1) {
-                    // Create new array by copying and swapping
                     const swappedField = allFieldPlayers.map((p, idx) => {
                       if (idx === sourceIndex) {
-                        // Put target at source's position
                         return { ...targetPlayer, isBenched: false, isCaptain: targetPlayer.isCaptain };
                       } else if (idx === targetIndex) {
-                        // Put source at target's position
                         return { ...sourcePositionPlayer, isBenched: false, isCaptain: sourcePositionPlayer.isCaptain };
                       }
                       return p;
                     });
-                    
                     const starting = swappedField.slice(0, positionLimits.starting);
                     const excess = swappedField.slice(positionLimits.starting).map(p => ({ ...p, isBenched: true }));
-                    
                     finalRoster.push(...starting);
                     finalRoster.push(...benchPlayers, ...excess.slice(0, positionLimits.bench));
                   } else {
-                    // Fallback - shouldn't happen, but add both back
-                    const updatedField = [...fieldPlayers, 
+                      const updatedField = [
+                        ...fieldPlayers,
                       { ...sourcePositionPlayer, isBenched: false },
-                      { ...targetPlayer, isBenched: false }
+                        { ...targetPlayer, isBenched: false },
                     ];
                     const starting = updatedField.slice(0, positionLimits.starting);
                     const excess = updatedField.slice(positionLimits.starting).map(p => ({ ...p, isBenched: true }));
@@ -648,17 +448,14 @@ export default function FantasyPage() {
                   }
                 }
               } else {
-                // No target player, just move source to field
                 const updatedField = [...fieldPlayers, { ...sourcePositionPlayer, isBenched: false }];
                 const starting = updatedField.slice(0, positionLimits.starting);
                 const excess = updatedField.slice(positionLimits.starting).map(p => ({ ...p, isBenched: true }));
-                
                 finalRoster.push(...starting);
                 finalRoster.push(...benchPlayers, ...excess);
               }
             }
           } else {
-            // Other positions - keep as-is, but add target if it's moving here
             if (targetPlayer && targetPlayer.position === pos) {
               if (targetPlayer.isBenched) {
                 benchPlayers.push({ ...targetPlayer, isBenched: true });
@@ -672,132 +469,80 @@ export default function FantasyPage() {
           }
         }
         
-        // Preserve captain status
         if (sourcePositionPlayer.isCaptain) {
           finalRoster.forEach(p => {
             p.isCaptain = p.playerId === sourcePositionPlayer.playerId;
           });
         } else {
-          // Ensure exactly one captain
-          const captains = finalRoster.filter(p => p.isCaptain);
-          if (captains.length === 0 && finalRoster.length > 0) {
-            const highestValue = finalRoster.map((p, idx) => ({
-              ...p,
-              idx,
-              value: allPlayers.find(pl => pl.id === p.playerId)?.currentValue || 0,
-            })).sort((a, b) => b.value - a.value)[0];
-            if (highestValue) {
-              finalRoster[highestValue.idx].isCaptain = true;
-            }
-          } else if (captains.length > 1) {
-            const captainsWithValues = captains.map(p => ({
-              ...p,
-              value: allPlayers.find(pl => pl.id === p.playerId)?.currentValue || 0,
-            }));
-            captainsWithValues.sort((a, b) => b.value - a.value);
-            const captainToKeep = captainsWithValues[0].playerId;
-            finalRoster.forEach(p => {
-              p.isCaptain = p.playerId === captainToKeep;
-            });
-          }
+            return ensureSingleCaptain(finalRoster, playersValueMap);
         }
 
         setHasUnsavedChanges(true);
         return finalRoster;
       });
       
-      return; // Early return for position drag handling
+        return;
     }
 
     const maxPlayersPerPosition = getMaxPlayersPerPosition();
-    const positionLimits = maxPlayersPerPosition[targetPosition as FantasyPosition];
+      const positionLimits = maxPlayersPerPosition[targetPosition];
 
-    // Get current players at target position
     setDraftRoster((prevRoster) => {
-      const currentPlayersAtPosition = prevRoster.filter(
-        p => p.position === targetPosition
-      );
+        const currentPlayersAtPosition = prevRoster.filter(p => p.position === targetPosition);
       const fieldPlayersAtPosition = currentPlayersAtPosition.filter(p => !p.isBenched);
       const benchPlayersAtPosition = currentPlayersAtPosition.filter(p => p.isBenched);
-
-      // Check if this is a reorder (player already on team) or a new add
-      const isPlayerOnTeam = prevRoster.some(p => p.playerId === player.id);
-      
-      // Build new roster
+        const isPlayerOnTeam = isPlayerInRoster(prevRoster, player.id);
       let newRoster: DraftRosterPlayer[] = [];
-
-      // Process each position
       const positions: FantasyPosition[] = ['handler', 'cutter', 'receiver'];
       
       for (const pos of positions) {
         if (pos === targetPosition) {
-          // Target position - handle the drop
-          const otherPlayersAtPos = prevRoster.filter(
-            p => p.position === pos && p.playerId !== player.id
-          );
+            const otherPlayersAtPos = prevRoster.filter(p => p.position === pos && p.playerId !== player.id);
           
           if (isBench) {
-            // Dropping to bench
             if (benchPlayersAtPosition.length >= positionLimits.bench) {
               toast.error(`Cannot add more ${targetPosition}s to bench. Maximum ${positionLimits.bench} allowed.`);
               return prevRoster;
             }
-            
-            // Keep field players as-is, add to bench
             const fieldPlayers = otherPlayersAtPos.filter(p => !p.isBenched).slice(0, positionLimits.starting);
             const benchPlayers = otherPlayersAtPos.filter(p => p.isBenched);
-            
             newRoster.push(...fieldPlayers);
             newRoster.push({
               playerId: player.id,
-              position: targetPosition as FantasyPosition,
+                position: targetPosition,
               isBenched: true,
               isCaptain: false,
             });
             newRoster.push(...benchPlayers);
           } else {
-            // Dropping to field
-            // Check if field is full and player is not already on team
             if (!isPlayerOnTeam && fieldPlayersAtPosition.length >= positionLimits.starting) {
-              // Field is full - check if bench has space
               if (benchPlayersAtPosition.length >= positionLimits.bench) {
-                // Both field and bench are full - check transfer limit before opening modal
                 if (isTransferLimitReached) {
                   toast.error('Transfer limit has been reached. You cannot make any more transfers this week.');
                   return prevRoster;
                 }
-                // Auto-select the player at the target slot position as swap candidate
                 const fieldPlayers = otherPlayersAtPos.filter(p => !p.isBenched);
                 const targetSlotPlayer = fieldPlayers[slotIndex] || fieldPlayers[fieldPlayers.length - 1];
-                
                 if (targetSlotPlayer) {
-                  setTransferModalPlayerIn(player);
-                  setTransferModalSelectedPlayerOutId(targetSlotPlayer.playerId);
-                  setTransferModalOpen(true);
-                  return prevRoster; // Don't update roster yet
+                    openTransferModal(player, targetSlotPlayer.playerId);
+                    return prevRoster;
                 } else {
-                  // Fallback: open modal without auto-selection
-                  setTransferModalPlayerIn(player);
-                  setTransferModalSelectedPlayerOutId(null);
-                  setTransferModalOpen(true);
+                    openTransferModal(player);
                   return prevRoster;
                 }
               } else {
-                // Field full but bench has space - add to bench
                 const fieldPlayers = otherPlayersAtPos.filter(p => !p.isBenched).slice(0, positionLimits.starting);
                 const benchPlayers = otherPlayersAtPos.filter(p => p.isBenched);
                 newRoster.push(...fieldPlayers);
                 newRoster.push({
                   playerId: player.id,
-                  position: targetPosition as FantasyPosition,
+                    position: targetPosition,
                   isBenched: true,
                   isCaptain: false,
                 });
                 newRoster.push(...benchPlayers);
               }
             } else {
-              // Field has space - proceed with normal drop logic
-              // Build sorted list of current field players at this position
               interface PlayerWithSlot {
                 player: DraftRosterPlayer;
                 slot: number;
@@ -813,54 +558,42 @@ export default function FantasyPage() {
                 })
                 .sort((a, b) => a.slot - b.slot);
               
-              // Insert dragged player at target slot
               sortedFieldPlayers.splice(slotIndex, 0, {
                 player: {
                   playerId: player.id,
-                  position: targetPosition as FantasyPosition,
+                    position: targetPosition,
                   isBenched: false,
                   isCaptain: false,
                 },
                 slot: slotIndex,
               });
               
-              // Take max players for starting lineup
               const starting = sortedFieldPlayers.slice(0, positionLimits.starting).map(p => p.player);
-              // Remaining players go to bench (if bench has space)
               const remaining = sortedFieldPlayers.slice(positionLimits.starting);
               const benched = [];
               for (const item of remaining) {
                 if (benchPlayersAtPosition.length + benched.length < positionLimits.bench) {
                   benched.push({ ...item.player, isBenched: true });
                 } else {
-                  // Bench is full, can't add this player
                   toast.error(`Cannot add more ${targetPosition}s. Field and bench are full.`);
                   return prevRoster;
                 }
               }
-              
-              // Add existing bench players
               const existingBench = otherPlayersAtPos.filter(p => p.isBenched);
-              
               newRoster.push(...starting);
               newRoster.push(...benched);
               newRoster.push(...existingBench);
             }
           }
         } else {
-          // Other positions - keep as-is
           newRoster.push(...prevRoster.filter(p => p.position === pos));
         }
       }
       
-      // If player wasn't on team and wasn't added above, add them
       if (!isPlayerOnTeam && !newRoster.some(p => p.playerId === player.id)) {
-        // Player was dragged to wrong position or couldn't be added - add to bench if space available
         const playerPos = player.position as FantasyPosition;
         const positionLimitsForPlayer = maxPlayersPerPosition[playerPos];
-        const benchPlayersForPlayer = prevRoster.filter(
-          p => p.position === playerPos && p.isBenched
-        );
+          const benchPlayersForPlayer = prevRoster.filter(p => p.position === playerPos && p.isBenched);
         
         if (benchPlayersForPlayer.length < positionLimitsForPlayer.bench) {
           newRoster.push({
@@ -875,261 +608,41 @@ export default function FantasyPage() {
         }
       }
 
-      // Ensure we have exactly one captain
-      const captains = newRoster.filter(p => p.isCaptain);
-      if (captains.length === 0 && newRoster.length > 0) {
-        // Make highest value player captain
-        const playersWithValues = newRoster.map((p, idx) => ({
-          ...p,
-          idx,
-          value: allPlayers.find(pl => pl.id === p.playerId)?.currentValue || 0,
-        }));
-        playersWithValues.sort((a, b) => b.value - a.value);
-        if (playersWithValues[0]) {
-          newRoster[playersWithValues[0].idx].isCaptain = true;
-        }
-      } else if (captains.length > 1) {
-        // Keep only the highest value captain
-        const captainsWithValues = captains.map(p => ({
-          ...p,
-          value: allPlayers.find(pl => pl.id === p.playerId)?.currentValue || 0,
-        }));
-        captainsWithValues.sort((a, b) => b.value - a.value);
-        const captainToKeep = captainsWithValues[0].playerId;
-        newRoster.forEach(p => {
-          p.isCaptain = p.playerId === captainToKeep;
-        });
-      }
-
+        const finalRoster = ensureSingleCaptain(newRoster, playersValueMap);
       setHasUnsavedChanges(true);
-      return newRoster;
-    });
-  }, [selectedTeamId, currentWeekId, pitchPlayers, allPlayers, isTransferLimitReached]);
-
-  // Handler for swap button click
-  const handleSwapPlayer = useCallback((playerId: string) => {
-    if (isTransferLimitReached) {
-      toast.error('Transfer limit has been reached. You cannot make any more transfers this week.');
-      return;
-    }
-
-    const player = allPlayers.find(p => p.id === playerId);
-    if (!player || !player.position) return;
-
-    const playerPosition = player.position as FantasyPosition;
-    
-    // Position should be full, but double-check
-    if (!isPositionFull(playerPosition)) {
-      // If not full, treat as regular add
-      handleAddPlayer(playerId);
-      return;
-    }
-
-    setTransferModalPlayerIn(player);
-    setTransferModalSelectedPlayerOutId(null);
-    setTransferModalOpen(true);
-  }, [allPlayers, isPositionFull, handleAddPlayer, isTransferLimitReached]);
-
-  // Handler for transfer confirmation
-  const handleTransferConfirm = useCallback((playerInId: string, playerOutId: string) => {
-    const playerIn = allPlayers.find(p => p.id === playerInId);
-    if (!playerIn || !playerIn.position) return;
-
-    const playerPosition = playerIn.position as FantasyPosition;
-
-    // Update draft roster: remove player out, add player in
-    setDraftRoster((prevRoster) => {
-      const newRoster = prevRoster
-        .filter(p => p.playerId !== playerOutId)
-        .map(p => ({ ...p }));
-
-      // Find the player being removed to preserve bench/field status
-      const playerOut = prevRoster.find(p => p.playerId === playerOutId);
-      const isBenched = playerOut?.isBenched ?? false;
-
-      // Add new player in same position (field/bench) as player being removed
-      newRoster.push({
-        playerId: playerInId,
-        position: playerPosition,
-        isBenched: isBenched,
-        isCaptain: playerOut?.isCaptain ?? false,
+        return finalRoster;
       });
+    },
+    [
+      selectedTeamId,
+      selectedWeekId,
+      pitchPlayers,
+      allPlayers,
+      isTransferLimitReached,
+      playersValueMap,
+      openTransferModal,
+      resetDragState,
+    ]
+  );
 
-      // Ensure exactly one captain
-      const captains = newRoster.filter(p => p.isCaptain);
-      if (captains.length === 0 && newRoster.length > 0) {
-        const highestValueIndex = newRoster
-          .map((p, idx) => ({ ...p, idx, value: allPlayers.find(pl => pl.id === p.playerId)?.currentValue || 0 }))
-          .sort((a, b) => b.value - a.value)[0]?.idx;
-        if (highestValueIndex !== undefined) {
-          newRoster[highestValueIndex].isCaptain = true;
-        }
-      } else if (captains.length > 1) {
-        const captainsWithValues = captains.map(p => ({
-          ...p,
-          value: allPlayers.find(pl => pl.id === p.playerId)?.currentValue || 0,
-        }));
-        captainsWithValues.sort((a, b) => b.value - a.value);
-        const captainToKeep = captainsWithValues[0].playerId;
-        newRoster.forEach(p => {
-          p.isCaptain = p.playerId === captainToKeep;
-        });
-      }
-
-      setHasUnsavedChanges(true);
-      return newRoster;
-    });
-
-    // Add to unsaved transfers
-    setUnsavedTransfers((prev) => [
-      ...prev,
-      {
-        playerInId,
-        playerOutId,
-        id: `unsaved-${Date.now()}-${Math.random()}`,
-      },
-    ]);
-
-    setTransferModalOpen(false);
-    setTransferModalPlayerIn(null);
-    setTransferModalSelectedPlayerOutId(null);
-  }, [allPlayers]);
-
-  // Handler for captain selection
-  const handleCaptainSelect = useCallback((playerId: string) => {
-    setDraftRoster((prevRoster) => {
-      const newRoster = prevRoster.map(p => ({
-        ...p,
-        isCaptain: p.playerId === playerId,
-      }));
-
-      setHasUnsavedChanges(true);
-      return newRoster;
-    });
-  }, []);
-
-  const handleSave = useCallback(async () => {
-    if (!selectedTeamId || !currentWeekId) {
-      return;
-    }
-
-    // Always validate for complete roster: 10 players (4 handlers, 3 cutters, 3 receivers) and a captain
-    const validation = validateFantasyTeam(draftRoster, playersValueMap, false);
-    
-    if (!validation.valid) {
-      // Show all validation errors (also shown in header)
-      const errorMessage = validation.errors.join('\n');
-      toast.error(`Cannot save team:\n${errorMessage}`, {
-        duration: 5000,
-      });
-      return;
-    }
-
-    try {
-      // Execute all unsaved transfers first
-      for (const transfer of unsavedTransfers) {
-        await executeTransferMutation.mutateAsync({
-          fantasyTeamId: selectedTeamId,
-          playerInId: transfer.playerInId,
-          playerOutId: transfer.playerOutId,
-          weekId: currentWeekId,
-        });
-      }
-
-      // Always require complete roster when saving (allowPartial = false)
-      await createSnapshotMutation.mutateAsync({
-        fantasyTeamId: selectedTeamId,
-        weekId: currentWeekId,
-        players: draftRoster,
-        allowPartial: false,
-      });
-      
-      // Clear unsaved transfers and reset state
-      setUnsavedTransfers([]);
-      setHasUnsavedChanges(false);
-      setValidationErrors([]);
-    } catch (error: any) {
-      // Error toast is handled by mutation's onError
-    }
-  }, [selectedTeamId, currentWeekId, draftRoster, playersValueMap, createSnapshotMutation, unsavedTransfers, executeTransferMutation]);
-
-  // Show loading state
-  if (isLoadingAuth) {
-    return (
-      <div className={styles.container}>
-        <div>Loading...</div>
-      </div>
-    );
+  if (isLoadingAuth || isLoadingData) {
+    return <LoadingState containerClassName={styles.container} />;
   }
 
-  // Show sign-up prompt if not authenticated
   if (!user) {
-    return (
-      <div className={styles.container}>
-        <Card>
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem' }}>
-              Sign Up to Manage Your Fantasy Team
-            </h1>
-            <p style={{ marginBottom: '1.5rem', color: '#6b7280' }}>
-              You need to be signed in to create and manage your fantasy team.
-            </p>
-            <DiscordLogin />
-          </div>
-        </Card>
-      </div>
-    );
+    return <UnauthenticatedState containerClassName={styles.container} />;
   }
 
-  // Show team creation prompt if authenticated but no team
   if (fantasyTeams.length === 0) {
-    return (
-      <div className={styles.container}>
-        <Card>
-          <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem' }}>
-              Create Your Fantasy Team
-            </h1>
-            <p style={{ marginBottom: '1.5rem', color: '#6b7280' }}>
-              You don't have a fantasy team yet. Create one to start managing your players.
-            </p>
-            <button
-              onClick={() => router.push('/admin/fantasy-teams')}
-              style={{
-                padding: '0.75rem 1.5rem',
-                backgroundColor: '#3b82f6',
-                color: 'white',
-                border: 'none',
-                borderRadius: '0.375rem',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
-              Create Team (Admin Panel)
-            </button>
-          </div>
-        </Card>
-      </div>
-    );
+    return <NoTeamState containerClassName={styles.container} />;
   }
 
   if (!activeSeason) {
-    return (
-      <div className={styles.container}>
-        <h1>Fantasy Teams</h1>
-        <p>No active season found. Please create a season first.</p>
-      </div>
-    );
+    return <NoSeasonState containerClassName={styles.container} />;
   }
 
   if (!selectedWeek) {
-    return (
-      <div className={styles.container}>
-        <h1>My Fantasy Team</h1>
-        <p>No weeks available for this season.</p>
-      </div>
-    );
+    return <NoWeekState containerClassName={styles.container} />;
   }
 
   return (
@@ -1142,27 +655,7 @@ export default function FantasyPage() {
       onDragCancel={handleDragCancel}
     >
       <div className={styles.container}>
-        {/* Debug JSON Display */}
-        <Card style={{ marginBottom: '1.5rem', padding: '1rem' }}>
-          <details style={{ cursor: 'pointer' }}>
-            <summary style={{ fontWeight: 600, marginBottom: '0.5rem', userSelect: 'none' }}>
-              Fantasy Team JSON (Debug)
-            </summary>
-            <div style={{ marginTop: '0.5rem' }}>
-              <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.25rem' }}>Draft Roster:</h4>
-              <pre style={{ 
-                backgroundColor: '#f3f4f6', 
-                padding: '0.75rem', 
-                borderRadius: '0.375rem',
-                fontSize: '0.75rem',
-                overflow: 'auto',
-                maxHeight: '300px'
-              }}>
-                {JSON.stringify(draftRoster, null, 2)}
-              </pre>
-            </div>
-          </details>
-        </Card>
+        <DebugRosterDisplay draftRoster={draftRoster} />
 
         <TeamSelectionHeader
           week={selectedWeek}
@@ -1195,9 +688,9 @@ export default function FantasyPage() {
             teamPlayerIds={teamPlayerIds}
             onAddPlayer={handleAddPlayer}
             onSwapPlayer={handleSwapPlayer}
-            isPositionFull={isPositionFull}
+              isPositionFull={isPositionFullCallback}
             isTransferLimitReached={isTransferLimitReached}
-            isLoading={isLoadingPlayers}
+              isLoading={false}
           />
           </div>
 
@@ -1233,119 +726,29 @@ export default function FantasyPage() {
           pointerEvents: 'none',
         }}
       >
-        {activePlayer && activePositionPlayer ? (
-          // Dragging from position circle - show position circle
-          <div
-            className={positionStyles.position}
-            style={{
-              opacity: 0.95,
-              transform: 'rotate(2deg) scale(1.05)',
-              cursor: 'grabbing',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
-              border: '2px solid rgba(59, 130, 246, 1)',
-            }}
-          >
-            <div className={positionStyles.positionIndicator}>
-              {getPositionCode(activePositionPlayer.position)}
-            </div>
-            {(() => {
-              const jerseyPath = getTeamJerseyPath(activePlayer.teamSlug || activePlayer.teamName);
-              return jerseyPath ? (
-                <div className={positionStyles.jerseyContainer}>
-                  <Image
-                    src={jerseyPath}
-                    alt={activePlayer.teamSlug || activePlayer.teamName || 'Team jersey'}
-                    className={positionStyles.jerseyImage}
-                    width={48}
-                    height={48}
-                  />
-                </div>
-              ) : (
-                <div className={positionStyles.jerseyPlaceholder} />
-              );
-            })()}
-            <div className={positionStyles.playerName}>
-              {formatPlayerName(activePlayer.first_name, activePlayer.last_name)}
-            </div>
-          </div>
-        ) : activePlayer ? (
-          // Dragging from player list - show player card
-          <div
-            style={{
-              opacity: 0.95,
-              transform: 'rotate(2deg) scale(1.02)',
-              cursor: 'grabbing',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
-            }}
-          >
-            <PlayerCard player={activePlayer} isOnTeam={false} />
-          </div>
-        ) : null}
+        <DragOverlayContent
+          activePlayer={activePlayer}
+          activePositionPlayer={activePositionPlayer}
+        />
       </DragOverlay>
 
-      {/* Navigation confirmation dialog */}
-      <Modal
+      <UnsavedChangesDialog
         isOpen={showNavigateAwayDialog}
-        onClose={handleCancelNavigateAway}
-        title="Unsaved Changes"
-        width="400px"
-      >
-        <div style={{ marginBottom: '1.5rem' }}>
-          <p style={{ marginBottom: '1rem', color: '#374151' }}>
-            You have unsaved changes to your team. Are you sure you want to leave? Your changes will be lost.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-          <button
-            onClick={handleCancelNavigateAway}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#f3f4f6',
-              color: '#374151',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirmNavigateAway}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#ef4444',
-              color: 'white',
-              border: 'none',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
-            Leave Without Saving
-          </button>
-        </div>
-      </Modal>
+        onConfirm={handleConfirmNavigateAway}
+        onCancel={handleCancelNavigateAway}
+      />
 
-      {/* Transfer Modal */}
       {transferModalPlayerIn && (
         <TransferModal
           isOpen={transferModalOpen}
-          onClose={() => {
-            setTransferModalOpen(false);
-            setTransferModalPlayerIn(null);
-            setTransferModalSelectedPlayerOutId(null);
-          }}
+          onClose={closeTransferModal}
           playerIn={transferModalPlayerIn}
-          swapCandidates={getSwapCandidates(transferModalPlayerIn.position as FantasyPosition)}
+          swapCandidates={getSwapCandidatesCallback(transferModalPlayerIn.position as FantasyPosition)}
           selectedPlayerOutId={transferModalSelectedPlayerOutId}
           onConfirm={handleTransferConfirm}
         />
       )}
 
-      {/* Captain Selection Modal */}
       <CaptainSelectionModal
         isOpen={captainModalOpen}
         onClose={() => setCaptainModalOpen(false)}

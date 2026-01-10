@@ -253,7 +253,7 @@ export function PlayerAvailabilityTable() {
   const sortedWeeks = [...weeks].sort((a, b) => a.week_number - b.week_number);
 
   return (
-    <div style={{ marginTop: '2rem' }}>
+    <div>
       <h3 style={{ marginBottom: '1rem' }}>Player Availability & Values</h3>
       <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
@@ -263,7 +263,6 @@ export function PlayerAvailabilityTable() {
                 style={{
                   padding: '0.75rem',
                   textAlign: 'left',
-                  border: '1px solid #d1d5db',
                   cursor: 'pointer',
                   userSelect: 'none',
                   fontWeight: '600',
@@ -276,7 +275,6 @@ export function PlayerAvailabilityTable() {
                 style={{
                   padding: '0.75rem',
                   textAlign: 'left',
-                  border: '1px solid #d1d5db',
                   cursor: 'pointer',
                   userSelect: 'none',
                   fontWeight: '600',
@@ -289,7 +287,6 @@ export function PlayerAvailabilityTable() {
                 style={{
                   padding: '0.75rem',
                   textAlign: 'left',
-                  border: '1px solid #d1d5db',
                   cursor: 'pointer',
                   userSelect: 'none',
                   fontWeight: '600',
@@ -304,7 +301,6 @@ export function PlayerAvailabilityTable() {
                   style={{
                     padding: '0.75rem',
                     textAlign: 'center',
-                    border: '1px solid #d1d5db',
                     minWidth: '120px',
                     fontWeight: '600',
                   }}
@@ -319,9 +315,9 @@ export function PlayerAvailabilityTable() {
               const team = teams.find(t => t.id === player.teamId);
               return (
                 <tr key={player.id} style={{ backgroundColor: '#fff' }}>
-                  <td style={{ padding: '0.75rem', border: '1px solid #d1d5db' }}>{player.name}</td>
-                  <td style={{ padding: '0.75rem', border: '1px solid #d1d5db' }}>{team?.name || 'No team'}</td>
-                  <td style={{ padding: '0.75rem', border: '1px solid #d1d5db' }}>
+                  <td style={{ padding: '0.75rem' }}>{player.name}</td>
+                  <td style={{ padding: '0.75rem' }}>{team?.name || 'No team'}</td>
+                  <td style={{ padding: '0.75rem' }}>
                     <input
                       type="number"
                       value={player.startingValue}
@@ -339,7 +335,7 @@ export function PlayerAvailabilityTable() {
                   {sortedWeeks.map(week => (
                     <td
                       key={`${player.id}-${week.id}`}
-                      style={{ padding: '0.75rem', border: '1px solid #d1d5db', textAlign: 'center' }}
+                      style={{ padding: '0.75rem', textAlign: 'center' }}
                     >
                       <select
                         value={getAvailabilityStatus(player.id, week.id)}

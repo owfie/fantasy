@@ -65,6 +65,19 @@ export async function createSnapshot(
   const uow = await getUnitOfWork();
   return uow.execute(async () => {
     const service = new FantasyTeamSnapshotService(uow);
+    
+    // Check if snapshot already exists and delete it if so
+    const existing = await service.getSnapshotForWeek(fantasyTeamId, weekId);
+    if (existing) {
+      // Delete existing snapshot players first (CASCADE should handle this, but be explicit)
+      const existingPlayers = await uow.fantasyTeamSnapshotPlayers.findBySnapshot(existing.id);
+      for (const player of existingPlayers) {
+        await uow.fantasyTeamSnapshotPlayers.delete(player.id);
+      }
+      // Delete the snapshot itself
+      await uow.fantasyTeamSnapshots.delete(existing.id);
+    }
+    
     return service.createSnapshotForWeek(fantasyTeamId, weekId, players);
   });
 }

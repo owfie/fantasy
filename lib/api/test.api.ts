@@ -294,6 +294,7 @@ export async function testUpdatePlayer(
     first_name?: string;
     last_name?: string;
     player_role?: 'captain' | 'player' | 'marquee' | 'rookie_marquee' | 'reserve';
+    position?: 'handler' | 'cutter' | 'receiver';
     starting_value?: number;
     draft_order?: number;
   }
@@ -301,9 +302,17 @@ export async function testUpdatePlayer(
   const uow = await getUnitOfWork();
   
   return uow.execute(async (uow) => {
+    // Convert empty string position to null to clear it, or handle null explicitly
+    const cleanUpdates: any = { ...updates };
+    if ('position' in cleanUpdates) {
+      if (cleanUpdates.position === '' || cleanUpdates.position === null) {
+        cleanUpdates.position = null;
+      }
+    }
+    
     const player = await uow.players.update({
       id: playerId,
-      ...updates,
+      ...cleanUpdates,
     });
     
     return { success: true, message: 'Player updated', data: player };

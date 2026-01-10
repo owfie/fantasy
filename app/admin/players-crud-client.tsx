@@ -25,7 +25,7 @@ import { Card } from '@/components/Card';
 import { Modal } from '@/components/Modal';
 import { useTeamsIncludingDeleted } from '@/lib/queries/teams.queries';
 import { getErrorMessage } from '@/lib/utils';
-import { Player, PlayerRole } from '@/lib/domain/types';
+import { Player, PlayerRole, FantasyPosition } from '@/lib/domain/types';
 import { PlayerAvailabilityTable } from './player-availability-table';
 
 interface TestResult<T = unknown> {
@@ -76,6 +76,7 @@ export default function PlayersCrudClient() {
     updateFirstName: '',
     updateLastName: '',
     updateRole: 'player' as 'captain' | 'player' | 'marquee' | 'rookie_marquee' | 'reserve',
+    updatePosition: '' as '' | FantasyPosition,
     updateStartingValue: '',
     updateDraftOrder: '',
     getById: '',
@@ -147,6 +148,7 @@ export default function PlayersCrudClient() {
         first_name: string;
         last_name: string;
         player_role: PlayerRole;
+        position: FantasyPosition;
         starting_value: number;
         draft_order: number;
       }> = {};
@@ -154,6 +156,13 @@ export default function PlayersCrudClient() {
       if (formData.updateFirstName) updates.first_name = formData.updateFirstName;
       if (formData.updateLastName) updates.last_name = formData.updateLastName;
       if (formData.updateRole) updates.player_role = formData.updateRole;
+      // Position: include if set (empty string will be converted to null by API)
+      if (formData.updatePosition !== undefined && formData.updatePosition !== null) {
+        updates.position = formData.updatePosition;
+      } else if (formData.updatePosition === '') {
+        // Explicitly set to null to clear position
+        (updates as any).position = null;
+      }
       if (formData.updateStartingValue) updates.starting_value = parseFloat(formData.updateStartingValue);
       if (formData.updateDraftOrder) updates.draft_order = parseInt(formData.updateDraftOrder);
       
@@ -186,9 +195,34 @@ export default function PlayersCrudClient() {
       updateFirstName: player.first_name,
       updateLastName: player.last_name,
       updateRole: player.player_role,
+      updatePosition: player.position || '',
       updateStartingValue: player.starting_value?.toString() || '',
       updateDraftOrder: player.draft_order?.toString() || '',
     }));
+  };
+
+  const handleUpdatePosition = async (playerId: string, position: FantasyPosition | '') => {
+    try {
+      // Empty string will be converted to null by the API to clear the position
+      const updates = {
+        position: position || ('' as any), // API will convert empty string to null
+      };
+      
+      await updatePlayerMutation.mutateAsync({
+        playerId,
+        updates: updates as any,
+      });
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      setResults((prev) => ({
+        ...prev,
+        updatePosition: {
+          success: false,
+          message: message || 'Failed to update position',
+          error: message,
+        },
+      }));
+    }
   };
 
   const handleSoftDelete = async (playerId: string) => {
@@ -272,28 +306,28 @@ export default function PlayersCrudClient() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h3>Players</h3>
-        <Button
-          onClick={() => setIsCreateModalOpen(true)}
-          variant="success"
-        >
-          Create Player
-        </Button>
-      </div>
+      <h3 style={{ marginBottom: '1rem' }}>Players</h3>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', alignItems: 'start' }}>
         {/* Left Column: Players List */}
         <div>
           <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h4>Players ({players.length})</h4>
-            <Button
-              onClick={() => runTest('getAll', () => testGetAllPlayers())}
-              disabled={loading.getAll}
-              variant="secondary"
-            >
-              Refresh
-            </Button>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <Button
+                onClick={() => runTest('getAll', () => testGetAllPlayers())}
+                disabled={loading.getAll}
+                variant="secondary"
+              >
+                Refresh
+              </Button>
+              <Button
+                onClick={() => setIsCreateModalOpen(true)}
+                variant="success"
+              >
+                Create Player
+              </Button>
+            </div>
           </div>
           <TestResultDisplay testName="getAll" isLoading={loading.getAll} result={results.getAll} />
           <TestResultDisplay testName="restore" isLoading={restoreMutation.isPending} result={results.restore} />
@@ -306,7 +340,19 @@ export default function PlayersCrudClient() {
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {activeSeasonPlayersList.map((player) => {
-                  return renderPlayerCard(player, false, openEditModal, handleSoftDelete, handleRestore, handleHardDelete, softDeleteMutation.isPending, restoreMutation.isPending, hardDeleteMutation.isPending);
+                  return renderPlayerCard(
+                    player,
+                    false,
+                    openEditModal,
+                    handleSoftDelete,
+                    handleRestore,
+                    handleHardDelete,
+                    softDeleteMutation.isPending,
+                    restoreMutation.isPending,
+                    hardDeleteMutation.isPending,
+                    handleUpdatePosition,
+                    updatePlayerMutation.isPending
+                  );
                 })}
               </div>
             </div>
@@ -321,7 +367,19 @@ export default function PlayersCrudClient() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {otherPlayersList.map((player) => {
                   const isInactive = !player.is_active;
-                  return renderPlayerCard(player, isInactive, openEditModal, handleSoftDelete, handleRestore, handleHardDelete, softDeleteMutation.isPending, restoreMutation.isPending, hardDeleteMutation.isPending);
+                  return renderPlayerCard(
+                    player,
+                    isInactive,
+                    openEditModal,
+                    handleSoftDelete,
+                    handleRestore,
+                    handleHardDelete,
+                    softDeleteMutation.isPending,
+                    restoreMutation.isPending,
+                    hardDeleteMutation.isPending,
+                    handleUpdatePosition,
+                    updatePlayerMutation.isPending
+                  );
                 })}
               </div>
             </div>
@@ -334,10 +392,14 @@ export default function PlayersCrudClient() {
             </div>
           )}
         </div>
-      </div>
 
-      {/* Player Availability Table */}
-      <PlayerAvailabilityTable />
+        {/* Right Column: Player Availability Table */}
+        <div>
+          <Card>
+            <PlayerAvailabilityTable />
+          </Card>
+        </div>
+      </div>
 
       {/* Create Player Modal */}
       <Modal
@@ -444,6 +506,18 @@ export default function PlayersCrudClient() {
               options={roleOptions}
             />
           </FormField>
+          <FormField label="Position">
+            <FormSelect
+              value={formData.updatePosition}
+              onChange={(e) => setFormData((prev) => ({ ...prev, updatePosition: e.target.value as '' | FantasyPosition }))}
+              options={[
+                { value: '', label: 'No position' },
+                { value: 'handler', label: 'Handler' },
+                { value: 'cutter', label: 'Cutter' },
+                { value: 'receiver', label: 'Receiver' },
+              ]}
+            />
+          </FormField>
           <FormField label="Starting Value">
             <FormNumberInput
               value={formData.updateStartingValue}
@@ -496,7 +570,9 @@ function renderPlayerCard(
   handleHardDelete: (playerId: string) => void,
   isSoftDeleting: boolean,
   isRestoring: boolean,
-  isHardDeleting: boolean
+  isHardDeleting: boolean,
+  handleUpdatePosition: (playerId: string, position: FantasyPosition | '') => void,
+  isUpdatingPosition: boolean
 ) {
   return (
     <Card key={player.id}>
@@ -521,6 +597,22 @@ function renderPlayerCard(
           <div style={{ fontSize: '0.75rem', color: '#666', fontFamily: 'monospace' }}>
             {player.id.substring(0, 8)}...
           </div>
+        </div>
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '500', color: '#6b7280', marginBottom: '0.25rem' }}>
+            Position
+          </label>
+          <FormSelect
+            value={player.position || ''}
+            onChange={(e) => handleUpdatePosition(player.id, e.target.value as FantasyPosition | '')}
+            disabled={isUpdatingPosition || isInactive}
+            options={[
+              { value: '', label: 'No position' },
+              { value: 'handler', label: 'Handler' },
+              { value: 'cutter', label: 'Cutter' },
+              { value: 'receiver', label: 'Receiver' },
+            ]}
+          />
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           {!isInactive && (

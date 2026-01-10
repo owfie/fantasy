@@ -65,9 +65,15 @@ export function useCreateSnapshot() {
         isCaptain: boolean;
       }>;
     }) => createSnapshot(fantasyTeamId, weekId, players),
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
+      // Invalidate all snapshot-related queries to refresh the UI
       queryClient.invalidateQueries({ queryKey: snapshotKeys.byTeam(variables.fantasyTeamId) });
-      toast.success('Snapshot created successfully');
+      queryClient.invalidateQueries({ queryKey: snapshotKeys.byWeek(variables.fantasyTeamId, variables.weekId) });
+      // Invalidate all detail queries for this team/week (to catch snapshotWithPlayers)
+      queryClient.invalidateQueries({ queryKey: [...snapshotKeys.all, 'detail'] });
+      // Also invalidate fantasy team queries since snapshot affects team value
+      queryClient.invalidateQueries({ queryKey: ['fantasy-teams', 'detail', variables.fantasyTeamId] });
+      toast.success('Team updated successfully');
     },
     onError: (error: Error) => {
       toast.error(`Failed to create snapshot: ${error.message}`);

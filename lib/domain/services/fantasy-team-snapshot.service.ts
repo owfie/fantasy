@@ -147,11 +147,8 @@ export class FantasyTeamSnapshotService {
         throw new Error(`Invalid lineup: ${validation.errors.join(', ')}`);
       }
 
-      // Check for existing snapshot
-      const existing = await uow.fantasyTeamSnapshots.findByFantasyTeamAndWeek(fantasyTeamId, weekId);
-      if (existing) {
-        throw new Error('Snapshot already exists for this fantasy team and week');
-      }
+      // Check for existing snapshot - if exists, we'll delete it first (handled by API)
+      // This method creates a new snapshot, the API layer handles updates
 
       // Get week and season info
       const week = await uow.weeks.findById(weekId);

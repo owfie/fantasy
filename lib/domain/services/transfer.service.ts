@@ -10,6 +10,7 @@ import { ValueTrackingService } from './value-tracking.service';
 
 const MAX_TRANSFERS_PER_WEEK = 2;
 const SALARY_CAP = 450;
+const UNLIMITED_TRANSFERS = -1; // Special value to indicate unlimited transfers
 
 export interface TransferValidationResult {
   valid: boolean;
@@ -54,9 +55,25 @@ export class TransferService {
   }
 
   /**
+   * Check if this is the team's first week (no previous snapshots exist)
+   */
+  async isFirstWeek(fantasyTeamId: string, weekId: string): Promise<boolean> {
+    // Get all snapshots for this team, excluding the current week
+    const allSnapshots = await this.uow.fantasyTeamSnapshots.findByFantasyTeam(fantasyTeamId);
+    // If there are no snapshots, or the only snapshot is for the current week, it's the first week
+    const otherWeekSnapshots = allSnapshots.filter(s => s.week_id !== weekId);
+    return otherWeekSnapshots.length === 0;
+  }
+
+  /**
    * Get remaining transfers for a week
+   * Returns -1 (UNLIMITED_TRANSFERS) for first week, otherwise returns remaining count
    */
   async getRemainingTransfers(fantasyTeamId: string, weekId: string): Promise<number> {
+    const isFirst = await this.isFirstWeek(fantasyTeamId, weekId);
+    if (isFirst) {
+      return UNLIMITED_TRANSFERS;
+    }
     const count = await this.uow.transfers.countByFantasyTeamAndWeek(fantasyTeamId, weekId);
     return Math.max(0, MAX_TRANSFERS_PER_WEEK - count);
   }
@@ -78,9 +95,9 @@ export class TransferService {
       errors.push(canTransfer.reason || 'Cannot make transfer');
     }
 
-    // Check transfer limit
+    // Check transfer limit (skip check for first week with unlimited transfers)
     const remaining = await this.getRemainingTransfers(fantasyTeamId, weekId);
-    if (remaining <= 0) {
+    if (remaining !== UNLIMITED_TRANSFERS && remaining <= 0) {
       errors.push(`Maximum of ${MAX_TRANSFERS_PER_WEEK} transfers allowed per week`);
     }
 

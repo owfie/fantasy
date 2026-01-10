@@ -80,6 +80,7 @@ export function useTestUpdatePlayer() {
       first_name?: string;
       last_name?: string;
       player_role?: 'captain' | 'player' | 'marquee' | 'rookie_marquee' | 'reserve';
+      position?: 'handler' | 'cutter' | 'receiver';
       starting_value?: number;
       draft_order?: number;
     };

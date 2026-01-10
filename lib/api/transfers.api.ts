@@ -23,6 +23,7 @@ export async function canMakeTransfer(
 
 /**
  * Get remaining transfers for a week
+ * Returns -1 for unlimited transfers (first week), otherwise returns remaining count
  */
 export async function getRemainingTransfers(
   fantasyTeamId: string,
@@ -32,6 +33,20 @@ export async function getRemainingTransfers(
   return uow.execute(async () => {
     const service = new TransferService(uow);
     return service.getRemainingTransfers(fantasyTeamId, weekId);
+  });
+}
+
+/**
+ * Check if this is the team's first week (no previous snapshots)
+ */
+export async function isFirstWeek(
+  fantasyTeamId: string,
+  weekId: string
+): Promise<boolean> {
+  const uow = await getUnitOfWork();
+  return uow.execute(async () => {
+    const service = new TransferService(uow);
+    return service.isFirstWeek(fantasyTeamId, weekId);
   });
 }
 

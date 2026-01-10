@@ -13,12 +13,16 @@ import {
   validateTransfer,
   getTransfersByWeek,
   getTransfersBySeason,
+  isFirstWeek,
 } from '@/lib/api/transfers.api';
+
+export const UNLIMITED_TRANSFERS = -1; // Special value indicating unlimited transfers for first week
 
 export const transferKeys = {
   all: ['transfers'] as const,
   canTransfer: (teamId: string, weekId: string) => [...transferKeys.all, 'can', teamId, weekId] as const,
   remaining: (teamId: string, weekId: string) => [...transferKeys.all, 'remaining', teamId, weekId] as const,
+  isFirstWeek: (teamId: string, weekId: string) => [...transferKeys.all, 'firstWeek', teamId, weekId] as const,
 };
 
 export function useCanMakeTransfer(fantasyTeamId: string, weekId: string) {
@@ -33,6 +37,14 @@ export function useRemainingTransfers(fantasyTeamId: string, weekId: string) {
   return useQuery({
     queryKey: transferKeys.remaining(fantasyTeamId, weekId),
     queryFn: () => getRemainingTransfers(fantasyTeamId, weekId),
+    enabled: !!fantasyTeamId && !!weekId,
+  });
+}
+
+export function useIsFirstWeek(fantasyTeamId: string, weekId: string) {
+  return useQuery({
+    queryKey: transferKeys.isFirstWeek(fantasyTeamId, weekId),
+    queryFn: () => isFirstWeek(fantasyTeamId, weekId),
     enabled: !!fantasyTeamId && !!weekId,
   });
 }

@@ -94,6 +94,7 @@ export abstract class BaseRepository<T, TInsert, TUpdate> implements IRepository
     const { id, ...updateData } = data as TUpdate & { id: string };
 
     // Filter out undefined values - Supabase doesn't handle undefined
+    // Keep null values (they're used to clear fields)
     const cleanUpdateData = Object.fromEntries(
       Object.entries(updateData).filter(([_, value]) => value !== undefined)
     );

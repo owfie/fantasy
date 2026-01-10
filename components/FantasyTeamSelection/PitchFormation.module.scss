@@ -1,0 +1,264 @@
+.pitchFormation {
+  width: 100%;
+  /* Apply perspective - lower value = more dramatic taper effect */
+  perspective: 600px;
+  perspective-origin: center 35%;
+  /* Center the 3D viewport */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  /* Ensure container is tall enough to show the 3D effect and bench */
+  min-height: 750px;
+  padding: 2rem 0;
+  /* Position relative so overlay can be absolutely positioned */
+  position: relative;
+  gap: 2rem;
+
+  margin-top: -150px;
+}
+
+.pitch {
+  position: relative;
+  width: 360px;
+  background: #16a34a;
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow: visible; /* Changed to visible so position boxes can be seen */
+  /* Transform the pitch element to create 3D perspective - larger angle = more taper */
+  /* Wider at bottom, tapers to top */
+  transform: rotateX(30deg);
+  transform-origin: center bottom;
+  transform-style: preserve-3d;
+  /* Add some margin to prevent clipping during rotation */
+  margin-bottom: 40px;
+  /* Add subtle shadow to enhance 3D effect */
+//   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.endzone {
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &.top {
+    border-bottom: 1px solid #f8f8f8;
+  }
+  
+  &.bottom {
+    border-top: 1px solid #f8f8f8;
+    border-bottom: none;
+  }
+}
+
+.playingField {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 1.5rem;
+  min-height: 500px;
+  height: 500px;
+  flex-shrink: 0;
+  /* This is just the background field - no transforms needed */
+  position: relative;
+  z-index: 1;
+}
+
+/* Position boxes overlay - absolutely positioned relative to pitchFormation, completely flat */
+.positionOverlay {
+  position: absolute;
+  /* Position to align with where the rotated pitch appears visually */
+  width: 360px; /* Match pitch width */
+  top: 47%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* Fine-tune vertical alignment to match rotated pitch visual position */
+  margin-top: -20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.5rem;
+  gap: 3em;
+  /* Position above the 3D transformed field - completely flat, no transforms */
+  z-index: 10;
+  /* Enable pointer events on overlay and children */
+  pointer-events: none;
+  
+  /* Allow pointer events on position boxes themselves */
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  /* Rows should remain flat relative to playingField */
+  transform-style: preserve-3d;
+}
+
+.position {
+  flex: 1;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 80px;
+  /* Darker background for visibility outside the field */
+  background-color: rgba(105, 120, 107, 0.581);
+  border: 1px dashed rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  /* Position boxes are flat (no 3D transforms) */
+
+  /* 3D shadow matching the pitch angle (30deg rotation) */
+  &::before {
+    content: '';
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    /* Create elliptical shadow that matches the 30deg pitch rotation */
+    /* The shadow appears elongated downward due to perspective */
+    transform: translateX(-50%) scaleY(0.5) scaleX(1.15);
+    width: 85%;
+    height: 50%;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0.25) 35%, rgba(0, 0, 0, 0) 60%, transparent 80%);
+    border-radius: 50%;
+    z-index: -1;
+    pointer-events: none;
+    /* Smooth transition when circle changes state */
+    transition: all 0.15s ease;
+    opacity: 0.5;
+  }
+
+  &:hover {
+    background-color: rgba(50, 50, 50, 0.9);
+    border-color: rgba(255, 255, 255, 0.7);
+  }
+
+  &.empty {
+    opacity: 0.5;
+  }
+
+  &.captain {
+    border-color: rgba(251, 191, 36, 0.9);
+    background-color: rgba(251, 191, 36, 0.25);
+    box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
+    
+    &::before {
+      background: radial-gradient(ellipse at center, rgba(251, 191, 36, 0.3) 0%, rgba(251, 191, 36, 0.15) 40%, transparent 70%);
+    }
+  }
+
+  &.dragOver {
+    background-color: rgba(59, 130, 246, 0.6);
+    border-color: rgba(59, 130, 246, 1);
+    border-style: solid;
+    border-width: 2px;
+    min-width: 0;
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.5);
+    
+    &::before {
+      background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.35) 0%, rgba(59, 130, 246, 0.2) 40%, transparent 70%);
+    }
+  }
+}
+
+.positionLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+}
+
+.emoji {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.playerName {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+  text-align: center;
+}
+
+.brickMark {
+  position: absolute;
+  /* Center in the playing field */
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+  color: #f8f8f8;
+  font-weight: 100;
+  pointer-events: none;
+  /* Position behind the overlay */
+  z-index: 0;
+
+  &:first-child {
+    top: 33%;
+  }
+
+  &:last-child {
+    top: 66%;
+  }
+}
+
+/* Bench Section - below the field */
+.benchSection {
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  z-index: 10;
+  position: relative;
+}
+
+.benchLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.benchPositions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.benchPosition {
+  /* Bench positions have a distinct style */
+  min-width: 100px;
+  background-color: rgba(40, 40, 40, 0.9);
+  border: 2px dashed rgba(255, 255, 255, 0.4);
+  
+  &:hover {
+    background-color: rgba(60, 60, 60, 0.95);
+    border-color: rgba(255, 255, 255, 0.6);
+  }
+  
+  &.dragOver {
+    background-color: rgba(59, 130, 246, 0.7);
+    border-color: rgba(59, 130, 246, 1);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.6);
+  }
+}
+

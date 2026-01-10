@@ -1,0 +1,187 @@
+.transferModal {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.playerCardContainer {
+  cursor: pointer;
+}
+
+.playerCard {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  transition: all 0.15s ease;
+  position: relative;
+
+  &.selected {
+    background-color: #dcfce7;
+    border-color: #86efac;
+  }
+
+  &:hover {
+    background-color: #f9fafb;
+  }
+}
+
+.selected {
+  background-color: #dcfce7 !important;
+  border-color: #86efac !important;
+}
+
+.gridIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  flex-shrink: 0;
+}
+
+.jersey {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jerseyImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.jerseyPlaceholder {
+  width: 48px;
+  height: 48px;
+  background-color: #f3f4f6;
+  border-radius: 4px;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 500;
+  color: #111827;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.teamTag {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background-color: #ef4444;
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.positionTag {
+  display: inline-block;
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.valueRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.value {
+  font-weight: 500;
+  color: #111827;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.points {
+  font-weight: 500;
+  color: #111827;
+  font-size: 0.875rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.swapCandidates {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.cancelButton {
+  padding: 0.5rem 1.5rem;
+  background-color: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background-color: #e5e7eb;
+  }
+}
+
+.confirmButton {
+  padding: 0.5rem 1.5rem;
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background-color: #059669;
+  }
+
+  &:disabled {
+    background-color: #d1d5db;
+    color: #9ca3af;
+    cursor: not-allowed;
+  }
+}
+

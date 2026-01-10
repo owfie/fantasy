@@ -99,14 +99,14 @@ function DroppablePosition({ player, positionCode, row, position, index, isBench
                     src={jerseyPath}
                     alt={player.player.teamSlug || player.player.teamName || 'Team jersey'}
                     className={styles.jerseyImage}
-                    width={48}
-                    height={48}
+                    width={100}
+                    height={100}
                   />
                 </div>
               ) : (
                 <div className={styles.jerseyPlaceholder} />
               )}
-              <div className={styles.playerName}>{formatPlayerName(player.player.first_name, player.player.last_name)}</div>
+              <div className={styles.playerName}>{formatPlayerName(player.player.first_name, player.player.last_name)} {player.isCaptain ? '(c)' : ''}</div>
             </>
           )}
         </>

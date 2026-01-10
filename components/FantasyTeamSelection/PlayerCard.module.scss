@@ -141,7 +141,7 @@
   width: 2rem;
   height: 2rem;
   border-radius: 50%;
-    border: 1px solid #e1e1e1;
+  border: 1px solid #e1e1e1;
   color: #e1e1e1;
   font-size: 1.25rem;
   font-weight: 300;
@@ -151,11 +151,47 @@
   justify-content: center;
   transition: all 0.15s ease;
   flex-shrink: 0;
+  background: none;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background-color: #10b981;
     border-color: #10b981;
     color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f3f4f6;
+  }
+}
+
+.swapButton {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid #e1e1e1;
+  color: #e1e1e1;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  background: none;
+
+  &:hover:not(:disabled) {
+    background-color: #f59e0b;
+    border-color: #f59e0b;
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #f3f4f6;
   }
 }
 

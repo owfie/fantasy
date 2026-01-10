@@ -14,10 +14,13 @@ interface PlayerListProps {
   selectedPositions: FantasyPosition[];
   onPositionChange: (positions: FantasyPosition[]) => void;
   onAddPlayer?: (playerId: string) => void;
+  onSwapPlayer?: (playerId: string) => void;
   teamPlayerIds?: Set<string>;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
   isLoading?: boolean;
+  isPositionFull?: (position: FantasyPosition) => boolean;
+  isTransferLimitReached?: boolean;
 }
 
 const ALL_POSITIONS: FantasyPosition[] = ['handler', 'cutter', 'receiver'];
@@ -27,10 +30,13 @@ export const PlayerList = memo(function PlayerList({
   selectedPositions,
   onPositionChange,
   onAddPlayer,
+  onSwapPlayer,
   teamPlayerIds = new Set(),
   searchQuery = '',
   onSearchChange,
   isLoading = false,
+  isPositionFull,
+  isTransferLimitReached = false,
 }: PlayerListProps) {
   type SortOption = 'price-high' | 'price-low' | 'draft-order' | 'points' | 'name' | 'team';
   const [sortBy, setSortBy] = useState<SortOption>('price-high');
@@ -180,14 +186,23 @@ export const PlayerList = memo(function PlayerList({
         ) : sortedPlayers.length === 0 ? (
           <div className={styles.empty}>No players found</div>
         ) : (
-          sortedPlayers.map(player => (
-            <PlayerCard
-              key={player.id}
-              player={player}
-              onAdd={onAddPlayer}
-              isOnTeam={teamPlayerIds.has(player.id)}
-            />
-          ))
+          sortedPlayers.map(player => {
+            const position = player.position as FantasyPosition | undefined;
+            const canAdd = position ? (isPositionFull ? !isPositionFull(position) : true) : true;
+            
+            return (
+              <PlayerCard
+                key={player.id}
+                player={player}
+                onAdd={onAddPlayer}
+                onSwap={onSwapPlayer}
+                canAdd={canAdd}
+                isOnTeam={teamPlayerIds.has(player.id)}
+                layoutId={`player-${player.id}`}
+                isTransferLimitReached={isTransferLimitReached}
+              />
+            );
+          })
         )}
       </div>
       </div>

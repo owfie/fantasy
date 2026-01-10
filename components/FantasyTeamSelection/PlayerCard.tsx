@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useDraggable } from '@dnd-kit/core';
+import { motion } from 'motion/react';
 import { PlayerWithValue } from '@/lib/api/players.api';
 import { formatCurrency, formatPlayerName } from '@/lib/utils/fantasy-utils';
 import { getTeamShortName, getTeamJerseyPath } from '@/lib/utils/team-utils';
@@ -14,10 +15,14 @@ import Link from 'next/link';
 interface PlayerCardProps {
   player: PlayerWithValue;
   onAdd?: (playerId: string) => void;
+  onSwap?: (playerId: string) => void;
   isOnTeam?: boolean;
+  canAdd?: boolean;
+  layoutId?: string;
+  isTransferLimitReached?: boolean;
 }
 
-export function PlayerCard({ player, onAdd, isOnTeam }: PlayerCardProps) {
+export function PlayerCard({ player, onAdd, onSwap, isOnTeam, canAdd = true, layoutId, isTransferLimitReached = false }: PlayerCardProps) {
   const router = useRouter();
   const jerseyPath = getTeamJerseyPath(player.teamSlug || player.teamName);
   const displayName = formatPlayerName(player.first_name, player.last_name);
@@ -39,8 +44,8 @@ export function PlayerCard({ player, onAdd, isOnTeam }: PlayerCardProps) {
     router.push(`/fantasy/players/${playerSlug}`);
   };
 
-  return (
-    <Card ref={setNodeRef as unknown as React.RefObject<HTMLDivElement>} className={`${styles.playerCard} ${isOnTeam ? styles.onTeam : ''} ${isDragging ? styles.dragging : ''}`}>
+  const cardElement = (
+    <Card className={`${styles.playerCard} ${isOnTeam ? styles.onTeam : ''} ${isDragging ? styles.dragging : ''}`}>
       <div className={styles.dragHandle} {...listeners} {...attributes} title="Drag to position">
         <svg
           width="16"
@@ -98,14 +103,50 @@ export function PlayerCard({ player, onAdd, isOnTeam }: PlayerCardProps) {
         <div className={styles.value}>{value}</div>
         <div className={styles.points}>{points} pts</div>
         <div className={styles.actions}>
-          {onAdd && !isOnTeam && (
-            <button className={styles.addButton} onClick={() => onAdd(player.id)}>
-              +
+          {!isOnTeam && (onAdd || onSwap) && (
+            <button
+              className={canAdd ? styles.addButton : styles.swapButton}
+              onClick={() => {
+                // Guard against clicking when transfer limit is reached (even if disabled attribute doesn't work)
+                if (!canAdd && isTransferLimitReached) {
+                  return;
+                }
+                if (canAdd && onAdd) {
+                  onAdd(player.id);
+                } else if (!canAdd && onSwap) {
+                  onSwap(player.id);
+                }
+              }}
+              disabled={!canAdd && isTransferLimitReached}
+              title={
+                !canAdd && isTransferLimitReached
+                  ? 'Transfer limit has been reached'
+                  : canAdd
+                  ? 'Add player'
+                  : 'Swap player'
+              }
+            >
+              {canAdd ? '+' : '↔'}
             </button>
           )}
         </div>  
       </div>
     </Card>
+  );
+
+  // Wrap in motion.div if layoutId is provided for shared layout animations
+  if (layoutId) {
+    return (
+      <motion.div layoutId={layoutId} ref={setNodeRef}>
+        {cardElement}
+      </motion.div>
+    );
+  }
+
+  return (
+    <div ref={setNodeRef}>
+      {cardElement}
+    </div>
   );
 }
 

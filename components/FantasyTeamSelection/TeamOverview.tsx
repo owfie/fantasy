@@ -26,6 +26,7 @@ interface TeamOverviewProps {
   pitchPlayers: PitchPlayer[];
   draggedPlayerPosition?: FantasyPosition | null;
   onPlayerClick?: (playerId: string) => void;
+  onCaptainClick?: () => void;
 }
 
 export const TeamOverview = memo(function TeamOverview({
@@ -38,6 +39,7 @@ export const TeamOverview = memo(function TeamOverview({
   pitchPlayers,
   draggedPlayerPosition,
   onPlayerClick,
+  onCaptainClick,
 }: TeamOverviewProps) {
   const transfersDisplay = transfersRemaining === UNLIMITED_TRANSFERS 
     ? 'Unlimited'
@@ -82,6 +84,13 @@ export const TeamOverview = memo(function TeamOverview({
           draggedPlayerPosition={draggedPlayerPosition}
           onPlayerClick={onPlayerClick} 
         />
+        {onCaptainClick && (
+          <div className={styles.captainButtonContainer}>
+            <button className={styles.captainButton} onClick={onCaptainClick}>
+              Select Captain
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

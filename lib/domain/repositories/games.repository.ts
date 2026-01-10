@@ -119,6 +119,7 @@ export class GamesRepository extends BaseRepository<Game, InsertGame, UpdateGame
 
   /**
    * Fetch a single game with teams and player availability
+   * Only shows players who are active in the game's season and have availability records for this game
    */
   async findByIdWithDetails(gameId: string): Promise<GameWithDetails | null> {
     // First get the game
@@ -141,6 +142,23 @@ export class GamesRepository extends BaseRepository<Game, InsertGame, UpdateGame
 
     const game = gameData as Game;
 
+    // Get the week to find the season
+    const { data: weekData, error: weekError } = await this.client
+      .from('weeks')
+      .select('season_id')
+      .eq('id', game.week_id)
+      .single();
+
+    if (weekError) {
+      throw new Error(`Failed to find week for game: ${weekError.message}`);
+    }
+
+    if (!weekData || !weekData.season_id) {
+      throw new Error('Game does not have an associated season');
+    }
+
+    const seasonId = weekData.season_id;
+
     // Fetch home and away teams
     const teamIds = [game.home_team_id, game.away_team_id].filter(Boolean) as string[];
     const { data: teams, error: teamsError } = await this.client
@@ -160,20 +178,46 @@ export class GamesRepository extends BaseRepository<Game, InsertGame, UpdateGame
       throw new Error('Failed to find teams for game');
     }
 
-    // Get all players from both teams in a single query
+    // Get active season players for the teams playing in this game
+    // Use season_players.team_id to get players who are on these teams for THIS season
+    const { data: seasonPlayers, error: seasonPlayersError } = await this.client
+      .from('season_players')
+      .select('player_id, team_id')
+      .eq('season_id', seasonId)
+      .eq('is_active', true)
+      .in('team_id', [game.home_team_id, game.away_team_id]);
+
+    if (seasonPlayersError) {
+      throw new Error(`Failed to find season players: ${seasonPlayersError.message}`);
+    }
+
+    if (!seasonPlayers || seasonPlayers.length === 0) {
+      return {
+        ...game,
+        home_team: homeTeam,
+        away_team: awayTeam,
+        home_team_players: [],
+        away_team_players: [],
+      } as GameWithDetails;
+    }
+
+    // Get player IDs from season players
+    const playerIds = seasonPlayers.map((sp: { player_id: string }) => sp.player_id);
+
+    // Get player details
     const { data: allPlayers, error: playersError } = await this.client
       .from('players')
       .select('*')
-      .in('team_id', [game.home_team_id, game.away_team_id])
-      .eq('is_active', true);
+      .in('id', playerIds);
 
     if (playersError) {
       throw new Error(`Failed to find players: ${playersError.message}`);
     }
 
-    // Separate players by team
-    const homePlayers = (allPlayers || []).filter((p: Player) => p.team_id === game.home_team_id);
-    const awayPlayers = (allPlayers || []).filter((p: Player) => p.team_id === game.away_team_id);
+    // Create a map of player_id -> season_team_id (team they're playing for in this season)
+    const playerSeasonTeamMap = new Map(
+      seasonPlayers.map((sp: { player_id: string; team_id?: string }) => [sp.player_id, sp.team_id])
+    );
 
     // Get availability records for this game
     const { data: availability, error: availabilityError } = await this.client
@@ -190,16 +234,39 @@ export class GamesRepository extends BaseRepository<Game, InsertGame, UpdateGame
       (availability || []).map((av: PlayerAvailability) => [av.player_id, av])
     );
 
-    // Combine players with their availability
-    const homeTeamPlayers: PlayerWithAvailability[] = (homePlayers || []).map((player: Player) => ({
-      ...player,
-      availability: availabilityMap.get(player.id),
-    }));
+    // Separate players by their season team and combine with availability
+    // If no availability record exists, default to 'available' status
+    const homeTeamPlayers: PlayerWithAvailability[] = (allPlayers || [])
+      .filter((p: Player) => playerSeasonTeamMap.get(p.id) === game.home_team_id)
+      .map((player: Player) => {
+        const existingAvailability = availabilityMap.get(player.id);
+        return {
+          ...player,
+          availability: existingAvailability || {
+            id: '', // Will be created when saved
+            player_id: player.id,
+            game_id: gameId,
+            status: 'available' as const,
+            created_at: new Date().toISOString(),
+          } as PlayerAvailability,
+        };
+      });
 
-    const awayTeamPlayers: PlayerWithAvailability[] = (awayPlayers || []).map((player: Player) => ({
-      ...player,
-      availability: availabilityMap.get(player.id),
-    }));
+    const awayTeamPlayers: PlayerWithAvailability[] = (allPlayers || [])
+      .filter((p: Player) => playerSeasonTeamMap.get(p.id) === game.away_team_id)
+      .map((player: Player) => {
+        const existingAvailability = availabilityMap.get(player.id);
+        return {
+          ...player,
+          availability: existingAvailability || {
+            id: '', // Will be created when saved
+            player_id: player.id,
+            game_id: gameId,
+            status: 'available' as const,
+            created_at: new Date().toISOString(),
+          } as PlayerAvailability,
+        };
+      });
 
     return {
       ...game,

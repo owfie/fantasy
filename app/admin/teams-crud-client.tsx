@@ -23,13 +23,62 @@ import {
 import { Card } from '@/components/Card';
 import { Modal } from '@/components/Modal';
 import { getErrorMessage } from '@/lib/utils';
-import { Team } from '@/lib/domain/types';
+import { Team, PlayerRole } from '@/lib/domain/types';
+import { SeasonPlayerWithPlayer } from '@/lib/domain/repositories';
 
 interface TestResult<T = unknown> {
   success: boolean;
   message: string;
   data?: T;
   error?: string;
+}
+
+function formatPlayerRole(role: string): string {
+  const roleMap: Record<string, string> = {
+    captain: 'Captain',
+    player: 'Player',
+    marquee: 'Marquee',
+    rookie_marquee: 'Rookie Marquee',
+    reserve: 'Reserve',
+  };
+  return roleMap[role] || role;
+}
+
+function getRoleSortOrder(role: PlayerRole | undefined): number {
+  if (!role) return 999;
+  const order: Record<PlayerRole, number> = {
+    captain: 1,
+    marquee: 2,
+    rookie_marquee: 3,
+    player: 4,
+    reserve: 5,
+  };
+  return order[role] || 999;
+}
+
+function sortPlayersByRole(players: SeasonPlayerWithPlayer[]): SeasonPlayerWithPlayer[] {
+  const sorted = [...players].sort((a, b) => {
+    const roleA = a.player?.player_role;
+    const roleB = b.player?.player_role;
+    const orderA = getRoleSortOrder(roleA);
+    const orderB = getRoleSortOrder(roleB);
+    
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    
+    // Within the same role, sort by name
+    const nameA = `${a.player?.first_name} ${a.player?.last_name}`;
+    const nameB = `${b.player?.first_name} ${b.player?.last_name}`;
+    return nameA.localeCompare(nameB);
+  });
+  
+  // Separate reserves and only take first 2
+  const reserves = sorted.filter(p => p.player?.player_role === 'reserve');
+  const nonReserves = sorted.filter(p => p.player?.player_role !== 'reserve');
+  const topReserves = reserves.slice(0, 2);
+  
+  return [...nonReserves, ...topReserves];
 }
 
 interface TeamsCrudClientProps {
@@ -326,7 +375,7 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
                       listStyle: 'none',
                       fontSize: '0.9rem'
                     }}>
-                      {teamPlayers.map((sp) => (
+                      {sortPlayersByRole(teamPlayers).map((sp) => (
                         <li 
                           key={sp.id} 
                           style={{ 
@@ -341,6 +390,16 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
                         >
                           <span style={{ flex: 1 }}>
                             {sp.player?.first_name} {sp.player?.last_name}
+                            {sp.player?.player_role && (
+                              <span style={{ 
+                                marginLeft: '0.5rem', 
+                                fontSize: '0.75rem', 
+                                color: '#6c757d',
+                                fontWeight: 500
+                              }}>
+                                ({formatPlayerRole(sp.player.player_role)})
+                              </span>
+                            )}
                             {!sp.is_active && <span style={{ color: '#dc3545', marginLeft: '0.25rem' }}>✗</span>}
                           </span>
                           <span style={{ color: '#6c757d', fontSize: '0.8rem' }}>
@@ -414,7 +473,7 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
                   listStyle: 'none',
                   fontSize: '0.9rem'
                 }}>
-                  {unassignedPlayers.map((sp) => (
+                  {sortPlayersByRole(unassignedPlayers).map((sp) => (
                     <li 
                       key={sp.id} 
                       style={{ 
@@ -429,6 +488,16 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
                     >
                       <span style={{ flex: 1 }}>
                         {sp.player?.first_name} {sp.player?.last_name}
+                        {sp.player?.player_role && (
+                          <span style={{ 
+                            marginLeft: '0.5rem', 
+                            fontSize: '0.75rem', 
+                            color: '#856404',
+                            fontWeight: 500
+                          }}>
+                            ({formatPlayerRole(sp.player.player_role)})
+                          </span>
+                        )}
                       </span>
                       <span style={{ color: '#856404', fontSize: '0.8rem' }}>
                         ${sp.starting_value}

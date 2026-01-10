@@ -859,6 +859,8 @@ export async function getAdminDashboardData(seasonId?: string): Promise<AdminDas
     const weekStats: WeekStats[] = sortedWeeks.map((week) => {
       const weekPlayerStats = statsByWeekAndPlayer.get(week.id) || new Map();
       const playerStatsList: PlayerWeekStats[] = playersList.map((player) => {
+        const isReserve = player.player_role === 'reserve';
+        const defaultPlayed = isReserve ? false : true;
         const stats = weekPlayerStats.get(player.id) || {
           goals: 0,
           assists: 0,
@@ -866,7 +868,7 @@ export async function getAdminDashboardData(seasonId?: string): Promise<AdminDas
           drops: 0,
           throwaways: 0,
           points: 0,
-          played: true, // Default to true if no stats exist
+          played: defaultPlayed, // Default to false for reserves, true for others
         };
         
         // A player is completed if they have at least one stat entry (points > 0 or any stat > 0)
@@ -888,7 +890,7 @@ export async function getAdminDashboardData(seasonId?: string): Promise<AdminDas
           throwaways: stats.throwaways,
           points: stats.points,
           isCompleted,
-          played: stats.played !== undefined ? stats.played : true,
+          played: stats.played !== undefined ? stats.played : defaultPlayed,
         };
       });
       
@@ -1371,6 +1373,10 @@ export async function saveWeekStats(input: SaveWeekStatsInput) {
         is_completed: false,
       });
       gameId = game.id;
+      
+      // Set default availability for all active season players
+      const { setDefaultAvailabilityForGame } = await import('./availability.api');
+      await setDefaultAvailabilityForGame(gameId);
     }
     
     // Batch fetch all existing stats for this game in one query

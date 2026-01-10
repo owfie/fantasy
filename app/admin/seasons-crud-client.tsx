@@ -26,8 +26,10 @@ import {
   useUpdateGame,
   useDeleteGame,
 } from '@/lib/queries/games.queries';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPlayers, getTeams, testGetAllTeams } from '@/lib/api';
+import { useTestUpdatePlayer } from '@/lib/queries/players-test.queries';
+import { seasonKeys } from '@/lib/queries/seasons.queries';
 import {
   TestResultDisplay,
   FormField,
@@ -40,7 +42,7 @@ import {
 } from './shared/crud-components';
 import { Card } from '@/components/Card';
 import { Modal } from '@/components/Modal';
-import { Season, Player, Team, Week, Game, InsertGame } from '@/lib/domain/types';
+import { Season, Player, Team, Week, Game, InsertGame, PlayerRole } from '@/lib/domain/types';
 import { SeasonPlayerWithPlayer } from '@/lib/domain/repositories';
 
 interface TestResult<T = unknown> {
@@ -466,6 +468,7 @@ interface SeasonPlayersPanelProps {
 }
 
 function SeasonPlayersPanel({ seasonId, seasonName, onClose }: SeasonPlayersPanelProps) {
+  const queryClient = useQueryClient();
   const { data: seasonPlayers = [], isLoading: isLoadingPlayers } = useSeasonPlayers(seasonId);
   const { data: allPlayers = [] } = useQuery<Player[]>({
     queryKey: ['players', 'all'],
@@ -484,6 +487,7 @@ function SeasonPlayersPanel({ seasonId, seasonName, onClose }: SeasonPlayersPane
   const updateValueMutation = useUpdateSeasonPlayerValue();
   const setActiveMutation = useSetSeasonPlayerActive();
   const updateTeamMutation = useUpdateSeasonPlayerTeam();
+  const updatePlayerMutation = useTestUpdatePlayer();
 
   // Selected players for bulk add
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
@@ -570,6 +574,15 @@ function SeasonPlayersPanel({ seasonId, seasonName, onClose }: SeasonPlayersPane
     });
   };
 
+  const handleUpdateRole = async (playerId: string, role: PlayerRole) => {
+    await updatePlayerMutation.mutateAsync({
+      playerId,
+      updates: { player_role: role },
+    });
+    // Invalidate season players query to reflect the updated role
+    queryClient.invalidateQueries({ queryKey: seasonKeys.players(seasonId) });
+  };
+
   if (isLoadingPlayers) {
     return (
       <Card>
@@ -598,7 +611,7 @@ function SeasonPlayersPanel({ seasonId, seasonName, onClose }: SeasonPlayersPane
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }}>
         {/* Left Column: Add Players */}
         <div style={{ padding: '1rem', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
@@ -682,6 +695,7 @@ function SeasonPlayersPanel({ seasonId, seasonName, onClose }: SeasonPlayersPane
                 <thead>
                   <tr style={{ background: '#f9fafb' }}>
                     <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Player</th>
+                    <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Role</th>
                     <th style={{ padding: '0.5rem', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Team</th>
                     <th style={{ padding: '0.5rem', textAlign: 'right', borderBottom: '1px solid #dee2e6' }}>Value</th>
                     <th style={{ padding: '0.5rem', textAlign: 'center', borderBottom: '1px solid #dee2e6' }}>Active</th>
@@ -694,6 +708,26 @@ function SeasonPlayersPanel({ seasonId, seasonName, onClose }: SeasonPlayersPane
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid #dee2e6' }}>
                         {sp.player?.first_name} {sp.player?.last_name}
                         {!sp.is_active && <span style={{ color: '#dc3545', marginLeft: '0.5rem' }}>(inactive)</span>}
+                      </td>
+                      <td style={{ padding: '0.5rem', borderBottom: '1px solid #dee2e6' }}>
+                        <select
+                          value={sp.player?.player_role || 'player'}
+                          onChange={(e) => handleUpdateRole(sp.player_id, e.target.value as PlayerRole)}
+                          disabled={updatePlayerMutation.isPending}
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            fontSize: '0.85rem',
+                            borderRadius: '4px',
+                            border: '1px solid #ddd',
+                            minWidth: '120px',
+                          }}
+                        >
+                          <option value="captain">Captain</option>
+                          <option value="player">Player</option>
+                          <option value="marquee">Marquee</option>
+                          <option value="rookie_marquee">Rookie Marquee</option>
+                          <option value="reserve">Reserve</option>
+                        </select>
                       </td>
                       <td style={{ padding: '0.5rem', borderBottom: '1px solid #dee2e6' }}>
                         <select
@@ -822,6 +856,8 @@ function WeeksPanel({ seasonId, seasonName, onClose }: WeeksPanelProps) {
     updateName: '',
     updateGameDate: '',
     updateIsDraftWeek: false,
+    updateTransferWindowOpen: false,
+    updateTransferCutoffTime: '',
   });
 
   // Get used week numbers to show available ones
@@ -909,6 +945,8 @@ function WeeksPanel({ seasonId, seasonName, onClose }: WeeksPanelProps) {
         start_date?: string;
         end_date?: string;
         is_draft_week?: boolean;
+        transfer_window_open?: boolean;
+        transfer_cutoff_time?: string | null;
       } = {
         id: editingWeek.id,
       };
@@ -926,6 +964,19 @@ function WeeksPanel({ seasonId, seasonName, onClose }: WeeksPanelProps) {
       }
       if (formData.updateIsDraftWeek !== editingWeek.is_draft_week) {
         updateData.is_draft_week = formData.updateIsDraftWeek;
+      }
+
+      if (formData.updateTransferWindowOpen !== undefined && formData.updateTransferWindowOpen !== (editingWeek.transfer_window_open ?? false)) {
+        updateData.transfer_window_open = formData.updateTransferWindowOpen;
+      }
+
+      if (formData.updateTransferCutoffTime !== '') {
+        // Convert local datetime to ISO string
+        const cutoffDate = new Date(formData.updateTransferCutoffTime);
+        updateData.transfer_cutoff_time = cutoffDate.toISOString();
+      } else if (formData.updateTransferCutoffTime === '' && editingWeek.transfer_cutoff_time) {
+        // Clear cutoff time if empty string
+        updateData.transfer_cutoff_time = null;
       }
 
       const result = await updateWeekMutation.mutateAsync(updateData);
@@ -950,6 +1001,10 @@ function WeeksPanel({ seasonId, seasonName, onClose }: WeeksPanelProps) {
       updateName: week.name || '',
       updateGameDate: week.start_date || week.end_date || '',
       updateIsDraftWeek: week.is_draft_week,
+      updateTransferWindowOpen: week.transfer_window_open ?? false,
+      updateTransferCutoffTime: week.transfer_cutoff_time 
+        ? new Date(week.transfer_cutoff_time).toISOString().slice(0, 16) // Format for datetime-local input
+        : '',
     }));
   };
 
@@ -1147,6 +1202,29 @@ function WeeksPanel({ seasonId, seasonName, onClose }: WeeksPanelProps) {
               />
               Mark as draft week
             </label>
+          </FormField>
+          <FormField label="Transfer Window">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                type="checkbox"
+                checked={formData.updateTransferWindowOpen ?? editingWeek?.transfer_window_open ?? false}
+                onChange={(e) => setFormData(prev => ({ ...prev, updateTransferWindowOpen: e.target.checked }))}
+              />
+              Transfer window open
+            </label>
+            <p style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.25rem', margin: 0 }}>
+              Allow users to make transfers for this week
+            </p>
+          </FormField>
+          <FormField label="Transfer Cutoff Time">
+            <FormInput
+              type="datetime-local"
+              value={formData.updateTransferCutoffTime || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, updateTransferCutoffTime: e.target.value }))}
+            />
+            <p style={{ fontSize: '0.75rem', color: '#666', marginTop: '0.25rem', margin: 0 }}>
+              Time when transfers lock for this week (before first game)
+            </p>
           </FormField>
           <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
             <Button
@@ -1517,6 +1595,74 @@ function WeekGamesCard({ week, seasonId, onEdit, onDelete, isDeleting }: WeekGam
               Game Date: {week.start_date || week.end_date || 'Not set'}
             </div>
           )}
+          {/* Transfer Window Status */}
+          <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {week.transfer_window_open ? (
+              <span style={{ 
+                fontSize: '0.75rem', 
+                background: '#10b981', 
+                color: 'white', 
+                padding: '0.2rem 0.5rem', 
+                borderRadius: '4px',
+                fontWeight: '500',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}>
+                <span>✓</span> Transfer Window OPEN
+              </span>
+            ) : (
+              <span style={{ 
+                fontSize: '0.75rem', 
+                background: '#ef4444', 
+                color: 'white', 
+                padding: '0.2rem 0.5rem', 
+                borderRadius: '4px',
+                fontWeight: '500',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}>
+                <span>✗</span> Transfer Window CLOSED
+              </span>
+            )}
+            {week.transfer_cutoff_time && (
+              <span style={{ 
+                fontSize: '0.75rem', 
+                background: week.transfer_window_open ? '#fef3c7' : '#f3f4f6', 
+                color: week.transfer_window_open ? '#92400e' : '#6b7280', 
+                padding: '0.2rem 0.5rem', 
+                borderRadius: '4px',
+                border: `1px solid ${week.transfer_window_open ? '#fbbf24' : '#d1d5db'}`,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}>
+                <span>⏰</span> Cutoff: {new Date(week.transfer_cutoff_time).toLocaleString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}
+                {new Date(week.transfer_cutoff_time) < new Date() && (
+                  <span style={{ marginLeft: '0.25rem', fontWeight: '600' }}>(PASSED)</span>
+                )}
+              </span>
+            )}
+            {!week.transfer_cutoff_time && week.transfer_window_open && (
+              <span style={{ 
+                fontSize: '0.75rem', 
+                background: '#fef3c7', 
+                color: '#92400e', 
+                padding: '0.2rem 0.5rem', 
+                borderRadius: '4px',
+                border: '1px solid #fbbf24'
+              }}>
+                ⚠️ No cutoff time set
+              </span>
+            )}
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <Button

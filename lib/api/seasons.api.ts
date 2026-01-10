@@ -230,7 +230,22 @@ export async function createWeek(data: InsertWeek): Promise<TestResult<Week>> {
       return { success: false, message: `Week ${data.week_number} already exists for this season`, error: 'Duplicate week number' };
     }
 
-    const week = await uow.weeks.create(data);
+    // Set default cutoff time to 6pm on the game date if not provided
+    const weekData: InsertWeek = { ...data };
+    if (!weekData.transfer_cutoff_time && (weekData.start_date || weekData.end_date)) {
+      const gameDate = weekData.start_date || weekData.end_date;
+      if (gameDate) {
+        // Parse the date and set to 6pm (18:00) local time
+        const dateParts = gameDate.split('-');
+        const year = parseInt(dateParts[0], 10);
+        const month = parseInt(dateParts[1], 10) - 1; // JavaScript months are 0-indexed
+        const day = parseInt(dateParts[2], 10);
+        const cutoffDateTime = new Date(year, month, day, 18, 0, 0, 0);
+        weekData.transfer_cutoff_time = cutoffDateTime.toISOString();
+      }
+    }
+
+    const week = await uow.weeks.create(weekData);
     return { success: true, message: 'Week created successfully', data: week };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to create week';
@@ -326,6 +341,13 @@ export async function createWeeks(data: {
         weekName = data.namePattern.replace(/{n}/g, weekNumber.toString());
       }
 
+      // Set default cutoff time to 6pm (18:00) on the game date
+      const dateParts = gameDateStr.split('-');
+      const year = parseInt(dateParts[0], 10);
+      const month = parseInt(dateParts[1], 10) - 1; // JavaScript months are 0-indexed
+      const day = parseInt(dateParts[2], 10);
+      const cutoffDateTime = new Date(year, month, day, 18, 0, 0, 0);
+
       weeksToCreate.push({
         season_id: data.seasonId,
         week_number: weekNumber,
@@ -333,6 +355,7 @@ export async function createWeeks(data: {
         start_date: gameDateStr,
         end_date: gameDateStr, // Same as start since games are on Monday
         is_draft_week: data.isDraftWeek || false,
+        transfer_cutoff_time: cutoffDateTime.toISOString(),
       });
     }
 

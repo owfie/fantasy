@@ -45,13 +45,15 @@ function renderPlayerRow(
   calculatePoints: (playerId: string) => number
 ) {
   const editedStats = editingStats[player.playerId];
+  const isReserve = player.playerRole === 'reserve';
+  const defaultPlayed = isReserve ? false : true;
   const displayStats = editedStats || {
     goals: player.goals,
     assists: player.assists,
     blocks: player.blocks,
     drops: player.drops,
     throwaways: player.throwaways,
-    played: player.played !== undefined ? player.played : true,
+    played: player.played !== undefined ? player.played : defaultPlayed,
   };
   const points = calculatePoints(player.playerId);
   
@@ -235,13 +237,15 @@ export default function AdminDashboard({ seasonId }: AdminDashboardProps) {
   const handleStatChange = (playerId: string, field: string, value: number | boolean) => {
     setEditingStats((prev) => {
       const player = selectedWeek.playerStats.find(p => p.playerId === playerId);
+      const isReserve = player?.playerRole === 'reserve';
+      const defaultPlayed = isReserve ? false : true;
       const current = prev[playerId] || {
         goals: player?.goals || 0,
         assists: player?.assists || 0,
         blocks: player?.blocks || 0,
         drops: player?.drops || 0,
         throwaways: player?.throwaways || 0,
-        played: player?.played !== undefined ? player.played : true,
+        played: player?.played !== undefined ? player.played : defaultPlayed,
       };
       
       // If played is being set to false, reset all stats to zero
@@ -290,13 +294,15 @@ export default function AdminDashboard({ seasonId }: AdminDashboardProps) {
           const edited = editingStats[player.playerId];
           
           // If no edits, use current values but still check if we need to save
+          const isReserve = player.playerRole === 'reserve';
+          const defaultPlayed = isReserve ? false : true;
           const finalStats = edited || {
             goals: player.goals,
             assists: player.assists,
             blocks: player.blocks,
             drops: player.drops,
             throwaways: player.throwaways,
-            played: player.played !== undefined ? player.played : true,
+            played: player.played !== undefined ? player.played : defaultPlayed,
           };
           
           // Count how many fields changed
@@ -526,7 +532,7 @@ export default function AdminDashboard({ seasonId }: AdminDashboardProps) {
                       <div style={{ overflowX: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                           <thead>
-                            <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
+                            <tr style={{ borderBottom: '1px solid #dee2e6' }}>
                               <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600', minWidth: '150px' }}>Player</th>
                               <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: '600' }}>G</th>
                               <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: '600' }}>A</th>

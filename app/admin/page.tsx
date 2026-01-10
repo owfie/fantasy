@@ -17,16 +17,18 @@ import SeasonsCrudClient from './seasons-crud-client';
 import AdminDashboard from './admin-dashboard';
 import FantasyTeamsCrudClient from './fantasy-teams-crud-client';
 import UsersListClient from './users-list-client';
+import TransferWindowsClient from './transfer-windows-client';
 import { Card } from '@/components/Card';
 import styles from './admin.module.scss';
 
-type Section = 'statistics' | 'data' | 'fantasy' | 'tests' | 'users';
+type Section = 'statistics' | 'data' | 'fantasy' | 'transfers' | 'tests' | 'users';
 type DataTab = 'seasons' | 'teams' | 'players';
 
 const NAV_ITEMS: { id: Section; label: string; icon: string }[] = [
   { id: 'statistics', label: 'Statistics', icon: '📊' },
   { id: 'data', label: 'Data Management', icon: '🗃️' },
   { id: 'fantasy', label: 'Fantasy', icon: '⚽' },
+  { id: 'transfers', label: 'Transfer Windows', icon: '🔄' },
   { id: 'tests', label: 'Tests', icon: '🧪' },
   { id: 'users', label: 'Users', icon: '👤' },
 ];
@@ -188,6 +190,16 @@ export default function AdminPage() {
               <h2>Fantasy Teams</h2>
             </div>
             <FantasyTeamsCrudClient seasonId={selectedSeasonId} />
+          </>
+        )}
+
+        {/* TRANSFER WINDOWS SECTION */}
+        {activeSection === 'transfers' && (
+          <>
+            <div className={styles.contentHeader}>
+              <h2>Transfer Windows</h2>
+            </div>
+            <TransferWindowsClient seasonId={selectedSeasonId} />
           </>
         )}
 

@@ -18,6 +18,10 @@ import {
   ArticlesRepository,
   ValueChangesRepository,
   SeasonPlayersRepository,
+  FantasyTeamSnapshotsRepository,
+  FantasyTeamSnapshotPlayersRepository,
+  TransfersRepository,
+  PlayerAvailabilityRepository,
 } from './repositories';
 
 // Track operations for rollback
@@ -44,6 +48,10 @@ export class UnitOfWork {
   public readonly articles: ArticlesRepository;
   public readonly valueChanges: ValueChangesRepository;
   public readonly seasonPlayers: SeasonPlayersRepository;
+  public readonly fantasyTeamSnapshots: FantasyTeamSnapshotsRepository;
+  public readonly fantasyTeamSnapshotPlayers: FantasyTeamSnapshotPlayersRepository;
+  public readonly transfers: TransfersRepository;
+  public readonly playerAvailability: PlayerAvailabilityRepository;
 
   private operations: TrackedOperation[] = [];
   private committed: boolean = false;
@@ -65,6 +73,10 @@ export class UnitOfWork {
     this.articles = new ArticlesRepository(client);
     this.valueChanges = new ValueChangesRepository(client);
     this.seasonPlayers = new SeasonPlayersRepository(client);
+    this.fantasyTeamSnapshots = new FantasyTeamSnapshotsRepository(client);
+    this.fantasyTeamSnapshotPlayers = new FantasyTeamSnapshotPlayersRepository(client);
+    this.transfers = new TransfersRepository(client);
+    this.playerAvailability = new PlayerAvailabilityRepository(client);
   }
 
   /**

@@ -17,4 +17,8 @@ export { ArticleTagsRepository } from './article-tags.repository';
 export { ArticlesRepository } from './articles.repository';
 export { ValueChangesRepository, type PlayerWithPrices } from './value-changes.repository';
 export { SeasonPlayersRepository, type SeasonPlayerWithPlayer } from './season-players.repository';
+export { FantasyTeamSnapshotsRepository } from './fantasy-team-snapshots.repository';
+export { FantasyTeamSnapshotPlayersRepository } from './fantasy-team-snapshot-players.repository';
+export { TransfersRepository } from './transfers.repository';
+export { PlayerAvailabilityRepository } from './player-availability.repository';
 

@@ -26,6 +26,7 @@ import { Modal } from '@/components/Modal';
 import { useTeamsIncludingDeleted } from '@/lib/queries/teams.queries';
 import { getErrorMessage } from '@/lib/utils';
 import { Player, PlayerRole } from '@/lib/domain/types';
+import { PlayerAvailabilityTable } from './player-availability-table';
 
 interface TestResult<T = unknown> {
   success: boolean;
@@ -334,6 +335,9 @@ export default function PlayersCrudClient() {
           )}
         </div>
       </div>
+
+      {/* Player Availability Table */}
+      <PlayerAvailabilityTable />
 
       {/* Create Player Modal */}
       <Modal

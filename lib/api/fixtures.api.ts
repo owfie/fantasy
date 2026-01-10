@@ -73,6 +73,11 @@ export async function createGame(data: InsertGame): Promise<TestResult<Game>> {
     }
 
     const game = await uow.games.create(data);
+    
+    // Set default availability for all active season players
+    const { setDefaultAvailabilityForGame } = await import('./availability.api');
+    await setDefaultAvailabilityForGame(game.id);
+    
     return { success: true, message: 'Game created successfully', data: game };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Failed to create game';

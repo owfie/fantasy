@@ -4,6 +4,7 @@
  */
 
 export type PlayerRole = 'captain' | 'player' | 'marquee' | 'rookie_marquee' | 'reserve';
+export type FantasyPosition = 'handler' | 'cutter' | 'receiver';
 export type AvailabilityStatus = 'available' | 'unavailable' | 'unsure';
 
 // Base entity interface
@@ -34,6 +35,7 @@ export interface Player extends BaseEntity {
   first_name: string;
   last_name: string;
   player_role: PlayerRole;
+  position?: FantasyPosition; // Fantasy position (handler/cutter/receiver)
   starting_value: number;
   draft_order?: number;
   is_active: boolean;
@@ -55,6 +57,8 @@ export interface Week extends BaseEntity {
   start_date?: string;
   end_date?: string;
   is_draft_week: boolean;
+  transfer_window_open: boolean;
+  transfer_cutoff_time?: string;
 }
 
 // Game
@@ -133,12 +137,32 @@ export interface PlayerAvailability extends BaseEntity {
   notes?: string;
 }
 
+// Fantasy Team Snapshot
+export interface FantasyTeamSnapshot extends BaseEntity {
+  fantasy_team_id: string;
+  week_id: string;
+  captain_player_id?: string;
+  total_value: number;
+  snapshot_created_at: string;
+}
+
+// Fantasy Team Snapshot Player
+export interface FantasyTeamSnapshotPlayer extends BaseEntity {
+  snapshot_id: string;
+  player_id: string;
+  position: FantasyPosition;
+  is_benched: boolean;
+  is_captain: boolean;
+  player_value_at_snapshot: number;
+}
+
 // Transfer
 export interface Transfer extends BaseEntity {
   fantasy_team_id: string;
   player_in_id: string;
   player_out_id: string;
-  round: number;
+  round?: number; // Kept for backward compatibility
+  week_id?: string; // New field
   net_transfer_value: number;
 }
 
@@ -186,7 +210,10 @@ export type InsertUserProfile = Omit<UserProfile, 'id' | 'created_at' | 'updated
 export type InsertTeam = Omit<Team, 'id' | 'created_at'>;
 export type InsertPlayer = Omit<Player, 'id' | 'created_at' | 'updated_at'>;
 export type InsertSeason = Omit<Season, 'id' | 'created_at'>;
-export type InsertWeek = Omit<Week, 'id' | 'created_at'>;
+export type InsertWeek = Omit<Week, 'id' | 'created_at'> & {
+  transfer_window_open?: boolean;
+  transfer_cutoff_time?: string | null;
+};
 export type InsertGame = Omit<Game, 'id' | 'created_at' | 'updated_at'>;
 export type InsertFantasyTeam = Omit<FantasyTeam, 'id' | 'created_at' | 'updated_at'>;
 export type InsertFantasyTeamPlayer = Omit<FantasyTeamPlayer, 'id' | 'created_at' | 'updated_at' | 'added_at'>;
@@ -194,6 +221,8 @@ export type InsertPlayerStats = Omit<PlayerStats, 'id' | 'created_at' | 'updated
 export type InsertFantasyTeamScore = Omit<FantasyTeamScore, 'id' | 'created_at' | 'calculated_at'>;
 export type InsertRosterChange = Omit<RosterChange, 'id' | 'created_at'>;
 export type InsertPlayerAvailability = Omit<PlayerAvailability, 'id' | 'created_at' | 'updated_at'>;
+export type InsertFantasyTeamSnapshot = Omit<FantasyTeamSnapshot, 'id' | 'created_at' | 'snapshot_created_at'>;
+export type InsertFantasyTeamSnapshotPlayer = Omit<FantasyTeamSnapshotPlayer, 'id' | 'created_at' | 'updated_at'>;
 export type InsertTransfer = Omit<Transfer, 'id' | 'created_at'>;
 export type InsertValueChange = Omit<ValueChange, 'id' | 'created_at'>;
 export type InsertSeasonPlayer = Omit<SeasonPlayer, 'id' | 'created_at' | 'updated_at'>;
@@ -212,6 +241,8 @@ export type UpdateFantasyTeamPlayer = Partial<Omit<FantasyTeamPlayer, 'id' | 'cr
 export type UpdatePlayerStats = Partial<Omit<PlayerStats, 'id' | 'created_at' | 'points'>> & { id: string };
 export type UpdateRosterChange = Partial<Omit<RosterChange, 'id' | 'created_at'>> & { id: string };
 export type UpdatePlayerAvailability = Partial<Omit<PlayerAvailability, 'id' | 'created_at'>> & { id: string };
+export type UpdateFantasyTeamSnapshot = Partial<Omit<FantasyTeamSnapshot, 'id' | 'created_at' | 'snapshot_created_at'>> & { id: string };
+export type UpdateFantasyTeamSnapshotPlayer = Partial<Omit<FantasyTeamSnapshotPlayer, 'id' | 'created_at' | 'updated_at'>> & { id: string };
 export type UpdateTransfer = Partial<Omit<Transfer, 'id' | 'created_at'>> & { id: string };
 export type UpdateValueChange = Partial<Omit<ValueChange, 'id' | 'created_at'>> & { id: string };
 export type UpdateSeasonPlayer = Partial<Omit<SeasonPlayer, 'id' | 'created_at' | 'updated_at'>> & { id: string };

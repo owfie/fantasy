@@ -30,7 +30,7 @@ export default function FantasyPage() {
   const { data: fantasyTeams = [] } = useFantasyTeams(activeSeason?.id || null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
-  const [selectedPositions, setSelectedPositions] = useState<FantasyPosition[]>(['handler', 'cutter', 'receiver']);
+  const [selectedPositions, setSelectedPositions] = useState<FantasyPosition[]>(['handler']);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'pitch' | 'list'>('pitch');
 
@@ -81,12 +81,13 @@ export default function FantasyPage() {
     undefined // Get all players, filter by position in component
   );
   
-  // Filter players by selected positions
+  // Filter players by selected position (tab behavior - single selection)
   const players = useMemo(() => {
-    if (selectedPositions.length === 3) {
-      return allPlayers; // All positions selected, return all
+    const selectedPosition = selectedPositions[0];
+    if (!selectedPosition) {
+      return allPlayers;
     }
-    return allPlayers.filter(p => p.position && selectedPositions.includes(p.position));
+    return allPlayers.filter(p => p.position === selectedPosition);
   }, [allPlayers, selectedPositions]);
 
   // Get current team players (from snapshot or fantasy_team_players)

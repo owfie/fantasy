@@ -5,6 +5,7 @@ import { PlayerWithValue } from '@/lib/api/players.api';
 import { FantasyPosition } from '@/lib/domain/types';
 import { Card } from '@/components/Card';
 import { PlayerCard } from './PlayerCard';
+import { SegmentedController } from '@/components/SegmentedController';
 import styles from './PlayerList.module.scss';
 
 interface PlayerListProps {
@@ -31,22 +32,17 @@ export function PlayerList({
   type SortOption = 'price-high' | 'price-low' | 'draft-order' | 'points' | 'name' | 'team';
   const [sortBy, setSortBy] = useState<SortOption>('price-high');
 
-  const handlePositionToggle = (position: FantasyPosition) => {
-    if (selectedPositions.includes(position)) {
-      // If this position is already selected and we have more than one, remove it
-      if (selectedPositions.length > 1) {
-        onPositionChange(selectedPositions.filter(p => p !== position));
-      }
-      // If it's the only one selected, don't allow unchecking (must have at least one)
-    } else {
-      // Add this position
-      onPositionChange([...selectedPositions, position]);
-    }
-  };
+  const positionOptions = ALL_POSITIONS.map(position => ({
+    id: position,
+    label: `${position.charAt(0).toUpperCase() + position.slice(1)}s`,
+  }));
+
+  // Get the selected position (first one, since we're in single-select mode)
+  const selectedPosition = selectedPositions[0] || ALL_POSITIONS[0];
 
   const filteredPlayers = players.filter(player => {
-    // Position filter: must match one of selected positions (AND logic - all selected means show all)
-    if (player.position && !selectedPositions.includes(player.position)) {
+    // Position filter: match the single selected position (tab behavior)
+    if (player.position && player.position !== selectedPosition) {
       return false;
     }
     if (searchQuery) {
@@ -121,64 +117,55 @@ export function PlayerList({
   });
 
   return (
-    <Card style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+
       <div className={styles.playerList}>
-        <h2 className={styles.title}>Players</h2>
-      
-        {/* Filters Section */}
-        <div className={styles.filtersSection}>
-          <label className={styles.filterLabel}>Filters</label>
-          <div className={styles.positionFilters}>
-            {ALL_POSITIONS.map(position => (
-              <label key={position} className={styles.checkboxLabel}>
+        <Card>
+            {/* Search Section */}
+            <div className={styles.searchSection}>
+                <label className={styles.filterLabel} htmlFor="search-input">Filter by name</label>
                 <input
-                  type="checkbox"
-                  checked={selectedPositions.includes(position)}
-                  onChange={() => handlePositionToggle(position)}
-                  className={styles.checkbox}
+                    id="search-input"
+                    type="text"
+                    placeholder="Search by name"
+                    value={searchQuery}
+                    onChange={(e) => onSearchChange?.(e.target.value)}
+                    className={styles.searchInput}
                 />
-                <span className={styles.checkboxText}>
-                  {position.charAt(0).toUpperCase() + position.slice(1)}s
-                </span>
-              </label>
-            ))}
-          </div>
-          
-          <div className={styles.sortSection}>
-            <label className={styles.filterLabel} htmlFor="sort-select">Sort</label>
-            <select
-              id="sort-select"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className={styles.sortSelect}
-            >
-              <option value="price-high">Price (High to Low)</option>
-              <option value="price-low">Price (Low to High)</option>
-              <option value="draft-order">Draft Order</option>
-              <option value="points">Total Points</option>
-              <option value="name">Sort A-Z</option>
-              <option value="team">Sort by Team</option>
-            </select>
-          </div>
-        </div>
+            </div>
 
-        {/* Search Section */}
-        <div className={styles.searchSection}>
-          <label className={styles.filterLabel} htmlFor="search-input">Filter by name</label>
-          <input
-            id="search-input"
-            type="text"
-            placeholder="Search by name"
-            value={searchQuery}
-            onChange={(e) => onSearchChange?.(e.target.value)}
-            className={styles.searchInput}
-          />
-        </div>
+            {/* Filters Section */}
+            <div className={styles.filtersContainer}>
 
-      <div className={styles.headerRow}>
-        <span className={styles.valueHeader}>Value</span>
-        <span className={styles.pointsHeader}>Points</span>
-      </div>
+
+               
+                <div className={styles.sort}>
+                    <label className={styles.filterLabel} htmlFor="sort-select">Sort by</label>
+                    <select
+                    id="sort-select"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    className={styles.sortSelect}
+                    >
+                    <option value="price-high">price (highest)</option>
+                    <option value="price-low">price (lowest)</option>
+                    <option value="draft-order">pick order</option>
+                    <option value="points">points</option>
+                    <option value="name">name</option>
+                    <option value="team">team</option>
+                    </select>
+                </div>
+                
+            </div>
+        </Card>
+      
+          <div className={styles.positionsSection}>
+            <SegmentedController
+              options={positionOptions}
+              selectedValues={[selectedPosition]}
+              onChange={(values) => onPositionChange(values.length > 0 ? [values[0]] : [ALL_POSITIONS[0]])}
+              allowMultiple={false}
+            />
+          </div>
 
       <div className={styles.playersContainer}>
         {sortedPlayers.length === 0 ? (
@@ -195,7 +182,7 @@ export function PlayerList({
         )}
       </div>
       </div>
-    </Card>
+
   );
 }
 

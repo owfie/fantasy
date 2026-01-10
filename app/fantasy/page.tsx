@@ -4,10 +4,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { DndContext, DragEndEvent, DragStartEvent, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { useActiveSeason } from '@/lib/queries/fantasy-teams-test.queries';
-import { useFantasyTeams } from '@/lib/queries/fantasy-teams-test.queries';
+import { useActiveSeason, useFantasyTeams, useAddPlayerToFantasyTeam, useUpdateFantasyTeam } from '@/lib/queries/fantasy-teams-test.queries';
 import { useSnapshotForWeek, useSnapshotWithPlayers, useCreateSnapshot } from '@/lib/queries/fantasy-snapshots.queries';
-import { useAddPlayerToFantasyTeam } from '@/lib/queries/fantasy-teams-test.queries';
 import { useRemainingTransfers, useIsFirstWeek, useTransfersByWeek, UNLIMITED_TRANSFERS } from '@/lib/queries/transfers.queries';
 import { useWeeks } from '@/lib/queries/seasons.queries';
 import { usePlayersForWeek } from '@/lib/queries/players.queries';
@@ -30,9 +28,7 @@ export default function FantasyPage() {
   
   const { data: activeSeason } = useActiveSeason();
   const { data: fantasyTeams = [] } = useFantasyTeams(activeSeason?.id || null);
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(
-    fantasyTeams.length > 0 ? fantasyTeams[0]?.id || null : null
-  );
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedWeekId, setSelectedWeekId] = useState<string | null>(null);
   const [selectedPositions, setSelectedPositions] = useState<FantasyPosition[]>(['handler', 'cutter', 'receiver']);
   const [searchQuery, setSearchQuery] = useState('');
@@ -52,6 +48,18 @@ export default function FantasyPage() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Sync selectedTeamId when fantasyTeams changes
+  useEffect(() => {
+    if (fantasyTeams.length > 0) {
+      // If no team is selected or selected team doesn't exist in array, select the first one
+      if (!selectedTeamId || !fantasyTeams.find(t => t.id === selectedTeamId)) {
+        setSelectedTeamId(fantasyTeams[0]?.id || null);
+      }
+    } else {
+      setSelectedTeamId(null);
+    }
+  }, [fantasyTeams, selectedTeamId]);
 
   const { data: weeks = [] } = useWeeks(activeSeason?.id || '');
   
@@ -130,6 +138,7 @@ export default function FantasyPage() {
 
   const createSnapshotMutation = useCreateSnapshot();
   const addPlayerMutation = useAddPlayerToFantasyTeam();
+  const updateTeamMutation = useUpdateFantasyTeam();
 
   // Configure sensors for better drag performance
   const sensors = useSensors(
@@ -635,6 +644,16 @@ export default function FantasyPage() {
           week={selectedWeek}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
+          teamName={selectedTeam?.name || ''}
+          teamId={selectedTeamId || ''}
+          onTeamNameUpdate={async (newName: string) => {
+            if (!selectedTeamId || !newName.trim()) return;
+            await updateTeamMutation.mutateAsync({
+              fantasyTeamId: selectedTeamId,
+              updates: { name: newName.trim() },
+            });
+          }}
+          isUpdatingTeamName={updateTeamMutation.isPending}
         />
 
         <div className={styles.content}>

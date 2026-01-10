@@ -3,9 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useDraggable } from '@dnd-kit/core';
 import { PlayerWithValue } from '@/lib/api/players.api';
-import { getTeamEmoji } from '@/lib/utils/team-emojis';
 import { formatCurrency, formatPlayerName } from '@/lib/utils/fantasy-utils';
-import { getTeamShortName } from '@/lib/utils/team-utils';
+import { getTeamShortName, getTeamJerseyPath } from '@/lib/utils/team-utils';
 import { generateSlug } from '@/lib/utils/slug';
 import styles from './PlayerCard.module.scss';
 
@@ -17,7 +16,7 @@ interface PlayerCardProps {
 
 export function PlayerCard({ player, onAdd, isOnTeam }: PlayerCardProps) {
   const router = useRouter();
-  const emoji = getTeamEmoji(player.teamSlug || player.teamName);
+  const jerseyPath = getTeamJerseyPath(player.teamSlug || player.teamName);
   const displayName = formatPlayerName(player.first_name, player.last_name);
   const value = formatCurrency(player.currentValue);
   const points = player.points ?? 0;
@@ -59,7 +58,17 @@ export function PlayerCard({ player, onAdd, isOnTeam }: PlayerCardProps) {
           <circle cx="10" cy="12" r="1.5" fill="currentColor" opacity="0.4" />
         </svg>
       </div>
-      <div className={styles.emoji}>{emoji}</div>
+      <div className={styles.jersey}>
+        {jerseyPath ? (
+          <img
+            src={jerseyPath}
+            alt={teamShortName || 'Team jersey'}
+            className={styles.jerseyImage}
+          />
+        ) : (
+          <div className={styles.jerseyPlaceholder}>⚽</div>
+        )}
+      </div>
       <div className={styles.info}>
         <div className={styles.nameRow}>
           <span className={styles.name}>{displayName}</span>

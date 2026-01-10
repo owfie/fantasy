@@ -24,3 +24,23 @@ export function getTeamShortName(name: string | null | undefined, slug?: string 
   return '';
 }
 
+/**
+ * Get jersey image path for a team by slug or name
+ * Returns the path to the jersey image in /images/jerseys
+ */
+export function getTeamJerseyPath(teamSlugOrName: string | null | undefined): string | null {
+  if (!teamSlugOrName) return null;
+
+  const normalized = teamSlugOrName.toLowerCase().trim();
+  
+  // Direct slug match
+  const validSlugs = ['riptide', 'flyers', 'force', 'titans'];
+  for (const slug of validSlugs) {
+    if (normalized === slug || normalized.includes(slug)) {
+      return `/images/jerseys/${slug}-small.png`;
+    }
+  }
+
+  return null;
+}
+

@@ -2,6 +2,120 @@
   margin-bottom: 1.5rem;
 }
 
+.teamNameRow {
+  margin-bottom: 1rem;
+}
+
+.teamNameDisplay {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  transition: background-color 0.15s ease;
+
+  &:hover {
+    background-color: #f9fafb;
+
+    .editHint {
+      opacity: 1;
+    }
+  }
+}
+
+.teamNameText {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.editHint {
+  font-size: 0.75rem;
+  color: #6b7280;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  font-weight: 400;
+}
+
+.teamNameEdit {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.teamNameInput {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.5rem 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border: 2px solid #3b82f6;
+  border-radius: 0.375rem;
+  color: #111827;
+  background-color: #fff;
+  outline: none;
+  transition: border-color 0.15s ease;
+
+  &:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &:disabled {
+    background-color: #f3f4f6;
+    cursor: not-allowed;
+    border-color: #d1d5db;
+  }
+}
+
+.teamNameActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.saveButton,
+.cancelButton {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+.saveButton {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+
+  &:hover:not(:disabled) {
+    background-color: #2563eb;
+    border-color: #2563eb;
+  }
+}
+
+.cancelButton {
+  background-color: #fff;
+  color: #6b7280;
+  border-color: #e5e7eb;
+
+  &:hover:not(:disabled) {
+    background-color: #f9fafb;
+    border-color: #d1d5db;
+    color: #111827;
+  }
+}
+
 .topRow {
   display: flex;
   justify-content: space-between;

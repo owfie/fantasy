@@ -98,13 +98,15 @@ export function useActiveSeason() {
 
 /**
  * Hook to fetch fantasy teams for a specific season
+ * @param seasonId - The season to fetch teams for
+ * @param ownerId - Optional owner ID to filter by (for user-specific views)
  */
-export function useFantasyTeams(seasonId: string | null) {
+export function useFantasyTeams(seasonId: string | null, ownerId?: string | null) {
   return useQuery({
-    queryKey: fantasyTeamKeys.list(seasonId || ''),
+    queryKey: fantasyTeamKeys.list(seasonId || '' + (ownerId ? `-${ownerId}` : '')),
     queryFn: async () => {
       if (!seasonId) return [];
-      const result = await testGetAllFantasyTeams(seasonId);
+      const result = await testGetAllFantasyTeams(seasonId, ownerId || undefined);
       if (!result.success) {
         throw new Error('error' in result ? result.error : result.message);
       }

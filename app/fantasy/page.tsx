@@ -112,6 +112,7 @@ function FantasyPageContent() {
   const createTeamMutation = useCreateFantasyTeam();
 
   // Single unified data hook - eliminates double useFantasyTeamData pattern
+  // Pass user ID to filter teams by ownership
   const {
     activeSeason,
     fantasyTeams,
@@ -125,7 +126,7 @@ function FantasyPageContent() {
     allPlayers,
     isFirstWeek,
     isLoading: isLoadingData,
-  } = useFantasyPageData();
+  } = useFantasyPageData(user?.id);
 
   const {
     draftRoster,

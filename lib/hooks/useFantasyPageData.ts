@@ -19,13 +19,15 @@ import { SnapshotWithPlayers } from '@/lib/api/fantasy-snapshots.api';
 /**
  * Single unified hook for all fantasy page data
  * Handles data fetching, selection, and loading states in one place
+ * @param userId - Current user's ID to filter teams by ownership
  */
-export function useFantasyPageData() {
+export function useFantasyPageData(userId?: string | null) {
   const queryClient = useQueryClient();
 
   // Step 1: Fetch base data (always needed)
   const { data: activeSeason, isLoading: isLoadingActiveSeason } = useActiveSeason();
-  const { data: fantasyTeams = [], isLoading: isLoadingTeams } = useFantasyTeams(activeSeason?.id || null);
+  // Filter teams by current user's ownership
+  const { data: fantasyTeams = [], isLoading: isLoadingTeams } = useFantasyTeams(activeSeason?.id || null, userId);
   const { data: weeks = [], isLoading: isLoadingWeeks } = useWeeks(activeSeason?.id || '');
 
   // Step 2: Get selection from URL (derived, no useState)

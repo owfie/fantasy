@@ -330,7 +330,7 @@ export class FantasyTeamSnapshotService {
   /**
    * Get snapshot with players for a specific week - SINGLE QUERY
    * Eliminates the waterfall of getSnapshotForWeek -> getSnapshotWithPlayers
-   * Returns null if snapshot doesn't exist (for new teams without snapshots)
+   * Falls back to fantasy_team_players if no snapshot exists (for teams created via admin)
    */
   async getSnapshotWithPlayersForWeek(
     fantasyTeamId: string,
@@ -343,14 +343,62 @@ export class FantasyTeamSnapshotService {
       return null;
     }
 
+    // Try to get existing snapshot first
     const snapshot = await this.uow.fantasyTeamSnapshots.findByFantasyTeamAndWeek(fantasyTeamId, weekId);
-    if (!snapshot) {
-      return null;
+    if (snapshot) {
+      const players = await this.uow.fantasyTeamSnapshotPlayers.findBySnapshot(snapshot.id);
+      return { snapshot, players };
     }
 
-    const players = await this.uow.fantasyTeamSnapshotPlayers.findBySnapshot(snapshot.id);
+    // FALLBACK: No snapshot exists, create virtual response from fantasy_team_players
+    const teamPlayers = await this.uow.fantasyTeamPlayers.findByFantasyTeam(fantasyTeamId);
+    if (teamPlayers.length === 0) {
+      return null; // No players in either table
+    }
 
-    return { snapshot, players };
+    // Fetch player details to get positions
+    const playerDetails = await Promise.all(
+      teamPlayers.map(tp => this.uow.players.findById(tp.player_id))
+    );
+
+    // Get week for week_number
+    const week = await this.uow.weeks.findById(weekId);
+    const fantasyTeam = await this.uow.fantasyTeams.findById(fantasyTeamId);
+
+    // Get player values for this week
+    const playerIds = teamPlayers.map(tp => tp.player_id);
+    const playerValues = week && fantasyTeam
+      ? await this.valueTracking.getPlayerValuesForWeek(playerIds, week.week_number, fantasyTeam.season_id)
+      : new Map<string, number>();
+
+    // Create virtual snapshot (not persisted)
+    const now = new Date().toISOString();
+    const virtualSnapshot: FantasyTeamSnapshot = {
+      id: `virtual-${fantasyTeamId}-${weekId}`,
+      fantasy_team_id: fantasyTeamId,
+      week_id: weekId,
+      captain_player_id: teamPlayers.find(tp => tp.is_captain)?.player_id || teamPlayers[0]?.player_id || '',
+      total_value: Array.from(playerValues.values()).reduce((sum, v) => sum + v, 0),
+      created_at: now,
+      snapshot_created_at: now,
+    };
+
+    // Map team players to snapshot players format
+    const virtualPlayers: FantasyTeamSnapshotPlayer[] = teamPlayers.map((tp, index) => {
+      const player = playerDetails[index];
+      return {
+        id: `virtual-player-${tp.id}`,
+        snapshot_id: virtualSnapshot.id,
+        player_id: tp.player_id,
+        position: (player?.position || 'handler') as FantasyPosition,
+        is_benched: tp.is_reserve || !tp.is_active,
+        is_captain: tp.is_captain,
+        player_value_at_snapshot: playerValues.get(tp.player_id) || 0,
+        created_at: new Date().toISOString(),
+      };
+    });
+
+    return { snapshot: virtualSnapshot, players: virtualPlayers };
   }
 
   /**

@@ -1019,9 +1019,9 @@ export async function testGetActiveSeason() {
   }
 }
 
-export async function testGetAllFantasyTeams(seasonId?: string) {
+export async function testGetAllFantasyTeams(seasonId?: string, ownerId?: string) {
   const uow = await getUnitOfWork();
-  
+
   try {
     let query = uow.getClient()
       .from('fantasy_teams')
@@ -1030,18 +1030,23 @@ export async function testGetAllFantasyTeams(seasonId?: string) {
         user_profiles!owner_id(email, display_name),
         seasons!season_id(name)
       `);
-    
+
     // Filter by season if provided
     if (seasonId) {
       query = query.eq('season_id', seasonId);
     }
-    
+
+    // Filter by owner if provided (for user-specific views like /fantasy page)
+    if (ownerId) {
+      query = query.eq('owner_id', ownerId);
+    }
+
     const { data, error } = await query.order('created_at', { ascending: false });
-    
+
     if (error) {
       return { success: false, message: `Failed to fetch fantasy teams: ${error.message}`, error: error.message };
     }
-    
+
     return { success: true, message: `Found ${data?.length || 0} fantasy teams`, data: data || [] };
   } catch (error: unknown) {
     const message = getErrorMessage(error);

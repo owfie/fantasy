@@ -880,6 +880,7 @@ function WeeksPanel({ seasonId, seasonName, onClose }: WeeksPanelProps) {
         start_date: formData.createGameDate || undefined,
         end_date: formData.createGameDate || undefined, // Same as start since games are on Monday
         is_draft_week: formData.createIsDraftWeek,
+        transfer_window_open: false, // Default to closed when creating a week
       });
       setResults((prev) => ({ ...prev, create: result }));
       if (result.success) {
@@ -946,7 +947,7 @@ function WeeksPanel({ seasonId, seasonName, onClose }: WeeksPanelProps) {
         end_date?: string;
         is_draft_week?: boolean;
         transfer_window_open?: boolean;
-        transfer_cutoff_time?: string | null;
+        transfer_cutoff_time?: string;
       } = {
         id: editingWeek.id,
       };
@@ -976,7 +977,7 @@ function WeeksPanel({ seasonId, seasonName, onClose }: WeeksPanelProps) {
         updateData.transfer_cutoff_time = cutoffDate.toISOString();
       } else if (formData.updateTransferCutoffTime === '' && editingWeek.transfer_cutoff_time) {
         // Clear cutoff time if empty string
-        updateData.transfer_cutoff_time = null;
+        updateData.transfer_cutoff_time = undefined;
       }
 
       const result = await updateWeekMutation.mutateAsync(updateData);

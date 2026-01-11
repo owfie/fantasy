@@ -157,9 +157,9 @@ export default function PlayersCrudClient() {
       if (formData.updateLastName) updates.last_name = formData.updateLastName;
       if (formData.updateRole) updates.player_role = formData.updateRole;
       // Position: include if set (empty string will be converted to null by API)
-      if (formData.updatePosition !== undefined && formData.updatePosition !== null) {
+      if (formData.updatePosition !== '') {
         updates.position = formData.updatePosition;
-      } else if (formData.updatePosition === '') {
+      } else {
         // Explicitly set to null to clear position
         (updates as any).position = null;
       }

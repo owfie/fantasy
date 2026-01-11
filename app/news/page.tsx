@@ -26,7 +26,7 @@ export default async function NewsPage() {
 
   return (
     <main className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">News</h1>
+      <h1 className="text-3xl font-semibold mb-8">News</h1>
       
       {publishedArticles.length === 0 ? (
         <p>No articles yet. Check back soon!</p>

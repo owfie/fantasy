@@ -77,7 +77,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     <main className="container mx-auto px-4 py-8 max-w-4xl">
       <article>
         <header className="mb-8">
-          <h1 className="text-4xl font-bold mb-4">{article.title}</h1>
+          <h1 className="text-4xl font-semibold mb-4">{article.title}</h1>
           
           {article.description && (
             <p className="text-xl text-gray-600 dark:text-gray-400 mb-4">

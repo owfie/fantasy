@@ -16,7 +16,7 @@ export function PlayerDetailContent({ player }: PlayerDetailContentProps) {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-4">{fullName}</h1>
+      <h1 className="text-2xl font-semibold mb-4">{fullName}</h1>
       {/* Player details content - similar to drawer but as a page */}
     </div>
   );

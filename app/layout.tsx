@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "@/lib/queries/providers";
 import { Toaster } from "sonner";
@@ -20,9 +20,10 @@ export const metadata: Metadata = {
   description: "Fantasy frisbee league application",
 };
 
-const inter = Inter({
+const sooper = localFont({
+  src: "../public/fonts/Sooper.ttf",
   display: "swap",
-  subsets: ["latin"],
+  variable: "--font-sooper",
 });
 
 export default function RootLayout({
@@ -32,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} ${styles.body}`}>
+      <body className={`${sooper.className} ${styles.body}`}>
         <QueryProvider>
           <Ticker />
           <Header>

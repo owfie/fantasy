@@ -16,7 +16,7 @@ export default function Error({
 
   return (
     <main className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-4">Fixtures</h1>
+      <h1 className="text-3xl font-semibold mb-4">Fixtures</h1>
       <div className="border border-red-300 bg-red-50 rounded p-4">
         <h2 className="text-xl font-semibold text-red-800 mb-2">Something went wrong!</h2>
         <p className="text-red-600 mb-4">

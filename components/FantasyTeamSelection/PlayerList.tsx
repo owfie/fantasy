@@ -11,8 +11,6 @@ import styles from './PlayerList.module.scss';
 
 interface PlayerListProps {
   players: PlayerWithValue[];
-  selectedPositions: FantasyPosition[];
-  onPositionChange: (positions: FantasyPosition[]) => void;
   onAddPlayer?: (playerId: string) => void;
   onSwapPlayer?: (playerId: string) => void;
   teamPlayerIds?: Set<string>;
@@ -24,11 +22,10 @@ interface PlayerListProps {
 }
 
 const ALL_POSITIONS: FantasyPosition[] = ['handler', 'cutter', 'receiver'];
+type PositionFilter = FantasyPosition | 'all';
 
 export const PlayerList = memo(function PlayerList({
   players,
-  selectedPositions,
-  onPositionChange,
   onAddPlayer,
   onSwapPlayer,
   teamPlayerIds = new Set(),
@@ -40,18 +37,19 @@ export const PlayerList = memo(function PlayerList({
 }: PlayerListProps) {
   type SortOption = 'price-high' | 'price-low' | 'draft-order' | 'points' | 'name' | 'team';
   const [sortBy, setSortBy] = useState<SortOption>('price-high');
+  const [positionFilter, setPositionFilter] = useState<PositionFilter>('all');
 
-  const positionOptions = ALL_POSITIONS.map(position => ({
-    id: position,
-    label: `${position.charAt(0).toUpperCase() + position.slice(1)}s`,
-  }));
-
-  // Get the selected position (first one, since we're in single-select mode)
-  const selectedPosition = selectedPositions[0] || ALL_POSITIONS[0];
+  const positionOptions: { id: PositionFilter; label: string }[] = [
+    { id: 'all', label: 'All' },
+    ...ALL_POSITIONS.map(position => ({
+      id: position as PositionFilter,
+      label: `${position.charAt(0).toUpperCase() + position.slice(1)}s`,
+    })),
+  ];
 
   const filteredPlayers = players.filter(player => {
-    // Position filter: match the single selected position (tab behavior)
-    if (player.position && player.position !== selectedPosition) {
+    // Position filter: if 'all' selected, show all; otherwise match the specific position
+    if (positionFilter !== 'all' && player.position && player.position !== positionFilter) {
       return false;
     }
     if (searchQuery) {
@@ -126,57 +124,53 @@ export const PlayerList = memo(function PlayerList({
   });
 
   return (
-
       <div className={styles.playerList}>
-        <Card>
+        <h2 className={styles.title}>Players</h2>
+
+        <Card className={styles.filtersCard}>
             {/* Search Section */}
             <div className={styles.searchSection}>
                 <label className={styles.filterLabel} htmlFor="search-input">Filter by name</label>
                 <input
                     id="search-input"
                     type="text"
-                    placeholder="Search by name"
+                    placeholder="Search players..."
                     value={searchQuery}
                     onChange={(e) => onSearchChange?.(e.target.value)}
                     className={styles.searchInput}
                 />
             </div>
 
-            {/* Filters Section */}
-            <div className={styles.filtersContainer}>
-
-
-               
-                <div className={styles.sort}>
-                    <label className={styles.filterLabel} htmlFor="sort-select">Sort by</label>
-                    <select
-                    id="sort-select"
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortOption)}
-                    className={styles.sortSelect}
-                    >
-                    <option value="price-high">price (highest)</option>
-                    <option value="price-low">price (lowest)</option>
-                    <option value="draft-order">pick order</option>
-                    <option value="points">points</option>
-                    <option value="name">name</option>
-                    <option value="team">team</option>
-                    </select>
-                </div>
-                
+            {/* Sort Section */}
+            <div className={styles.sortSection}>
+                <label className={styles.filterLabel} htmlFor="sort-select">Sort by</label>
+                <select
+                  id="sort-select"
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className={styles.sortSelect}
+                >
+                  <option value="price-high">Price (highest)</option>
+                  <option value="price-low">Price (lowest)</option>
+                  <option value="draft-order">Pick order</option>
+                  <option value="points">Points</option>
+                  <option value="name">Name</option>
+                  <option value="team">Team</option>
+                </select>
             </div>
         </Card>
-      
-          <div className={styles.positionsSection}>
-            <SegmentedController
-              options={positionOptions}
-              selectedValues={[selectedPosition]}
-              onChange={(values) => onPositionChange(values.length > 0 ? [values[0]] : [ALL_POSITIONS[0]])}
-              allowMultiple={false}
-            />
-          </div>
 
-      <div className={styles.playersContainer}>
+        {/* Position Tabs */}
+        <div className={styles.positionsSection}>
+          <SegmentedController
+            options={positionOptions}
+            selectedValues={[positionFilter]}
+            onChange={(values) => setPositionFilter(values[0] as PositionFilter || 'all')}
+            allowMultiple={false}
+          />
+        </div>
+
+        <div className={styles.playersContainer}>
         {isLoading ? (
           <>
             {Array.from({ length: 8 }).map((_, i) => (

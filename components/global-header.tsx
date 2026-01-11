@@ -6,7 +6,7 @@ export function GlobalHeader() {
     <header className="border-b">
       <nav className="container mx-auto px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link href="/" className="text-xl font-bold">
+          <Link href="/" className="text-xl font-semibold">
             Super League Fantasy
           </Link>
           <div className="flex items-center gap-4">

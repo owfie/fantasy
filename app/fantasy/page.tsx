@@ -178,7 +178,6 @@ function FantasyPageContent() {
     setSelectedPlayerOutId: setTransferModalSelectedPlayerOutId,
   } = useTransferModal();
 
-  const [selectedPositions, setSelectedPositions] = useState<FantasyPosition[]>(['handler']);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'pitch' | 'list'>('pitch');
   const [unsavedTransfers, setUnsavedTransfers] = useState<UnsavedTransfer[]>([]);
@@ -186,14 +185,6 @@ function FantasyPageContent() {
 
   const playersValueMap = useMemo(() => createPlayersValueMap(allPlayers), [allPlayers]);
   const playersMap = useMemo(() => createPlayersMap(allPlayers), [allPlayers]);
-
-  const players = useMemo(() => {
-    const selectedPosition = selectedPositions[0];
-    if (!selectedPosition) {
-      return allPlayers;
-    }
-    return allPlayers.filter(p => p.position === selectedPosition);
-  }, [allPlayers, selectedPositions]);
 
   const teamPlayerIds = useMemo(() => new Set(draftRoster.map(p => p.playerId)), [draftRoster]);
 
@@ -768,8 +759,6 @@ function FantasyPageContent() {
       onDragCancel={handleDragCancel}
     >
       <div className={styles.container}>
-        <DebugRosterDisplay draftRoster={draftRoster} />
-
         <TeamSelectionHeader
           week={selectedWeek}
           viewMode={viewMode}
@@ -793,17 +782,15 @@ function FantasyPageContent() {
         <div className={styles.content}>
           <div className={styles.leftPanel}>
           <PlayerList
-            players={players}
-            selectedPositions={selectedPositions}
-            onPositionChange={setSelectedPositions}
+            players={allPlayers}
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             teamPlayerIds={teamPlayerIds}
             onAddPlayer={handleAddPlayer}
             onSwapPlayer={handleSwapPlayer}
-              isPositionFull={isPositionFullCallback}
+            isPositionFull={isPositionFullCallback}
             isTransferLimitReached={isTransferLimitReached}
-              isLoading={false}
+            isLoading={false}
           />
           </div>
 

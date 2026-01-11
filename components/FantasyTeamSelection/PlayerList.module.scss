@@ -8,9 +8,15 @@
 
 .title {
   font-size: 1.5rem;
-  font-weight: 700;
-  margin: 0 0 1rem 0;
+  font-weight: 600;
+  margin: 0;
   color: #111827;
+}
+
+.filtersCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .filterLabel {
@@ -23,23 +29,20 @@
   margin-bottom: 0.5rem;
 }
 
-
-
 .searchSection {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
   width: 100%;
 }
 
 .searchInput {
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.625rem 0.875rem;
   border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
   font-size: 0.875rem;
   color: #111827;
+  background-color: #fff;
 
   &:focus {
     outline: none;
@@ -52,55 +55,43 @@
   }
 }
 
-.filtersContainer {
+.sortSection {
   display: flex;
-  flex-direction: row;
-  gap: 2rem;
-  flex-wrap: nowrap;
-  margin-bottom: 1rem;
+  flex-direction: column;
+  width: 100%;
+}
 
-  .sort {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    width: max-content;
+.sortSelect {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background-color: #fff;
+  color: #111827;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5rem 1.5rem;
+  padding-right: 2.5rem;
 
-    .sortSelect {
-        padding: 0.5rem 0.75rem;
-        border: 1px solid #e5e7eb;
-        border-radius: 0.375rem;
-        background-color: #fff;
-        color: #111827;
-        font-size: 0.875rem;
-        cursor: pointer;
-        transition: all 0.15s ease;
-        max-width: max-content;
-      
-        &:hover {
-          background-color: #f9fafb;
-          border-color: #d1d5db;
-        }
-      
-        &:focus {
-          outline: none;
-          border-color: #3b82f6;
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-      }
+  &:hover {
+    background-color: #f9fafb;
+    border-color: #d1d5db;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 }
 
 .positionsSection {
-  width: max-content;
-  align-self: center;
-}
-
-.valueHeader {
-  margin-left: 2.75rem; // Align with value column
-}
-
-.pointsHeader {
-  margin-right: 2.5rem; // Align with points column
+  width: 100%;
 }
 
 .playersContainer {
@@ -110,7 +101,6 @@
   flex-direction: column;
   gap: 0.5rem;
   min-width: 0;
-  /* Prevent horizontal scrollbar from drag transforms */
   overflow-x: hidden;
 }
 
@@ -120,4 +110,3 @@
   color: #9ca3af;
   font-size: 0.875rem;
 }
-

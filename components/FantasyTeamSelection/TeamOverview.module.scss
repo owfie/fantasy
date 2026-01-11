@@ -5,11 +5,48 @@
   width: 100%;
 }
 
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+  color: #111827;
+}
+
+.deadline {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.countdown {
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: #111827;
+}
+
+.deadlineLabel {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  gap: 0.75rem;
   width: 100%;
+}
+
+.statCard {
+  padding: 0.75rem;
 }
 
 .stat {
@@ -33,28 +70,44 @@
   color: #111827;
 }
 
-.pitchContainer {
-  width: 100%;
-  height: max-content;
-  /* Allow 3D transforms to be visible */
-  overflow: visible;
-  /* Ensure enough space for perspective effect */
-  padding: 2rem 0;
+.statMax {
+  font-weight: 400;
+  color: #9ca3af;
+}
+
+.captainCard {
+  padding: 0.75rem;
+}
+
+.captainSection {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
   gap: 1rem;
 }
 
-.captainButtonContainer {
+.captainInfo {
   display: flex;
-  justify-content: center;
-  width: 100%;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.captainLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.captainName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
 }
 
 .captainButton {
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
   background-color: #3b82f6;
   color: white;
   border: none;
@@ -73,3 +126,14 @@
   }
 }
 
+.pitchContainer {
+  width: 100%;
+  height: max-content;
+  overflow: visible;
+  padding: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+}

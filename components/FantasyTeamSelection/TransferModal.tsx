@@ -18,6 +18,8 @@ interface TransferModalProps {
   swapCandidates: Array<{ player: PlayerWithValue; rosterPlayer: DraftRosterPlayer }>;
   selectedPlayerOutId: string | null;
   onConfirm: (playerInId: string, playerOutId: string) => void;
+  title?: string; // Optional title override (defaults to "Transfer")
+  confirmButtonText?: string; // Optional confirm button text override (defaults to "Transfer")
 }
 
 export function TransferModal({
@@ -27,6 +29,8 @@ export function TransferModal({
   swapCandidates,
   selectedPlayerOutId: initialSelectedPlayerOutId,
   onConfirm,
+  title = 'Transfer',
+  confirmButtonText = 'Transfer',
 }: TransferModalProps) {
   const [selectedPlayerOutId, setSelectedPlayerOutId] = useState<string | null>(initialSelectedPlayerOutId);
 
@@ -61,7 +65,7 @@ export function TransferModal({
     <Modal
       isOpen={isOpen}
       onClose={handleCancel}
-      title="Transfer"
+      title={title}
       width="600px"
     >
       <div className={styles.transferModal}>
@@ -196,7 +200,7 @@ export function TransferModal({
             onClick={handleConfirm}
             disabled={!selectedPlayerOutId}
           >
-            Transfer
+            {confirmButtonText}
           </button>
         </div>
       </div>

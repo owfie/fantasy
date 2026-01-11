@@ -1,3 +1,10 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Error | Adelaide Super League',
+  description: 'Authentication error page for Adelaide Super League',
+};
+
 export default async function ErrorPage({
   searchParams,
 }: {

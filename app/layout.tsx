@@ -16,7 +16,7 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Super League Fantasy",
+  title: "Adelaide Super League",
   description: "Fantasy frisbee league application",
 };
 

@@ -2,8 +2,6 @@
  * Utility functions for fantasy transfer operations
  */
 
-import { UNLIMITED_TRANSFERS } from '@/lib/queries/transfers.queries';
-
 export interface UnsavedTransfer {
   playerInId: string;
   playerOutId: string;
@@ -12,16 +10,18 @@ export interface UnsavedTransfer {
 
 /**
  * Calculate if transfer limit has been reached
- * First week has unlimited transfers (UNLIMITED_TRANSFERS = -1)
- * Block if total transfers >= 2 or remaining transfers <= 0
+ * In first week, swaps are allowed freely (return false/not blocked)
+ * After first week, block if total transfers >= 2 or remaining transfers <= 0
  */
 export function calculateTransferLimitStatus(
   remainingTransfers: number | null | undefined,
   transfersUsed: number,
-  unsavedTransfersCount: number
+  unsavedTransfersCount: number,
+  isFirstWeek?: boolean
 ): boolean {
-  if (remainingTransfers === UNLIMITED_TRANSFERS) {
-    return false; // First week - unlimited transfers
+  // First week allows free swaps - never block
+  if (isFirstWeek) {
+    return false;
   }
   
   const transfersRemaining = remainingTransfers ?? 0;

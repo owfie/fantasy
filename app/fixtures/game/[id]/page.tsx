@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import FixtureDetailClient from './fixture-detail-client';
@@ -13,6 +14,27 @@ export const dynamic = 'force-static';
 export const dynamicParams = false; // Don't generate pages for IDs not in generateStaticParams
 export const revalidate = 3600; // Revalidate every hour (3600 seconds) as fallback
 // On-demand revalidation is triggered when fixtures are updated via updateFixture()
+
+export async function generateMetadata({ params }: FixturePageProps): Promise<Metadata> {
+  const { id } = await params;
+  const gamesRepo = getBuildGamesRepository();
+  const fixture = await gamesRepo.findByIdWithDetails(id);
+
+  if (!fixture) {
+    return {
+      title: 'Fixture Not Found | Adelaide Super League',
+    };
+  }
+
+  const title = fixture.home_team && fixture.away_team
+    ? `${fixture.home_team.name} vs ${fixture.away_team.name} | Adelaide Super League`
+    : 'Fixture | Adelaide Super League';
+
+  return {
+    title,
+    description: `View fixture details for ${title.split(' |')[0]} in Adelaide Super League`,
+  };
+}
 
 export async function generateStaticParams() {
   try {

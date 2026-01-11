@@ -2,10 +2,9 @@
 
 import { memo } from 'react';
 import { formatCurrency } from '@/lib/utils/fantasy-utils';
-import { UNLIMITED_TRANSFERS } from '@/lib/queries/transfers.queries';
 import { Card } from '@/components/Card';
 import { PitchFormation } from './PitchFormation';
-import { FantasyPosition } from '@/lib/domain/types';
+import { FantasyPosition, Week } from '@/lib/domain/types';
 import styles from './TeamOverview.module.scss';
 
 interface PitchPlayer {
@@ -18,7 +17,7 @@ interface PitchPlayer {
 
 interface TeamOverviewProps {
   transfersUsed: number;
-  transfersRemaining: number; // -1 for unlimited
+  transfersRemaining: number; // 0 for first week (no transfers), otherwise remaining count
   playerCount: number;
   maxPlayers: number;
   salary: number;
@@ -27,6 +26,8 @@ interface TeamOverviewProps {
   draggedPlayerPosition?: FantasyPosition | null;
   onPlayerClick?: (playerId: string) => void;
   onCaptainClick?: () => void;
+  isFirstWeek?: boolean;
+  week?: Week | null;
 }
 
 export const TeamOverview = memo(function TeamOverview({
@@ -40,14 +41,18 @@ export const TeamOverview = memo(function TeamOverview({
   draggedPlayerPosition,
   onPlayerClick,
   onCaptainClick,
+  isFirstWeek = false,
+  week,
 }: TeamOverviewProps) {
-  const transfersDisplay = transfersRemaining === UNLIMITED_TRANSFERS 
-    ? 'Unlimited'
-    : `${transfersRemaining}`;
+  // In first week before cutoff, show infinity sign
+  const isBeforeCutoff = week?.transfer_cutoff_time 
+    ? new Date(week.transfer_cutoff_time) > new Date()
+    : true; // If no cutoff time set, assume before cutoff
   
-  const transfersMax = transfersRemaining === UNLIMITED_TRANSFERS
-    ? '∞'
-    : '2';
+  const showInfinity = isFirstWeek && isBeforeCutoff;
+  
+  const transfersDisplay = showInfinity ? '∞' : `${transfersRemaining}`;
+  const transfersMax = showInfinity ? '∞' : '2';
 
   return (
     <div className={styles.teamOverview}>

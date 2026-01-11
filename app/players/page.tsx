@@ -1,3 +1,10 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Players | Adelaide Super League',
+  description: 'View all players in Adelaide Super League',
+};
+
 export default function PlayersPage() {
 
   return (

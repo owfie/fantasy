@@ -16,7 +16,9 @@ import {
   isFirstWeek,
 } from '@/lib/api/transfers.api';
 
-export const UNLIMITED_TRANSFERS = -1; // Special value indicating unlimited transfers for first week
+// DEPRECATED: No longer used - first week now has 0 transfers (free roster selection)
+// Keeping for backward compatibility if needed
+export const UNLIMITED_TRANSFERS = -1;
 
 export const transferKeys = {
   all: ['transfers'] as const,

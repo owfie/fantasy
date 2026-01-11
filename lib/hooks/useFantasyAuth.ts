@@ -21,7 +21,9 @@ export function useFantasyAuth() {
       setUser(session?.user ?? null);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   return { user, isLoading };

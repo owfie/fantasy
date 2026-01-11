@@ -65,10 +65,6 @@ export class FantasyTeamSnapshotService {
 
     const validPositions: FantasyPosition[] = ['handler', 'cutter', 'receiver'];
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/29f81711-5913-4fd4-beed-99bc2d01ecd2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'fantasy-team-snapshot.service.ts:66',message:'validateLineup called',data:{playerCount:players.length,allowPartial,players:players.map(p=>({position:p.position,isBenched:p.isBenched}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
     // Map singular position to plural counts key
     const positionToCountsKey: Record<FantasyPosition, keyof LineupCounts> = {
       handler: 'handlers',
@@ -77,10 +73,6 @@ export class FantasyTeamSnapshotService {
     };
     
     for (const player of players) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/29f81711-5913-4fd4-beed-99bc2d01ecd2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'fantasy-team-snapshot.service.ts:76',message:'Processing player',data:{position:player.position,isBenched:player.isBenched,positionType:typeof player.position,validPositions},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
-      
       // Validate position exists and is valid
       if (!player.position || typeof player.position !== 'string' || !validPositions.includes(player.position)) {
         errors.push(`Invalid position '${player.position}' for player`);
@@ -89,15 +81,9 @@ export class FantasyTeamSnapshotService {
       
       // Map singular position to plural counts key
       const countsKey = positionToCountsKey[player.position];
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/29f81711-5913-4fd4-beed-99bc2d01ecd2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'fantasy-team-snapshot.service.ts:86',message:'Mapped position to counts key',data:{position:player.position,countsKey,countsKeys:Object.keys(counts),positionCountsExists:!!counts[countsKey]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       
       const positionCounts = counts[countsKey];
       if (!positionCounts) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/29f81711-5913-4fd4-beed-99bc2d01ecd2',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'fantasy-team-snapshot.service.ts:91',message:'Position counts not found',data:{position:player.position,countsKey,availableKeys:Object.keys(counts)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         errors.push(`Position '${player.position}' not found in counts`);
         continue;
       }
@@ -321,14 +307,19 @@ export class FantasyTeamSnapshotService {
 
   /**
    * Get snapshot with players
+   * Returns null if snapshot doesn't exist (for new teams without snapshots)
    */
   async getSnapshotWithPlayers(snapshotId: string): Promise<{
     snapshot: FantasyTeamSnapshot;
     players: FantasyTeamSnapshotPlayer[];
-  }> {
+  } | null> {
+    if (!snapshotId) {
+      return null;
+    }
+
     const snapshot = await this.uow.fantasyTeamSnapshots.findById(snapshotId);
     if (!snapshot) {
-      throw new Error('Snapshot not found');
+      return null;
     }
 
     const players = await this.uow.fantasyTeamSnapshotPlayers.findBySnapshot(snapshotId);

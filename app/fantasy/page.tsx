@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, pointerWithin, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { useUpdateFantasyTeam } from '@/lib/queries/fantasy-teams-test.queries';
 import { useCreateSnapshot } from '@/lib/queries/fantasy-snapshots.queries';
-import { useExecuteTransfer, UNLIMITED_TRANSFERS } from '@/lib/queries/transfers.queries';
+import { useExecuteTransfer, useIsFirstWeek } from '@/lib/queries/transfers.queries';
 import { FantasyPosition } from '@/lib/domain/types';
 import { TeamSelectionHeader } from '@/components/FantasyTeamSelection/TeamSelectionHeader';
 import { PlayerList } from '@/components/FantasyTeamSelection/PlayerList';
@@ -25,6 +25,7 @@ import { useFantasyTeamValidation } from '@/lib/hooks/useFantasyTeamValidation';
 import { useUnsavedChangesGuard } from '@/lib/hooks/useUnsavedChangesGuard';
 import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop';
 import { useTransferModal } from '@/lib/hooks/useTransferModal';
+import { useCreateFantasyTeam, useActiveSeason } from '@/lib/queries/fantasy-teams-test.queries';
 
 import {
   calculateRosterSalary,
@@ -61,6 +62,7 @@ import { DragOverlayContent } from '@/components/FantasyTeamSelection/DragOverla
 
 export default function FantasyPage() {
   const { user, isLoading: isLoadingAuth } = useFantasyAuth();
+  const createTeamMutation = useCreateFantasyTeam();
   
   const initialData = useFantasyTeamData(null, null);
   const {
@@ -88,8 +90,10 @@ export default function FantasyPage() {
     isLoading: isLoadingTeamData,
   } = teamData;
 
-  const isLoadingData = isLoadingInitialData || isLoadingTeamData;
+  const { data: isFirstWeek = false } = useIsFirstWeek(selectedTeamId || '', selectedWeekId || '');
 
+  const isLoadingData = isLoadingInitialData || isLoadingTeamData;
+ // ya mum 
   const {
     draftRoster,
     setDraftRoster,
@@ -104,6 +108,24 @@ export default function FantasyPage() {
     handleConfirmNavigateAway,
     handleCancelNavigateAway,
   } = useUnsavedChangesGuard(hasUnsavedChanges);
+
+  const handleCreateTeam = useCallback(async () => {
+    if (!user?.id || !activeSeason?.id) {
+      toast.error('Cannot create team: Missing user or active season');
+      return;
+    }
+
+    try {
+      await createTeamMutation.mutateAsync({
+        ownerId: user.id,
+        seasonId: activeSeason.id,
+        name: 'My Fantasy Team',
+      });
+      // Query invalidation will refresh the page and show the new team
+    } catch (error) {
+      // Error toast is handled by mutation's onError
+    }
+  }, [user?.id, activeSeason?.id, createTeamMutation]);
 
   const {
     activePlayer,
@@ -163,9 +185,10 @@ export default function FantasyPage() {
     return calculateTransferLimitStatus(
       remainingTransfers,
       transfersUsed,
-      unsavedTransfers.length
+      unsavedTransfers.length,
+      isFirstWeek
     );
-  }, [remainingTransfers, transfersUsed, unsavedTransfers.length]);
+  }, [remainingTransfers, transfersUsed, unsavedTransfers.length, isFirstWeek]);
 
   const salary = useMemo(() => {
     return calculateRosterSalary(draftRoster, playersValueMap);
@@ -206,10 +229,18 @@ export default function FantasyPage() {
           toast.error(result.error);
         }
         if (result.needsTransfer) {
+          // In first week, always use transfer modal but label it as "Swap Player"
+          if (isFirstWeek) {
+            openTransferModal(player);
+            return;
+          }
+          
+          // After first week, check transfer limit
           if (isTransferLimitReached) {
             toast.error('Transfer limit has been reached. You cannot make any more transfers this week.');
-      return;
-    }
+            return;
+          }
+          
           openTransferModal(player);
         }
         return;
@@ -219,28 +250,35 @@ export default function FantasyPage() {
       setDraftRoster(newRoster);
       setHasUnsavedChanges(true);
     },
-    [selectedTeamId, selectedWeekId, allPlayers, draftRoster, isTransferLimitReached, playersValueMap, openTransferModal]
+    [selectedTeamId, selectedWeekId, allPlayers, draftRoster, isFirstWeek, isTransferLimitReached, playersValueMap, openTransferModal, getSwapCandidatesCallback]
   );
 
   const handleSwapPlayer = useCallback(
     (playerId: string) => {
-      if (isTransferLimitReached) {
-        toast.error('Transfer limit has been reached. You cannot make any more transfers this week.');
-      return;
-    }
-
-    const player = allPlayers.find(p => p.id === playerId);
+      const player = allPlayers.find(p => p.id === playerId);
       if (!player || !player.position) return;
 
-    const playerPosition = player.position as FantasyPosition;
+      const playerPosition = player.position as FantasyPosition;
       if (!isPositionFullCallback(playerPosition)) {
         handleAddPlayer(playerId);
-      return;
-    }
+        return;
+      }
+
+      // In first week, always use transfer modal but label it as "Swap Player"
+      if (isFirstWeek) {
+        openTransferModal(player);
+        return;
+      }
+
+      // After first week, check transfer limit
+      if (isTransferLimitReached) {
+        toast.error('Transfer limit has been reached. You cannot make any more transfers this week.');
+        return;
+      }
 
       openTransferModal(player);
     },
-    [allPlayers, isPositionFullCallback, handleAddPlayer, isTransferLimitReached, openTransferModal]
+    [allPlayers, isPositionFullCallback, handleAddPlayer, isFirstWeek, draftRoster, playersValueMap, getSwapCandidatesCallback, isTransferLimitReached, openTransferModal]
   );
 
   const handleTransferConfirm = useCallback(
@@ -252,10 +290,13 @@ export default function FantasyPage() {
       setDraftRoster(newRoster);
       setHasUnsavedChanges(true);
 
-      setUnsavedTransfers((prev) => [...prev, createUnsavedTransfer(playerInId, playerOutId)]);
+      // Only track transfers if not in first week (first week has no transfer records)
+      if (!isFirstWeek) {
+        setUnsavedTransfers((prev) => [...prev, createUnsavedTransfer(playerInId, playerOutId)]);
+      }
       closeTransferModal();
     },
-    [allPlayers, draftRoster, playersValueMap, closeTransferModal]
+    [allPlayers, draftRoster, playersValueMap, isFirstWeek, closeTransferModal]
   );
 
   const handleCaptainSelect = useCallback(
@@ -280,13 +321,16 @@ export default function FantasyPage() {
     }
 
     try {
-      for (const transfer of unsavedTransfers) {
-        await executeTransferMutation.mutateAsync({
-          fantasyTeamId: selectedTeamId,
-          playerInId: transfer.playerInId,
-          playerOutId: transfer.playerOutId,
-          weekId: selectedWeekId,
-        });
+      // Only execute transfers if not in first week (first week has no transfer records)
+      if (!isFirstWeek) {
+        for (const transfer of unsavedTransfers) {
+          await executeTransferMutation.mutateAsync({
+            fantasyTeamId: selectedTeamId,
+            playerInId: transfer.playerInId,
+            playerOutId: transfer.playerOutId,
+            weekId: selectedWeekId,
+          });
+        }
       }
 
       await createSnapshotMutation.mutateAsync({
@@ -307,6 +351,7 @@ export default function FantasyPage() {
     draftRoster,
     playersValueMap,
     unsavedTransfers,
+    isFirstWeek,
     createSnapshotMutation,
     executeTransferMutation,
   ]);
@@ -517,6 +562,20 @@ export default function FantasyPage() {
           } else {
             if (!isPlayerOnTeam && fieldPlayersAtPosition.length >= positionLimits.starting) {
               if (benchPlayersAtPosition.length >= positionLimits.bench) {
+                // In first week, always use transfer modal but label it as "Swap Player"
+                if (isFirstWeek) {
+                  const fieldPlayers = otherPlayersAtPos.filter(p => !p.isBenched);
+                  const targetSlotPlayer = fieldPlayers[slotIndex] || fieldPlayers[fieldPlayers.length - 1];
+                  if (targetSlotPlayer) {
+                    openTransferModal(player, targetSlotPlayer.playerId);
+                    return prevRoster;
+                  } else {
+                    openTransferModal(player);
+                    return prevRoster;
+                  }
+                }
+                
+                // After first week, check transfer limit
                 if (isTransferLimitReached) {
                   toast.error('Transfer limit has been reached. You cannot make any more transfers this week.');
                   return prevRoster;
@@ -524,10 +583,10 @@ export default function FantasyPage() {
                 const fieldPlayers = otherPlayersAtPos.filter(p => !p.isBenched);
                 const targetSlotPlayer = fieldPlayers[slotIndex] || fieldPlayers[fieldPlayers.length - 1];
                 if (targetSlotPlayer) {
-                    openTransferModal(player, targetSlotPlayer.playerId);
-                    return prevRoster;
+                  openTransferModal(player, targetSlotPlayer.playerId);
+                  return prevRoster;
                 } else {
-                    openTransferModal(player);
+                  openTransferModal(player);
                   return prevRoster;
                 }
               } else {
@@ -618,6 +677,7 @@ export default function FantasyPage() {
       selectedWeekId,
       pitchPlayers,
       allPlayers,
+      isFirstWeek,
       isTransferLimitReached,
       playersValueMap,
       openTransferModal,
@@ -634,7 +694,14 @@ export default function FantasyPage() {
   }
 
   if (fantasyTeams.length === 0) {
-    return <NoTeamState containerClassName={styles.container} />;
+    return (
+      <NoTeamState
+        containerClassName={styles.container}
+        onCreateTeam={handleCreateTeam}
+        isCreating={createTeamMutation.isPending}
+        canCreate={!!user?.id && !!activeSeason?.id}
+      />
+    );
   }
 
   if (!activeSeason) {
@@ -705,6 +772,8 @@ export default function FantasyPage() {
               pitchPlayers={pitchPlayers}
               draggedPlayerPosition={activePlayer?.position || null}
               onCaptainClick={() => setCaptainModalOpen(true)}
+              isFirstWeek={isFirstWeek}
+              week={selectedWeek}
             />
 
             <TransfersList
@@ -746,6 +815,8 @@ export default function FantasyPage() {
           swapCandidates={getSwapCandidatesCallback(transferModalPlayerIn.position as FantasyPosition)}
           selectedPlayerOutId={transferModalSelectedPlayerOutId}
           onConfirm={handleTransferConfirm}
+          title={isFirstWeek ? 'Swap Player' : 'Transfer'}
+          confirmButtonText={isFirstWeek ? 'Swap Player' : 'Transfer'}
         />
       )}
 

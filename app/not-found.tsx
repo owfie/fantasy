@@ -1,4 +1,10 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: '404 Not Found | Adelaide Super League',
+  description: 'The page you are looking for could not be found',
+};
 
 export default function NotFound() {
   return (

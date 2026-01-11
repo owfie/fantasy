@@ -36,8 +36,22 @@ export function UnauthenticatedState({ containerClassName }: FantasyTeamEmptySta
   );
 }
 
-export function NoTeamState({ containerClassName }: FantasyTeamEmptyStatesProps) {
+interface NoTeamStateProps extends FantasyTeamEmptyStatesProps {
+  onCreateTeam?: () => Promise<void>;
+  isCreating?: boolean;
+  canCreate?: boolean;
+}
+
+export function NoTeamState({ containerClassName, onCreateTeam, isCreating, canCreate }: NoTeamStateProps) {
   const router = useRouter();
+
+  const handleCreateTeam = async () => {
+    if (onCreateTeam) {
+      await onCreateTeam();
+    } else {
+      router.push('/admin/fantasy-teams');
+    }
+  };
 
   return (
     <div className={containerClassName}>
@@ -50,19 +64,20 @@ export function NoTeamState({ containerClassName }: FantasyTeamEmptyStatesProps)
             You don't have a fantasy team yet. Create one to start managing your players.
           </p>
           <button
-            onClick={() => router.push('/admin/fantasy-teams')}
+            onClick={handleCreateTeam}
+            disabled={isCreating || canCreate === false}
             style={{
               padding: '0.75rem 1.5rem',
-              backgroundColor: '#3b82f6',
+              backgroundColor: (isCreating || canCreate === false) ? '#9ca3af' : '#3b82f6',
               color: 'white',
               border: 'none',
               borderRadius: '0.375rem',
               fontSize: '0.875rem',
               fontWeight: 500,
-              cursor: 'pointer',
+              cursor: (isCreating || canCreate === false) ? 'not-allowed' : 'pointer',
             }}
           >
-            Create Team (Admin Panel)
+            {isCreating ? 'Creating Team...' : 'Create Team'}
           </button>
         </div>
       </Card>

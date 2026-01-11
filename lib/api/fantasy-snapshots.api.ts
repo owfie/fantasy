@@ -40,8 +40,13 @@ export async function getSnapshotForWeek(
 
 /**
  * Get snapshot with players
+ * Returns null if snapshot doesn't exist (for new teams without snapshots)
  */
-export async function getSnapshotWithPlayers(snapshotId: string): Promise<SnapshotWithPlayers> {
+export async function getSnapshotWithPlayers(snapshotId: string): Promise<SnapshotWithPlayers | null> {
+  if (!snapshotId) {
+    return null;
+  }
+  
   const uow = await getUnitOfWork();
   return uow.execute(async () => {
     const service = new FantasyTeamSnapshotService(uow);
@@ -51,6 +56,7 @@ export async function getSnapshotWithPlayers(snapshotId: string): Promise<Snapsh
 
 /**
  * Create snapshot for a week
+ * Returns SnapshotWithPlayers so we can cache it immediately without refetch
  */
 export async function createSnapshot(
   fantasyTeamId: string,
@@ -62,7 +68,7 @@ export async function createSnapshot(
     isCaptain: boolean;
   }>,
   allowPartial: boolean = false
-): Promise<FantasyTeamSnapshot> {
+): Promise<SnapshotWithPlayers> {
   const uow = await getUnitOfWork();
   return uow.execute(async () => {
     const service = new FantasyTeamSnapshotService(uow);
@@ -79,7 +85,15 @@ export async function createSnapshot(
       await uow.fantasyTeamSnapshots.delete(existing.id);
     }
     
-    return service.createSnapshotForWeek(fantasyTeamId, weekId, players, allowPartial);
+    const snapshot = await service.createSnapshotForWeek(fantasyTeamId, weekId, players, allowPartial);
+    
+    // Get the snapshot with players immediately (no extra fetch needed - we just created it)
+    const snapshotWithPlayers = await service.getSnapshotWithPlayers(snapshot.id);
+    if (!snapshotWithPlayers) {
+      throw new Error('Failed to retrieve created snapshot with players');
+    }
+    
+    return snapshotWithPlayers;
   });
 }
 

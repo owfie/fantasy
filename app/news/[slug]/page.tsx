@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
 
   if (!article) {
     return {
-      title: 'Article Not Found',
+      title: 'Article Not Found | Adelaide Super League',
     };
   }
 
@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
     : undefined;
 
   return {
-    title: article.title,
+    title: `${article.title} | Adelaide Super League`,
     description: article.description || article.title,
     openGraph: {
       title: article.title,

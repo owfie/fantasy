@@ -14,6 +14,7 @@ import {
   createSnapshotFromCurrentTeam,
 } from '@/lib/api/fantasy-snapshots.api';
 import { FantasyTeamSnapshot, FantasyPosition } from '@/lib/domain/types';
+import { SnapshotWithPlayers } from '@/lib/api/fantasy-snapshots.api';
 
 export const snapshotKeys = {
   all: ['snapshots'] as const,
@@ -40,10 +41,21 @@ export function useSnapshotForWeek(fantasyTeamId: string, weekId: string) {
 }
 
 export function useSnapshotWithPlayers(snapshotId: string) {
+  const queryClient = useQueryClient();
+  
   return useQuery({
     queryKey: snapshotKeys.detail(snapshotId),
     queryFn: () => getSnapshotWithPlayers(snapshotId),
     enabled: !!snapshotId,
+    // Return undefined when snapshot doesn't exist (not an error state)
+    retry: false,
+    // Use placeholderData to immediately use cached data if available
+    // This prevents loading state when query key changes but data is already cached
+    placeholderData: (previousData) => {
+      if (!snapshotId) return previousData;
+      const cached = queryClient.getQueryData<SnapshotWithPlayers | null>(snapshotKeys.detail(snapshotId));
+      return cached !== undefined ? cached : previousData;
+    },
   });
 }
 
@@ -68,20 +80,21 @@ export function useCreateSnapshot() {
       allowPartial?: boolean;
     }) => createSnapshot(fantasyTeamId, weekId, players, allowPartial),
     onSuccess: (data, variables) => {
-      // Invalidate all snapshot-related queries to refresh the UI
-      queryClient.invalidateQueries({ queryKey: snapshotKeys.byTeam(variables.fantasyTeamId) });
-      queryClient.invalidateQueries({ queryKey: snapshotKeys.byWeek(variables.fantasyTeamId, variables.weekId) });
-      // Invalidate the specific snapshot detail query (for snapshotWithPlayers)
-      if (data?.id) {
-        queryClient.invalidateQueries({ queryKey: snapshotKeys.detail(data.id) });
+      // Cache snapshotWithPlayers FIRST, then snapshot, synchronously to prevent loading state
+      // When snapshot ID changes, useSnapshotWithPlayers will already have data cached
+      if (data?.snapshot?.id && data) {
+        // Update queries with exact keys for precise cache updates
+        queryClient.setQueryData(snapshotKeys.detail(data.snapshot.id), data);
+        queryClient.setQueryData(snapshotKeys.byWeek(variables.fantasyTeamId, variables.weekId), data.snapshot);
       }
-      // Also invalidate all detail queries to catch any snapshotWithPlayers queries
-      queryClient.invalidateQueries({ queryKey: [...snapshotKeys.all, 'detail'] });
+      
+      // Only invalidate queries that need updates (not the ones we just cached)
+      // Invalidate team snapshots list (minimal invalidation)
+      queryClient.invalidateQueries({ queryKey: snapshotKeys.byTeam(variables.fantasyTeamId) });
       // Invalidate fantasy team queries since snapshot affects team value
       queryClient.invalidateQueries({ queryKey: ['fantasy-teams', 'detail', variables.fantasyTeamId] });
       // Invalidate transfers list to refresh transfers table
       queryClient.invalidateQueries({ queryKey: ['transfers', 'week', variables.weekId] });
-      queryClient.invalidateQueries({ queryKey: ['transfers'] });
       toast.success('Team updated successfully');
     },
     onError: (error: Error) => {

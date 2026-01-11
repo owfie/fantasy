@@ -85,4 +85,3 @@ export function useUnsavedChangesGuard(hasUnsavedChanges: boolean) {
     navigateWithCheck,
   };
 }
-

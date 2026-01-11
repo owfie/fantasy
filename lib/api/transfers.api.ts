@@ -23,7 +23,8 @@ export async function canMakeTransfer(
 
 /**
  * Get remaining transfers for a week
- * Returns -1 for unlimited transfers (first week), otherwise returns remaining count
+ * Returns 0 for first week (no transfers allowed, only free roster selection),
+ * otherwise returns remaining count (max 2 per week)
  */
 export async function getRemainingTransfers(
   fantasyTeamId: string,

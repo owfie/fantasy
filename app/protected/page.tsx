@@ -1,4 +1,10 @@
+import type { Metadata } from 'next';
 import { createClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: 'Protected | Adelaide Super League',
+  description: 'Protected page for Adelaide Super League',
+};
 
 export default async function ProtectedPage() {
   const supabase = await createClient();

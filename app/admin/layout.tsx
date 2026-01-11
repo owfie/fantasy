@@ -1,6 +1,12 @@
+import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import styles from './admin.module.scss';
+
+export const metadata: Metadata = {
+  title: 'Admin | Adelaide Super League',
+  description: 'Admin dashboard for Adelaide Super League',
+};
 
 export default async function AdminLayout({
   children,

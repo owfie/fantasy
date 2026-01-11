@@ -1,5 +1,11 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllArticles } from '@/lib/news/article-service';
+
+export const metadata: Metadata = {
+  title: 'News | Adelaide Super League',
+  description: 'Latest news and updates from Adelaide Super League',
+};
 
 function formatDate(dateString: string): string {
   const date = new Date(dateString);
@@ -16,11 +22,7 @@ export default async function NewsPage() {
   // Filter to only published articles
   const publishedArticles = articles.filter((article) => article.publishedAt);
 
-  return (
-    <div>
-      wip
-    </div>
-  );
+
 
   return (
     <main className="container mx-auto px-4 py-8">

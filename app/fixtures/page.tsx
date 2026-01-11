@@ -1,7 +1,13 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { FixturesList } from '@/components/Fixtures/FixturesList';
 import { FixturesGroupSkeleton } from '@/components/Fixtures/FixtureCardSkeleton';
 import styles from './page.module.scss';
+
+export const metadata: Metadata = {
+  title: 'Fixtures | Adelaide Super League',
+  description: 'View upcoming and past fixtures for Adelaide Super League',
+};
 
 export default function FixturesPage() {
   return (

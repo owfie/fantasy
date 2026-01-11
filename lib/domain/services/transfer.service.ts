@@ -10,7 +10,6 @@ import { ValueTrackingService } from './value-tracking.service';
 
 const MAX_TRANSFERS_PER_WEEK = 2;
 const SALARY_CAP = 450;
-const UNLIMITED_TRANSFERS = -1; // Special value to indicate unlimited transfers
 
 export interface TransferValidationResult {
   valid: boolean;
@@ -67,12 +66,13 @@ export class TransferService {
 
   /**
    * Get remaining transfers for a week
-   * Returns -1 (UNLIMITED_TRANSFERS) for first week, otherwise returns remaining count
+   * Returns 0 for first week (no transfers allowed, only free roster selection),
+   * otherwise returns remaining count
    */
   async getRemainingTransfers(fantasyTeamId: string, weekId: string): Promise<number> {
     const isFirst = await this.isFirstWeek(fantasyTeamId, weekId);
     if (isFirst) {
-      return UNLIMITED_TRANSFERS;
+      return 0; // First week has 0 transfers - only free roster selection
     }
     const count = await this.uow.transfers.countByFantasyTeamAndWeek(fantasyTeamId, weekId);
     return Math.max(0, MAX_TRANSFERS_PER_WEEK - count);
@@ -95,10 +95,16 @@ export class TransferService {
       errors.push(canTransfer.reason || 'Cannot make transfer');
     }
 
-    // Check transfer limit (skip check for first week with unlimited transfers)
-    const remaining = await this.getRemainingTransfers(fantasyTeamId, weekId);
-    if (remaining !== UNLIMITED_TRANSFERS && remaining <= 0) {
-      errors.push(`Maximum of ${MAX_TRANSFERS_PER_WEEK} transfers allowed per week`);
+    // Check if this is first week - transfers are not allowed in first week
+    const isFirst = await this.isFirstWeek(fantasyTeamId, weekId);
+    if (isFirst) {
+      errors.push('Transfers are not allowed in the first week. Please use the free roster selection instead.');
+    } else {
+      // Check transfer limit for subsequent weeks
+      const remaining = await this.getRemainingTransfers(fantasyTeamId, weekId);
+      if (remaining <= 0) {
+        errors.push(`Maximum of ${MAX_TRANSFERS_PER_WEEK} transfers allowed per week`);
+      }
     }
 
     // Get fantasy team
@@ -176,24 +182,26 @@ export class TransferService {
         errors.push(`Cannot replace ${playerOut.position} with ${playerIn.position}. Positions must match.`);
       }
 
-      // Check salary cap
-      const playerInValue = await this.valueTracking.getPlayerValueForWeek(
-        playerInId,
-        week.week_number,
-        fantasyTeam.season_id
-      );
-      const playerOutValue = await this.valueTracking.getPlayerValueForWeek(
-        playerOutId,
-        week.week_number,
-        fantasyTeam.season_id
-      );
+      // Check salary cap (only enforce after first week)
+      if (!isFirst) {
+        const playerInValue = await this.valueTracking.getPlayerValueForWeek(
+          playerInId,
+          week.week_number,
+          fantasyTeam.season_id
+        );
+        const playerOutValue = await this.valueTracking.getPlayerValueForWeek(
+          playerOutId,
+          week.week_number,
+          fantasyTeam.season_id
+        );
 
-      // Calculate new total value
-      const currentValue = currentSnapshot?.total_value || fantasyTeam.total_value;
-      const newValue = currentValue - playerOutValue + playerInValue;
+        // Calculate new total value
+        const currentValue = currentSnapshot?.total_value || fantasyTeam.total_value;
+        const newValue = currentValue - playerOutValue + playerInValue;
 
-      if (newValue > SALARY_CAP) {
-        errors.push(`Transfer would exceed salary cap. New total: ${newValue.toFixed(2)}, Cap: ${SALARY_CAP}`);
+        if (newValue > SALARY_CAP) {
+          errors.push(`Transfer would exceed salary cap. New total: ${newValue.toFixed(2)}, Cap: ${SALARY_CAP}`);
+        }
       }
     }
 
@@ -206,6 +214,7 @@ export class TransferService {
   /**
    * Execute a transfer
    * Creates a new snapshot with the transfer applied
+   * Note: Transfers are not allowed in the first week - use snapshot creation directly instead
    */
   async executeTransfer(
     fantasyTeamId: string,
@@ -214,6 +223,12 @@ export class TransferService {
     weekId: string
   ): Promise<{ transfer: InsertTransfer; snapshot: any }> {
     return this.uow.execute(async (uow) => {
+      // Check if first week - transfers should not be executed in first week
+      const isFirst = await this.isFirstWeek(fantasyTeamId, weekId);
+      if (isFirst) {
+        throw new Error('Transfers cannot be executed in the first week. Use free roster selection instead.');
+      }
+
       // Validate transfer
       const validation = await this.validateTransfer(fantasyTeamId, playerInId, playerOutId, weekId);
       if (!validation.valid) {

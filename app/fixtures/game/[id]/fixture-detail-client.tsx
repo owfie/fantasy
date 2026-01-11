@@ -4,6 +4,7 @@ import { useUpdateFixture } from '@/lib/queries';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { GameWithDetails } from '@/lib/domain/repositories/games.repository';
+import { formatInACST } from '@/lib/utils/date-utils';
 
 interface FixtureDetailClientProps {
   fixture: GameWithDetails;
@@ -86,7 +87,7 @@ export default function FixtureDetailClient({ fixture: initialFixture }: Fixture
       <div style={{ marginBottom: '1rem' }}>
         <strong>Scheduled Time:</strong>{' '}
         {fixture.scheduled_time 
-          ? new Date(fixture.scheduled_time).toLocaleString('en-US', {
+          ? formatInACST(fixture.scheduled_time, {
               weekday: 'long',
               year: 'numeric',
               month: 'long',

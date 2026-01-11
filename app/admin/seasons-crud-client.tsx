@@ -29,7 +29,7 @@ import {
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPlayers, getTeams, testGetAllTeams } from '@/lib/api';
 import { formatCurrency } from '@/lib/utils/fantasy-utils';
-import { utcToLocalDatetimeInput, localDatetimeInputToUtc, createUtcTimestampFromLocalDate } from '@/lib/utils/date-utils';
+import { utcToLocalDatetimeInput, localDatetimeInputToUtc, createUtcTimestampFromACST, getACSTDateComponents } from '@/lib/utils/date-utils';
 import { useTestUpdatePlayer } from '@/lib/queries/players-test.queries';
 import { seasonKeys } from '@/lib/queries/seasons.queries';
 import {
@@ -1427,8 +1427,8 @@ function WeekGamesCard({ week, seasonId, onEdit, onDelete, isDeleting }: WeekGam
       // Parse the time string (HH:MM format from time input)
       const [hours, minutes] = currentTimeString.split(':').map(Number);
       
-      // Create UTC timestamp from local date and time
-      const scheduledDateTime = createUtcTimestampFromLocalDate(gameDate, hours, minutes);
+      // Create UTC timestamp from Adelaide time (ACST)
+      const scheduledDateTime = createUtcTimestampFromACST(gameDate, hours, minutes);
 
       const result = await updateGameMutation.mutateAsync({
         id: gameId,
@@ -1468,17 +1468,17 @@ function WeekGamesCard({ week, seasonId, onEdit, onDelete, isDeleting }: WeekGam
     let defaultTime: string | undefined;
     const gameDate = week.start_date || week.end_date;
 
-    if (gameDate && /^\d{4}-\d{2}-\d{2}$/.test(gameDate)) {
-      // Create UTC timestamp from local date and time
-      if (existingGamesCount === 0) {
-        // First game: 6:30pm (18:30)
-        defaultTime = createUtcTimestampFromLocalDate(gameDate, 18, 30);
-      } else if (existingGamesCount === 1) {
-        // Second game: 8:10pm (20:10)
-        defaultTime = createUtcTimestampFromLocalDate(gameDate, 20, 10);
+      if (gameDate && /^\d{4}-\d{2}-\d{2}$/.test(gameDate)) {
+        // Create UTC timestamp from Adelaide time (ACST)
+        if (existingGamesCount === 0) {
+          // First game: 6:30pm (18:30) ACST
+          defaultTime = createUtcTimestampFromACST(gameDate, 18, 30);
+        } else if (existingGamesCount === 1) {
+          // Second game: 8:10pm (20:10) ACST
+          defaultTime = createUtcTimestampFromACST(gameDate, 20, 10);
+        }
+        // If more than 2 games, no default time
       }
-      // If more than 2 games, no default time
-    }
 
     try {
       const gameData: InsertGame = {
@@ -1533,12 +1533,11 @@ function WeekGamesCard({ week, seasonId, onEdit, onDelete, isDeleting }: WeekGam
   const getScheduledTimeString = (scheduledTime: string | null | undefined): string => {
     if (!scheduledTime) return '';
     try {
-      const date = new Date(scheduledTime);
-      // Check if date is valid
-      if (isNaN(date.getTime())) return '';
-      // getHours() and getMinutes() return local time, which is what we want for display
-      const hours = date.getHours().toString().padStart(2, '0');
-      const minutes = date.getMinutes().toString().padStart(2, '0');
+      // Get ACST time components from UTC timestamp
+      const acstComponents = getACSTDateComponents(scheduledTime);
+      if (!acstComponents) return '';
+      const hours = acstComponents.hours.toString().padStart(2, '0');
+      const minutes = acstComponents.minutes.toString().padStart(2, '0');
       return `${hours}:${minutes}`;
     } catch {
       return '';

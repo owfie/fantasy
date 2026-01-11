@@ -1,6 +1,7 @@
 import { getFixtures } from '@/lib/api';
 import { GameWithTeams } from '@/lib/domain/repositories/games.repository';
 import { FixtureCard } from './FixtureCard';
+import { formatInACST } from '@/lib/utils/date-utils';
 import styles from './FixturesList.module.scss';
 
 export async function FixturesList() {
@@ -21,8 +22,7 @@ export async function FixturesList() {
       return acc;
     }
 
-    const date = new Date(fixture.scheduled_time);
-    const dateKey = date.toLocaleDateString('en-US', { 
+    const dateKey = formatInACST(fixture.scheduled_time, { 
       weekday: 'long', 
       year: 'numeric', 
       month: 'long', 

@@ -3,6 +3,7 @@ import { Card } from '@/components/Card';
 import { Team, TeamName } from '@/components/Team';
 import { GameWithTeams } from '@/lib/domain/repositories/games.repository';
 import { getTeamShortName } from '@/lib/utils/team-utils';
+import { formatInACST } from '@/lib/utils/date-utils';
 import styles from './FixtureCard.module.scss';
 
 interface FixtureCardProps {
@@ -36,7 +37,7 @@ export function FixtureCard({ fixture }: FixtureCardProps) {
       <div className={styles.detailsContainer}>
         <div className={styles.time}>
           {fixture.scheduled_time 
-            ? new Date(fixture.scheduled_time).toLocaleTimeString('en-US', { 
+            ? formatInACST(fixture.scheduled_time, { 
                 hour: 'numeric', 
                 minute: '2-digit',
                 hour12: true 

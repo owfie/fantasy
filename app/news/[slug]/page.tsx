@@ -4,7 +4,10 @@ import { getArticleBySlug, getAllArticles } from '@/lib/news/article-service';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
+import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import Image from 'next/image';
 import Link from 'next/link';
 import styles from './page.module.scss';
@@ -127,8 +130,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         
         <div className={`${styles.content} markdownContent`}>
           <ReactMarkdown 
-            remarkPlugins={[remarkGfm, remarkBreaks]}
-            rehypePlugins={[rehypeRaw]}
+            remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+            rehypePlugins={[rehypeRaw, rehypeKatex]}
             components={{
               br: () => <br />,
             }}

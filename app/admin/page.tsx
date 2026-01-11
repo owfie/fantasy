@@ -18,16 +18,18 @@ import AdminDashboard from './admin-dashboard';
 import FantasyTeamsCrudClient from './fantasy-teams-crud-client';
 import UsersListClient from './users-list-client';
 import TransferWindowsClient from './transfer-windows-client';
+import FantasyAnalyticsTable from './fantasy-analytics-table';
 import { Card } from '@/components/Card';
 import styles from './admin.module.scss';
 
-type Section = 'statistics' | 'data' | 'fantasy' | 'transfers' | 'tests' | 'users';
+type Section = 'statistics' | 'data' | 'fantasy' | 'analytics' | 'transfers' | 'tests' | 'users';
 type DataTab = 'seasons' | 'teams' | 'players';
 
 const NAV_ITEMS: { id: Section; label: string; icon: string }[] = [
   { id: 'statistics', label: 'Statistics', icon: '📊' },
   { id: 'data', label: 'Data Management', icon: '🗃️' },
   { id: 'fantasy', label: 'Fantasy', icon: '⚽' },
+  { id: 'analytics', label: 'Fantasy Analytics', icon: '📈' },
   { id: 'transfers', label: 'Transfer Windows', icon: '🔄' },
   { id: 'tests', label: 'Tests', icon: '🧪' },
   { id: 'users', label: 'Users', icon: '👤' },
@@ -190,6 +192,16 @@ export default function AdminPage() {
               <h2>Fantasy Teams</h2>
             </div>
             <FantasyTeamsCrudClient seasonId={selectedSeasonId} />
+          </>
+        )}
+
+        {/* FANTASY ANALYTICS SECTION */}
+        {activeSection === 'analytics' && (
+          <>
+            <div className={styles.contentHeader}>
+              <h2>Fantasy Analytics</h2>
+            </div>
+            <FantasyAnalyticsTable seasonId={selectedSeasonId} />
           </>
         )}
 

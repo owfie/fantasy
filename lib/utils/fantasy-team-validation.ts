@@ -6,6 +6,48 @@
 import { FantasyPosition } from '@/lib/domain/types';
 import { PlayerWithValue } from '@/lib/api/players.api';
 
+// Team name constraints
+const TEAM_NAME_MIN_LENGTH = 1;
+const TEAM_NAME_MAX_LENGTH = 50;
+
+/**
+ * Validate and sanitize a fantasy team name
+ * - Trims whitespace
+ * - Validates length (1-50 characters)
+ * - Removes control characters
+ * @returns The sanitized team name
+ * @throws Error if validation fails
+ */
+export function validateTeamName(name: string): string {
+  // Trim whitespace
+  const trimmed = name.trim();
+
+  // Check length
+  if (trimmed.length < TEAM_NAME_MIN_LENGTH) {
+    throw new Error('Team name cannot be empty');
+  }
+
+  if (trimmed.length > TEAM_NAME_MAX_LENGTH) {
+    throw new Error(`Team name must be ${TEAM_NAME_MAX_LENGTH} characters or less`);
+  }
+
+  // Remove control characters (ASCII 0-31 except tab/newline, and DEL 127)
+  // eslint-disable-next-line no-control-regex
+  const sanitized = trimmed.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+  // If sanitization changed the string significantly, warn
+  if (sanitized !== trimmed) {
+    // Just use the sanitized version silently
+  }
+
+  // Final length check after sanitization
+  if (sanitized.length < TEAM_NAME_MIN_LENGTH) {
+    throw new Error('Team name cannot be empty after removing invalid characters');
+  }
+
+  return sanitized;
+}
+
 export interface LineupValidationResult {
   valid: boolean;
   errors: string[];

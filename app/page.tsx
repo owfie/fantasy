@@ -82,8 +82,8 @@ export default async function Home() {
     ? formatRelativeTime(featuredGame.scheduled_time)
     : null;
 
-  // YouTube playlist URL
-  const youtubeUrl = 'https://www.youtube.com/embed/videoseries?list=PLzREfPIXZzdaivroIH-QmeV1cII7n8WMK';
+  // YouTube video URL
+  const youtubeUrl = 'https://www.youtube.com/embed/JTEO-0ka2Uo?start=180';
 
   return (
     <main className={styles.container}>
@@ -93,7 +93,7 @@ export default async function Home() {
           <div className={styles.videoContainer}>
             <iframe
               src={youtubeUrl}
-              title="Adelaide Super League Playlist"
+              title="Adelaide Super League Game"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               className={styles.video}

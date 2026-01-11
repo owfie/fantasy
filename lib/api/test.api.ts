@@ -10,6 +10,7 @@ import { getUnitOfWork } from '@/lib/domain/server-uow';
 import { FantasyTeamService, TeamsService } from '@/lib/domain/services';
 import { Team, Player, Week, InsertPlayerStats as InsertPlayerStatsType, UpdatePlayerStats, PlayerRole } from '@/lib/domain/types';
 import { getErrorMessage } from '@/lib/utils';
+import { validateTeamName } from '@/lib/utils/fantasy-team-validation';
 
 // ============================================
 // TEST DASHBOARD DATA
@@ -1101,16 +1102,19 @@ export async function testCreateFantasyTeamEmpty(
   teamName: string
 ) {
   const uow = await getUnitOfWork();
-  
+
   try {
+    // Validate and sanitize team name
+    const validatedName = validateTeamName(teamName);
+
     const team = await uow.fantasyTeams.create({
       owner_id: ownerId,
       season_id: seasonId,
-      name: teamName,
+      name: validatedName,
       original_value: 0,
       total_value: 0,
     });
-    
+
     return { success: true, message: 'Fantasy team created', data: team };
   } catch (error: unknown) {
     const message = getErrorMessage(error);

@@ -4,7 +4,7 @@ description: "A pre-draft prediction."
 author: "Harry Buckland"
 tags: ["Opinion"]
 headerImage: "/images/articles/test.png"
-publishedAt: "2025-01-04T10:00:00Z"
+publishedAt: "2026-01-04T10:00:00Z"
 ---
 
 Welcome back everyone to the Super League reports. As we know everyone always have their own thoughts on how the league is going to go and that every captain has it “figured out” this year and proceeded to bottom of the bracket. After looking at this list of players we have plenty of familiar returning faces yet some dark horses who are coming in who could shake up the draft and cause some real trouble for captains who aren’t aware of who they are (Do your research out here captains). With that said let’s see what that captains pre-draft nominations for marquee and rookie marquee. 

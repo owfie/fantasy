@@ -10,12 +10,12 @@
 
   &:hover {
     background-color: #fafafa;
-    border-left-color: #22c55e;
   }
 
   &.onTeam {
-    background-color: #f0fdf4;
-    border-left-color: #22c55e;
+    // background-color: #f0fdf4;
+    // border-left-color: #22c55e;
+    opacity: 0.5;
   }
 
   &.dragging {

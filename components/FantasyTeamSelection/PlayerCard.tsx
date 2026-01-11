@@ -37,6 +37,7 @@ export function PlayerCard({ player, onAdd, onSwap, isOnTeam, canAdd = true, lay
       player,
       type: 'player',
     },
+    disabled: isOnTeam, // Disable dragging if player is already on the team
   });
 
   const handleDetailsClick = (e: React.MouseEvent) => {
@@ -46,14 +47,19 @@ export function PlayerCard({ player, onAdd, onSwap, isOnTeam, canAdd = true, lay
 
   const cardElement = (
     <Card className={`${styles.playerCard} ${isOnTeam ? styles.onTeam : ''} ${isDragging ? styles.dragging : ''}`}>
-      <div className={styles.dragHandle} {...listeners} {...attributes} title="Drag to position">
+      <div 
+        className={styles.dragHandle} 
+        {...(!isOnTeam ? { ...listeners, ...attributes } : {})} 
+        title={isOnTeam ? undefined : "Drag to position"}
+        style={isOnTeam ? { cursor: 'default' } : undefined}
+      >
         <svg
           width="16"
           height="16"
           viewBox="0 0 16 16"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          style={{ cursor: 'grab' }}
+          style={{ cursor: isOnTeam ? 'default' : 'grab' }}
         >
           <circle cx="6" cy="4" r="1.5" fill="currentColor" opacity="0.4" />
           <circle cx="10" cy="4" r="1.5" fill="currentColor" opacity="0.4" />
@@ -103,7 +109,7 @@ export function PlayerCard({ player, onAdd, onSwap, isOnTeam, canAdd = true, lay
         <div className={styles.value}>{value}</div>
         <div className={styles.points}>{points} pts</div>
         <div className={styles.actions}>
-          {!isOnTeam && (onAdd || onSwap) && (
+          {(!isOnTeam && (onAdd || onSwap)) ? (
             <button
               className={canAdd ? styles.addButton : styles.swapButton}
               onClick={() => {
@@ -128,6 +134,8 @@ export function PlayerCard({ player, onAdd, onSwap, isOnTeam, canAdd = true, lay
             >
               {canAdd ? '+' : '↔'}
             </button>
+          ) : (
+            <div style={{ width: '2rem', height: '2rem' }} />
           )}
         </div>  
       </div>

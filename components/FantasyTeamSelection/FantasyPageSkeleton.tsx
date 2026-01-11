@@ -6,18 +6,17 @@
 import { Card } from '@/components/Card';
 import styles from './FantasyPageSkeleton.module.scss';
 
-function HeaderSkeleton() {
+function FantasyTeamCardSkeleton() {
   return (
-    <div className={styles.header}>
-      <div className={styles.headerLeft}>
-        <div className={`${styles.shimmer} ${styles.teamName}`} />
-        <div className={`${styles.shimmer} ${styles.weekBadge}`} />
+    <Card className={styles.teamCard}>
+      <div className={styles.teamCardContent}>
+        <div className={`${styles.shimmer} ${styles.teamCardEmoji}`} />
+        <div className={styles.teamCardInfo}>
+          <div className={`${styles.shimmer} ${styles.teamCardName}`} />
+          <div className={`${styles.shimmer} ${styles.teamCardUsername}`} />
+        </div>
       </div>
-      <div className={styles.headerRight}>
-        <div className={`${styles.shimmer} ${styles.viewToggle}`} />
-        <div className={`${styles.shimmer} ${styles.saveButton}`} />
-      </div>
-    </div>
+    </Card>
   );
 }
 
@@ -132,6 +131,13 @@ function TeamOverviewSkeleton() {
 
       <StatsSkeleton />
       <CaptainSkeleton />
+      
+      {/* Actions Section */}
+      <div className={styles.actionsSection}>
+        <div className={`${styles.shimmer} ${styles.actionButton}`} />
+        <div className={`${styles.shimmer} ${styles.actionButton}`} />
+      </div>
+
       <PitchSkeleton />
     </div>
   );
@@ -152,7 +158,7 @@ function TransfersListSkeleton() {
 export function FantasyPageSkeleton({ containerClassName }: { containerClassName?: string }) {
   return (
     <div className={containerClassName}>
-      <HeaderSkeleton />
+      <FantasyTeamCardSkeleton />
       <div className={styles.content}>
         <div className={styles.leftPanel}>
           <PlayerListSkeleton />

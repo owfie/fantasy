@@ -6,7 +6,7 @@ import { useUpdateFantasyTeam, useCreateFantasyTeam } from '@/lib/queries/fantas
 import { useCreateSnapshot } from '@/lib/queries/fantasy-snapshots.queries';
 import { useExecuteTransfer } from '@/lib/queries/transfers.queries';
 import { FantasyPosition } from '@/lib/domain/types';
-import { TeamSelectionHeader } from '@/components/FantasyTeamSelection/TeamSelectionHeader';
+import { FantasyTeamCard } from '@/components/FantasyTeamSelection/FantasyTeamCard';
 import { PlayerList } from '@/components/FantasyTeamSelection/PlayerList';
 import { TeamOverview } from '@/components/FantasyTeamSelection/TeamOverview';
 import { TransfersList } from '@/components/FantasyTeamSelection/TransfersList';
@@ -331,6 +331,22 @@ function FantasyPageContent() {
     },
     [draftRoster]
   );
+
+  const handleReset = useCallback(() => {
+    if (!snapshotWithPlayers?.players) {
+      setDraftRoster([]);
+    } else {
+      const roster: DraftRosterPlayer[] = snapshotWithPlayers.players.map(sp => ({
+        playerId: sp.player_id,
+        position: sp.position,
+        isBenched: sp.is_benched,
+        isCaptain: sp.is_captain,
+      }));
+      setDraftRoster(roster);
+    }
+    setUnsavedTransfers([]);
+    setHasUnsavedChanges(false);
+  }, [snapshotWithPlayers?.players, setDraftRoster]);
 
   const handleSave = useCallback(async () => {
     if (!selectedTeamId || !selectedWeekId) return;
@@ -759,11 +775,10 @@ function FantasyPageContent() {
       onDragCancel={handleDragCancel}
     >
       <div className={styles.container}>
-        <TeamSelectionHeader
-          week={selectedWeek}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
+        <FantasyTeamCard
           teamName={selectedTeam?.name || ''}
+          teamEmoji="🏆"
+          username={user?.user_metadata?.full_name || user?.user_metadata?.name || user?.user_metadata?.custom_claims?.global_name || user?.email || undefined}
           teamId={selectedTeamId || ''}
           onTeamNameUpdate={async (newName: string) => {
             if (!selectedTeamId || !newName.trim()) return;
@@ -773,10 +788,6 @@ function FantasyPageContent() {
             });
           }}
           isUpdatingTeamName={updateTeamMutation.isPending}
-          hasUnsavedChanges={hasUnsavedChanges}
-          onSave={handleSave}
-          isSaving={createSnapshotMutation.isPending}
-          validationErrors={validationErrors}
         />
 
         <div className={styles.content}>
@@ -798,7 +809,7 @@ function FantasyPageContent() {
             <TeamOverview
               transfersUsed={transfersUsed + unsavedTransfers.length}
               transfersRemaining={transfersRemaining}
-              playerCount={draftRoster.filter(p => !p.isBenched).length}
+              playerCount={draftRoster.length}
               maxPlayers={10}
               salary={salary}
               salaryCap={450}
@@ -807,6 +818,11 @@ function FantasyPageContent() {
               onCaptainClick={() => setCaptainModalOpen(true)}
               isFirstWeek={isFirstWeek}
               week={selectedWeek}
+              onSave={handleSave}
+              onReset={handleReset}
+              isSaving={createSnapshotMutation.isPending}
+              hasUnsavedChanges={hasUnsavedChanges}
+              validationErrors={validationErrors}
             />
 
             <TransfersList

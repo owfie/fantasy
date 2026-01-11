@@ -29,7 +29,7 @@ export default function PlayerDetailModal({ player }: PlayerDetailModalProps) {
   const teamShortName = getTeamShortName(playerWithValue.teamName, playerWithValue.teamSlug);
 
   return (
-    <Drawer.Root open onOpenChange={(isOpen) => {
+    <Drawer.Root direction="right" open onOpenChange={(isOpen) => {
       if (!isOpen) {
         router.back();
       }

@@ -84,3 +84,66 @@ export function calculateTimeRemaining(deadline: Date | string | null | undefine
   return { days, hours, minutes, formatted };
 }
 
+/**
+ * Convert a UTC ISO timestamp to a local datetime-local input value (YYYY-MM-DDTHH:mm)
+ * This handles timezone conversion properly for datetime-local inputs
+ */
+export function utcToLocalDatetimeInput(utcIsoString: string | null | undefined): string {
+  if (!utcIsoString) return '';
+  
+  const utcDate = new Date(utcIsoString);
+  if (isNaN(utcDate.getTime())) return '';
+  
+  // Get local time components
+  const year = utcDate.getFullYear();
+  const month = String(utcDate.getMonth() + 1).padStart(2, '0');
+  const day = String(utcDate.getDate()).padStart(2, '0');
+  const hours = String(utcDate.getHours()).padStart(2, '0');
+  const minutes = String(utcDate.getMinutes()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/**
+ * Convert a local datetime-local input value (YYYY-MM-DDTHH:mm) to UTC ISO string
+ * This handles timezone conversion properly - treats the input as local time and converts to UTC
+ */
+export function localDatetimeInputToUtc(localDatetimeString: string): string {
+  if (!localDatetimeString) return '';
+  
+  // Parse the local datetime string (YYYY-MM-DDTHH:mm format)
+  // Create a date in local timezone
+  const localDate = new Date(localDatetimeString);
+  
+  if (isNaN(localDate.getTime())) return '';
+  
+  // Convert to UTC ISO string
+  return localDate.toISOString();
+}
+
+/**
+ * Create a UTC ISO timestamp from a date string (YYYY-MM-DD) and time components
+ * This ensures the date is treated as local time and converted to UTC properly
+ * @param dateString Date in YYYY-MM-DD format
+ * @param hours Hours (0-23)
+ * @param minutes Minutes (0-59)
+ * @returns UTC ISO string
+ */
+export function createUtcTimestampFromLocalDate(dateString: string, hours: number, minutes: number): string {
+  if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    throw new Error('Invalid date format. Expected YYYY-MM-DD');
+  }
+  
+  // Parse date components
+  const dateParts = dateString.split('-');
+  const year = parseInt(dateParts[0], 10);
+  const month = parseInt(dateParts[1], 10) - 1; // JavaScript months are 0-indexed
+  const day = parseInt(dateParts[2], 10);
+  
+  // Create date in local timezone
+  const localDate = new Date(year, month, day, hours, minutes, 0, 0);
+  
+  // Convert to UTC ISO string
+  return localDate.toISOString();
+}
+

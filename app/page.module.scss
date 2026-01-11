@@ -1,0 +1,144 @@
+.container {
+  display: flex;
+  gap: 2em;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.sidebar {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2em;
+}
+
+.featured {
+  margin-bottom: 3em;
+}
+
+.videoContainer {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 1em;
+}
+
+.video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.featuredInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.featuredTitle {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin: 0;
+  color: #111;
+}
+
+.featuredTime {
+  font-size: 0.9em;
+  color: #666;
+  margin: 0;
+}
+
+.liveBadge {
+  display: inline-block;
+  padding: 0.25em 0.75em;
+  background-color: #ef4444;
+  color: white;
+  border-radius: 4px;
+  font-size: 0.875em;
+  font-weight: 500;
+  width: fit-content;
+}
+
+.upNext {
+  margin-bottom: 2em;
+}
+
+.sectionTitle {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin: 0 0 1em 0;
+  color: #111;
+}
+
+.fixturesList {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.sidebarSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.sidebarTitle {
+  font-size: 1.125em;
+  font-weight: 600;
+  margin: 0;
+  color: #111;
+}
+
+.newsList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5em;
+}
+
+.empty {
+  color: #999;
+  font-size: 0.9em;
+  text-align: center;
+  padding: 1em;
+}
+
+// Responsive
+@media (max-width: 968px) {
+  .container {
+    flex-direction: column;
+    gap: 2em;
+  }
+
+  .sidebar {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1em;
+  }
+
+  .featured {
+    margin-bottom: 2em;
+  }
+
+  .featuredTitle {
+    font-size: 1.25em;
+  }
+}
+
+

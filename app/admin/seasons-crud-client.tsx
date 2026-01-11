@@ -28,6 +28,8 @@ import {
 } from '@/lib/queries/games.queries';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getPlayers, getTeams, testGetAllTeams } from '@/lib/api';
+import { formatCurrency } from '@/lib/utils/fantasy-utils';
+import { utcToLocalDatetimeInput, localDatetimeInputToUtc, createUtcTimestampFromLocalDate } from '@/lib/utils/date-utils';
 import { useTestUpdatePlayer } from '@/lib/queries/players-test.queries';
 import { seasonKeys } from '@/lib/queries/seasons.queries';
 import {
@@ -658,7 +660,7 @@ function SeasonPlayersPanel({ seasonId, seasonName, onClose }: SeasonPlayersPane
                         {player.first_name} {player.last_name}
                       </span>
                       <span style={{ color: '#666', fontSize: '0.85rem' }}>
-                        ${player.starting_value.toFixed(2)}
+                        {formatCurrency(player.starting_value)}
                       </span>
                     </label>
                   );
@@ -787,7 +789,7 @@ function SeasonPlayersPanel({ seasonId, seasonName, onClose }: SeasonPlayersPane
                             style={{ cursor: 'pointer', textDecoration: 'underline dotted' }}
                             title="Click to edit"
                           >
-                            ${sp.starting_value.toFixed(2)}
+                            {formatCurrency(sp.starting_value)}
                           </span>
                         )}
                       </td>
@@ -972,9 +974,8 @@ function WeeksPanel({ seasonId, seasonName, onClose }: WeeksPanelProps) {
       }
 
       if (formData.updateTransferCutoffTime !== '') {
-        // Convert local datetime to ISO string
-        const cutoffDate = new Date(formData.updateTransferCutoffTime);
-        updateData.transfer_cutoff_time = cutoffDate.toISOString();
+        // Convert local datetime input to UTC ISO string
+        updateData.transfer_cutoff_time = localDatetimeInputToUtc(formData.updateTransferCutoffTime);
       } else if (formData.updateTransferCutoffTime === '' && editingWeek.transfer_cutoff_time) {
         // Clear cutoff time if empty string
         updateData.transfer_cutoff_time = undefined;
@@ -1004,7 +1005,7 @@ function WeeksPanel({ seasonId, seasonName, onClose }: WeeksPanelProps) {
       updateIsDraftWeek: week.is_draft_week,
       updateTransferWindowOpen: week.transfer_window_open ?? false,
       updateTransferCutoffTime: week.transfer_cutoff_time 
-        ? new Date(week.transfer_cutoff_time).toISOString().slice(0, 16) // Format for datetime-local input
+        ? utcToLocalDatetimeInput(week.transfer_cutoff_time) // Convert UTC to local for datetime-local input
         : '',
     }));
   };
@@ -1426,18 +1427,12 @@ function WeekGamesCard({ week, seasonId, onEdit, onDelete, isDeleting }: WeekGam
       // Parse the time string (HH:MM format from time input)
       const [hours, minutes] = currentTimeString.split(':').map(Number);
       
-      // Create date in local timezone explicitly
-      // Use the date parts to avoid timezone conversion issues
-      const dateParts = gameDate.split('-');
-      const year = parseInt(dateParts[0], 10);
-      const month = parseInt(dateParts[1], 10) - 1; // JavaScript months are 0-indexed
-      const day = parseInt(dateParts[2], 10);
-      
-      const scheduledDateTime = new Date(year, month, day, hours, minutes, 0, 0);
+      // Create UTC timestamp from local date and time
+      const scheduledDateTime = createUtcTimestampFromLocalDate(gameDate, hours, minutes);
 
       const result = await updateGameMutation.mutateAsync({
         id: gameId,
-        scheduled_time: scheduledDateTime.toISOString(),
+        scheduled_time: scheduledDateTime,
       });
       setResults(prev => ({ ...prev, [`update-time-${gameId}`]: result }));
       // Clear local state after successful save
@@ -1474,28 +1469,15 @@ function WeekGamesCard({ week, seasonId, onEdit, onDelete, isDeleting }: WeekGam
     const gameDate = week.start_date || week.end_date;
 
     if (gameDate && /^\d{4}-\d{2}-\d{2}$/.test(gameDate)) {
-      // Create datetime in local timezone explicitly to avoid conversion issues
-      // gameDate should be in YYYY-MM-DD format
-      const dateParts = gameDate.split('-');
-      const year = parseInt(dateParts[0], 10);
-      const month = parseInt(dateParts[1], 10) - 1; // JavaScript months are 0-indexed
-      const day = parseInt(dateParts[2], 10);
-      
-      // Validate parsed values
-      if (isNaN(year) || isNaN(month) || isNaN(day)) {
-        console.error('Invalid date format for gameDate:', gameDate);
-      } else {
-        if (existingGamesCount === 0) {
-          // First game: 6:30pm (18:30)
-          const scheduledDateTime = new Date(year, month, day, 18, 30, 0, 0);
-          defaultTime = scheduledDateTime.toISOString();
-        } else if (existingGamesCount === 1) {
-          // Second game: 8:10pm (20:10)
-          const scheduledDateTime = new Date(year, month, day, 20, 10, 0, 0);
-          defaultTime = scheduledDateTime.toISOString();
-        }
-        // If more than 2 games, no default time
+      // Create UTC timestamp from local date and time
+      if (existingGamesCount === 0) {
+        // First game: 6:30pm (18:30)
+        defaultTime = createUtcTimestampFromLocalDate(gameDate, 18, 30);
+      } else if (existingGamesCount === 1) {
+        // Second game: 8:10pm (20:10)
+        defaultTime = createUtcTimestampFromLocalDate(gameDate, 20, 10);
       }
+      // If more than 2 games, no default time
     }
 
     try {

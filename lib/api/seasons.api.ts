@@ -330,10 +330,22 @@ export async function createWeeks(data: {
       }
 
       // Calculate game date (Monday) for this week (7 days apart)
-      const firstDate = new Date(data.firstGameDate);
+      // Parse date string manually to avoid timezone issues
+      const dateParts = data.firstGameDate.split('-');
+      const year = parseInt(dateParts[0], 10);
+      const month = parseInt(dateParts[1], 10) - 1; // JavaScript months are 0-indexed
+      const day = parseInt(dateParts[2], 10);
+      
+      // Create date in local timezone and add weeks
+      const firstDate = new Date(year, month, day);
       const gameDate = new Date(firstDate);
       gameDate.setDate(firstDate.getDate() + (i * 7));
-      const gameDateStr = gameDate.toISOString().split('T')[0];
+      
+      // Format as YYYY-MM-DD (use local date components, not UTC)
+      const gameYear = gameDate.getFullYear();
+      const gameMonth = String(gameDate.getMonth() + 1).padStart(2, '0');
+      const gameDay = String(gameDate.getDate()).padStart(2, '0');
+      const gameDateStr = `${gameYear}-${gameMonth}-${gameDay}`;
 
       // Generate name from pattern or default
       let weekName: string | undefined;
@@ -342,11 +354,9 @@ export async function createWeeks(data: {
       }
 
       // Set default cutoff time to 6pm (18:00) on the game date
-      const dateParts = gameDateStr.split('-');
-      const year = parseInt(dateParts[0], 10);
-      const month = parseInt(dateParts[1], 10) - 1; // JavaScript months are 0-indexed
-      const day = parseInt(dateParts[2], 10);
-      const cutoffDateTime = new Date(year, month, day, 18, 0, 0, 0);
+      // Use the gameDate object directly since we already have it
+      const cutoffDateTime = new Date(gameDate);
+      cutoffDateTime.setHours(18, 0, 0, 0);
 
       weeksToCreate.push({
         season_id: data.seasonId,

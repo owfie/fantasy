@@ -11,7 +11,7 @@
             margin: 2em;
             position: relative;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
             min-height: 100px;
 
@@ -22,10 +22,20 @@
                 left: 0;
                 top: 50%;
                 transform: translateY(-50%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 
+                a {
+                    display: block;
+                }
+
                 img {
                     width: 200px;
                     height: auto;
+                    max-width: 200px;
+                    max-height: 200px;
+                    object-fit: contain;
                 }
             }
 
@@ -44,10 +54,10 @@
 
             .nav {
                 display: flex;
-                gap: 20px;
-                width: 100%;
-                justify-content: center;
+                flex-direction: row;
                 gap: 1em;
+                align-items: center;
+                justify-content: center;
 
                 a {
                     color: #ccc;

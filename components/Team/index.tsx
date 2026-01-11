@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { TeamIcon } from './TeamIcon';
 
 export type TeamName = 'titans' | 'riptide' | 'flyers' | 'force';
 
@@ -35,9 +36,10 @@ export function toTeamName(name: string): TeamName | null {
 interface TeamProps {
   team: TeamName;
   size?: 'small' | 'large';
+  color?: string;
 }
 
-export function Team({ team, size = 'large' }: TeamProps) {
+export function Team({ team, size = 'large', color }: TeamProps) {
   const logos = teamLogos[team];
   
   if (!logos) {
@@ -46,6 +48,20 @@ export function Team({ team, size = 'large' }: TeamProps) {
 
   const dimension = size === 'small' ? 20 : 40;
   
+  // When color is provided, use TeamIcon component that inlines SVG for currentColor support
+  if (color) {
+    return (
+      <TeamIcon
+        src={logos[size]}
+        alt={team}
+        width={dimension}
+        height={dimension}
+        color={color}
+      />
+    );
+  }
+  
+  // Otherwise use Next.js Image for optimization
   return (
     <Image 
       src={logos[size]} 

@@ -7,6 +7,7 @@ import { Week, Transfer } from '@/lib/domain/types';
 import { Card } from '@/components/Card';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { utcToLocalDatetimeInput, localDatetimeInputToUtc } from '@/lib/utils/date-utils';
 
 interface TransferWindowsClientProps {
   seasonId: string | undefined;
@@ -55,10 +56,9 @@ export default function TransferWindowsClient({ seasonId }: TransferWindowsClien
 
   const handleCutoffTimeChange = async (weekId: string, newValue: string) => {
     try {
-      const cutoffDate = newValue ? new Date(newValue) : null;
       await updateWeekMutation.mutateAsync({
         id: weekId,
-        transfer_cutoff_time: cutoffDate ? cutoffDate.toISOString() : undefined,
+        transfer_cutoff_time: newValue ? localDatetimeInputToUtc(newValue) : undefined,
       });
       queryClient.invalidateQueries({ queryKey: ['seasons', 'weeks', seasonId] });
       setEditingCutoff(null);
@@ -310,7 +310,7 @@ export default function TransferWindowsClient({ seasonId }: TransferWindowsClien
                             <button
                               onClick={() => {
                                 const currentValue = cutoffTime
-                                  ? new Date(cutoffTime).toISOString().slice(0, 16)
+                                  ? utcToLocalDatetimeInput(cutoffTime.toISOString())
                                   : gameDate
                                     ? `${gameDate}T18:00`
                                     : '';

@@ -25,6 +25,7 @@ import { Card } from '@/components/Card';
 import { Modal } from '@/components/Modal';
 import { useTeamsIncludingDeleted } from '@/lib/queries/teams.queries';
 import { getErrorMessage } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils/fantasy-utils';
 import { Player, PlayerRole, FantasyPosition } from '@/lib/domain/types';
 import { PlayerAvailabilityTable } from './player-availability-table';
 
@@ -590,7 +591,7 @@ function renderPlayerCard(
               )}
             </div>
             <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.25rem' }}>
-              {player.player_role} • ${player.starting_value}
+              {player.player_role} • {formatCurrency(player.starting_value)}
               {player.draft_order && ` • Draft #${player.draft_order}`}
             </div>
           </div>

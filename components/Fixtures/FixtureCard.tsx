@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Card } from '@/components/Card';
 import { Team, TeamName } from '@/components/Team';
 import { GameWithTeams } from '@/lib/domain/repositories/games.repository';
+import styles from './FixtureCard.module.scss';
 
 interface FixtureCardProps {
   fixture: GameWithTeams;
@@ -12,20 +13,24 @@ export function FixtureCard({ fixture }: FixtureCardProps) {
   const awayTeamSlug = fixture.away_team.slug as TeamName | undefined;
 
   return (
-    <Card>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            {homeTeamSlug && <Team team={homeTeamSlug} />}
-            <span className="font-semibold">{fixture.home_team.name}</span>
+    <Link 
+    href={`/fixtures/game/${fixture.id}`} 
+    className={styles.detailsLink}
+    scroll={false}
+  >
+    <Card className={styles.FixtureCard}>
+      <div className={styles.teamContainer}>
+        {homeTeamSlug && (
+          <div className={styles.teamIcon} style={{ color: fixture.home_team.color || 'currentColor' }}>
+            <Team team={homeTeamSlug} size="large" color={fixture.home_team.color} />
           </div>
-          <div className="text-gray-500">vs</div>
-          <div className="flex items-center gap-2">
-            {awayTeamSlug && <Team team={awayTeamSlug} />}
-            <span className="font-semibold">{fixture.away_team.name}</span>
-          </div>
-        </div>
-        <div className="text-sm text-gray-600">
+        )}
+        <span className={styles.teamName}>{fixture.home_team.name}</span>
+      </div>
+
+      {/* Details */}
+      <div className={styles.detailsContainer}>
+        <div className={styles.time}>
           {fixture.scheduled_time 
             ? new Date(fixture.scheduled_time).toLocaleTimeString('en-US', { 
                 hour: 'numeric', 
@@ -35,26 +40,20 @@ export function FixtureCard({ fixture }: FixtureCardProps) {
             : 'TBD'
           }
         </div>
-      </div>
-      <div className="mt-2 text-sm flex items-center gap-4">
-        <Link 
-          href={`/fixtures/game/${fixture.id}`} 
-          className="text-blue-600 hover:underline"
-          scroll={false}
-        >
-          See details
-        </Link>
-        {fixture.broadcast_link && (
-          <a 
-            href={fixture.broadcast_link} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:underline"
-          >
-            Watch broadcast
-          </a>
+      </div>  
+
+      {/* Away Team */}
+      <div className={styles.teamContainerAway}>
+        <span className={styles.teamName}>{fixture.away_team.name}</span>
+        {awayTeamSlug && (
+          <div className={styles.teamIcon} style={{ color: fixture.away_team.color || 'currentColor' }}>
+            <Team team={awayTeamSlug} size="large" color={fixture.away_team.color} />
+          </div>
         )}
       </div>
+       
+  
     </Card>
+    </Link>
   );
 }

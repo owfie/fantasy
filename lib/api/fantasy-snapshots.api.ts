@@ -107,6 +107,30 @@ export async function createSnapshot(
     
     const snapshot = await service.createSnapshotForWeek(fantasyTeamId, weekId, players, allowPartial);
     
+    // Sync fantasy_team_players table to match the snapshot
+    // This ensures the admin panel (which reads from fantasy_team_players) shows the current team state
+    const existingTeamPlayers = await uow.fantasyTeamPlayers.findByFantasyTeam(fantasyTeamId);
+    
+    // Delete all existing players from fantasy_team_players
+    for (const existingPlayer of existingTeamPlayers) {
+      await uow.fantasyTeamPlayers.delete(existingPlayer.id);
+    }
+    
+    // Insert new players from the snapshot into fantasy_team_players
+    const teamPlayerInserts = players.map((player) => ({
+      fantasy_team_id: fantasyTeamId,
+      player_id: player.playerId,
+      is_captain: player.isCaptain,
+      is_reserve: player.isBenched, // Map is_benched to is_reserve
+      is_active: true, // All players in snapshot are active
+      draft_round: undefined,
+      draft_pick: undefined,
+    }));
+    
+    if (teamPlayerInserts.length > 0) {
+      await uow.fantasyTeamPlayers.createMany(teamPlayerInserts);
+    }
+    
     // Get the snapshot with players immediately (no extra fetch needed - we just created it)
     const snapshotWithPlayers = await service.getSnapshotWithPlayers(snapshot.id);
     if (!snapshotWithPlayers) {

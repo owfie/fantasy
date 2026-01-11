@@ -5,17 +5,14 @@
 import { FantasyPosition } from '@/lib/domain/types';
 
 /**
- * Format currency value for display (e.g., "$64 K" or "$550 K")
+ * Format currency value for display (e.g., "$64k" or "$550k")
+ * All values are displayed with "k" suffix since they're in the $12-$110 range
  */
 export function formatCurrency(value: number | null | undefined): string {
-  if (value === null || value === undefined) return '$0';
+  if (value === null || value === undefined) return '$0k';
   
-  if (value >= 1000) {
-    const kValue = value / 1000;
-    return `$${kValue.toFixed(0)} K`;
-  }
-  
-  return `$${value.toFixed(0)}`;
+  // Always show "k" suffix since values are in thousands scale
+  return `$${value.toFixed(0)}k`;
 }
 
 /**

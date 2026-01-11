@@ -1,0 +1,40 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2em;
+}
+
+.title {
+  font-size: 1.5em;
+  font-weight: 700;
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2em;
+}
+
+.empty {
+  text-align: center;
+  color: #999;
+  padding: 3em 1em;
+  font-size: 1em;
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1em;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 1.5em;
+  }
+}
+
+

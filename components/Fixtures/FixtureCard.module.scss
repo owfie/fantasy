@@ -1,0 +1,65 @@
+.FixtureCard {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding: 1rem;
+    cursor: pointer;
+    color: black;
+}
+
+
+.teamContainer {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+
+    gap: 1rem;
+    // border: 1px solid blue;
+    width: 40%;
+}
+
+.teamIcon {
+    width: 64px;
+    height: 64px;
+    span {
+        width: 100% !important;
+        height: 100% !important;    
+    }
+    svg {
+        width: 100% !important;
+        height: 100% !important;    
+    }
+}
+
+.teamContainerAway {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    gap: 1rem;
+
+    justify-content: flex-end;
+    // border: 1px solid red;
+    width: 40%;
+}
+
+.teamName {
+    font-weight: 500;
+    font-size: 1rem;
+}
+
+.time {
+    font-size: 0.875rem;
+    color: #858585;
+    font-weight: 500;
+    min-width: 80px;
+    text-align: center;
+}
+
+.detailsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 10%;
+}

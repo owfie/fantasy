@@ -214,8 +214,10 @@ function FantasyPageContent() {
     );
   }, [remainingTransfers, transfersUsed, unsavedTransfers.length, isFirstWeek]);
 
+  // Calculate budget (starting at 550, counting down as players are added)
   const salary = useMemo(() => {
-    return calculateRosterSalary(draftRoster, playersValueMap);
+    const totalValue = calculateRosterSalary(draftRoster, playersValueMap);
+    return 550 - totalValue; // Budget remaining
   }, [draftRoster, playersValueMap]);
 
   const isPositionFullCallback = useCallback(
@@ -734,10 +736,10 @@ function FantasyPageContent() {
     return (
       <>
         <FantasyPageSkeleton containerClassName={styles.container} />
-        <DebugSkeletonToggle
+        {/* <DebugSkeletonToggle
           showSkeleton={debugShowSkeleton}
           onToggle={() => setDebugShowSkeleton(false)}
-        />
+        /> */}
       </>
     );
   }
@@ -813,7 +815,7 @@ function FantasyPageContent() {
               playerCount={draftRoster.length}
               maxPlayers={10}
               salary={salary}
-              salaryCap={450}
+              salaryCap={550}
               pitchPlayers={pitchPlayers}
               draggedPlayerPosition={activePlayer?.position || null}
               onCaptainClick={() => setCaptainModalOpen(true)}
@@ -883,10 +885,10 @@ function FantasyPageContent() {
         onSelect={handleCaptainSelect}
       />
 
-      <DebugSkeletonToggle
+      {/* <DebugSkeletonToggle
         showSkeleton={debugShowSkeleton}
         onToggle={() => setDebugShowSkeleton(true)}
-      />
+      /> */}
     </DndContext>
   );
 }

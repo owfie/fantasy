@@ -24,7 +24,7 @@ export function UnauthenticatedState({ containerClassName }: FantasyTeamEmptySta
       <Card>
         <div style={{ padding: '2rem', textAlign: 'center' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem' }}>
-            Sign Up to Manage Your Fantasy Team
+            Sign up to manage your Fantasy team
           </h1>
           <p style={{ marginBottom: '1.5rem', color: '#6b7280' }}>
             You need to be signed in to create and manage your fantasy team.

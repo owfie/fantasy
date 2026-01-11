@@ -3,7 +3,12 @@ import { notFound } from 'next/navigation';
 import { getArticleBySlug, getAllArticles } from '@/lib/news/article-service';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
+import rehypeRaw from 'rehype-raw';
 import Image from 'next/image';
+import Link from 'next/link';
+import styles from './page.module.scss';
+import './markdown.css';
 
 interface ArticlePageProps {
   params: Promise<{ slug: string }>;
@@ -74,19 +79,41 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
   }
 
   return (
-    <main className="container mx-auto px-4 py-8 max-w-4xl">
+    <main className={styles.container}>
+      <Link href="/news" className={styles.backButton}>
+        Back to Articles
+      </Link>
+      
       <article>
-        <header className="mb-8">
-          <h1 className="text-4xl font-semibold mb-4">{article.title}</h1>
-          
-          {article.description && (
-            <p className="text-xl text-gray-600 dark:text-gray-400 mb-4">
-              {article.description}
-            </p>
-          )}
+        <header className={styles.articleHeader}>
+          <div className={styles.headerContent}>
+            <h1 className={styles.title}>{article.title}</h1>
+            {article.author && (
+              <p className={styles.author}>{article.author}</p>
+            )}
+            <div className={styles.metaInfo}>
+              {article.publishedAt && (
+                <span className={styles.date}>{formatDate(article.publishedAt)}</span>
+              )}
+              {article.tags.length > 0 && (
+                <div className={styles.tags}>
+                  {article.tags.map((tag, index) => (
+                    <span key={index} className={styles.tag}>
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            {article.description && (
+              <p className={styles.description}>
+                {article.description}
+              </p>
+            )}
+          </div>
           
           {article.headerImage && (
-            <div className="relative w-full h-64 md:h-96 mb-6 rounded-lg overflow-hidden">
+            <div className={styles.headerImageWrapper}>
               <Image
                 src={article.headerImage}
                 alt={article.title}
@@ -96,31 +123,16 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               />
             </div>
           )}
-          
-          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-500 mb-6">
-            {article.author && (
-              <span>By {article.author}</span>
-            )}
-            {article.publishedAt && (
-              <span>{formatDate(article.publishedAt)}</span>
-            )}
-            {article.tags.length > 0 && (
-              <div className="flex gap-2">
-                {article.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-xs"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
         </header>
         
-        <div className="prose prose-lg dark:prose-invert max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <div className={`${styles.content} markdownContent`}>
+          <ReactMarkdown 
+            remarkPlugins={[remarkGfm, remarkBreaks]}
+            rehypePlugins={[rehypeRaw]}
+            components={{
+              br: () => <br />,
+            }}
+          >
             {article.content}
           </ReactMarkdown>
         </div>

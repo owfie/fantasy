@@ -9,7 +9,7 @@ import { FantasyTeamSnapshotService } from './fantasy-team-snapshot.service';
 import { ValueTrackingService } from './value-tracking.service';
 
 const MAX_TRANSFERS_PER_WEEK = 2;
-const SALARY_CAP = 450;
+const SALARY_CAP = 550;
 
 export interface TransferValidationResult {
   valid: boolean;
@@ -195,12 +195,13 @@ export class TransferService {
           fantasyTeam.season_id
         );
 
-        // Calculate new total value
+        // Calculate new total value and budget
         const currentValue = currentSnapshot?.total_value || fantasyTeam.total_value;
         const newValue = currentValue - playerOutValue + playerInValue;
+        const budget = SALARY_CAP - newValue;
 
-        if (newValue > SALARY_CAP) {
-          errors.push(`Transfer would exceed salary cap. New total: ${newValue.toFixed(2)}, Cap: ${SALARY_CAP}`);
+        if (budget < 0) {
+          errors.push(`Transfer would exceed budget. Budget remaining: ${budget.toFixed(0)}k / ${SALARY_CAP}k cap`);
         }
       }
     }

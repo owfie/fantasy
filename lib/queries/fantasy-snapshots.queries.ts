@@ -107,14 +107,13 @@ export function useCreateSnapshot() {
       if (data?.snapshot?.id && data) {
         // Update queries with exact keys for precise cache updates
         queryClient.setQueryData(snapshotKeys.detail(data.snapshot.id), data);
-        queryClient.setQueryData(snapshotKeys.byWeek(variables.fantasyTeamId, variables.weekId), data.snapshot);
+        // Set byWeek cache to the full SnapshotWithPlayers object (not just the snapshot)
+        queryClient.setQueryData(snapshotKeys.byWeek(variables.fantasyTeamId, variables.weekId), data);
       }
       
       // Only invalidate queries that need updates (not the ones we just cached)
       // Invalidate team snapshots list (minimal invalidation)
       queryClient.invalidateQueries({ queryKey: snapshotKeys.byTeam(variables.fantasyTeamId) });
-      // Invalidate fantasy team queries since snapshot affects team value
-      queryClient.invalidateQueries({ queryKey: ['fantasy-teams', 'detail', variables.fantasyTeamId] });
       // Invalidate transfers list to refresh transfers table
       queryClient.invalidateQueries({ queryKey: ['transfers', 'week', variables.weekId] });
       toast.success('Team updated successfully');

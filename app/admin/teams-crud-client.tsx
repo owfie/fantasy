@@ -23,6 +23,7 @@ import {
 import { Card } from '@/components/Card';
 import { Modal } from '@/components/Modal';
 import { getErrorMessage } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils/fantasy-utils';
 import { Team, PlayerRole } from '@/lib/domain/types';
 import { SeasonPlayerWithPlayer } from '@/lib/domain/repositories';
 
@@ -403,7 +404,7 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
                             {!sp.is_active && <span style={{ color: '#dc3545', marginLeft: '0.25rem' }}>✗</span>}
                           </span>
                           <span style={{ color: '#6c757d', fontSize: '0.8rem' }}>
-                            ${sp.starting_value}
+                            {formatCurrency(sp.starting_value)}
                           </span>
                           <select
                             value={sp.team_id || ''}
@@ -500,7 +501,7 @@ export default function TeamsCrudClient({ seasonId }: TeamsCrudClientProps) {
                         )}
                       </span>
                       <span style={{ color: '#856404', fontSize: '0.8rem' }}>
-                        ${sp.starting_value}
+                        {formatCurrency(sp.starting_value)}
                       </span>
                       <select
                         value=""

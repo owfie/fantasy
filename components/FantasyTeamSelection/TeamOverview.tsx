@@ -86,7 +86,7 @@ export const TeamOverview = memo(function TeamOverview({
   playerCount,
   maxPlayers,
   salary,
-  salaryCap = 450,
+  salaryCap = 550,
   pitchPlayers,
   draggedPlayerPosition,
   onPlayerClick,

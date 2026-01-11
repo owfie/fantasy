@@ -18,7 +18,7 @@ export interface DraftRosterPlayer {
   isCaptain: boolean;
 }
 
-const SALARY_CAP = 450;
+const SALARY_CAP = 550;
 
 const MAX_PLAYERS_PER_POSITION: Record<FantasyPosition, { starting: number; bench: number }> = {
   handler: { starting: 3, bench: 1 },
@@ -136,7 +136,8 @@ export function validateLineup(
 }
 
 /**
- * Validate salary cap
+ * Validate salary cap (budget must remain >= 0)
+ * Budget starts at SALARY_CAP and counts down as players are added
  */
 export function validateSalaryCap(
   players: DraftRosterPlayer[],
@@ -152,8 +153,11 @@ export function validateSalaryCap(
     }
   }
 
-  if (totalValue > SALARY_CAP) {
-    errors.push(`Team salary exceeds cap: $${totalValue.toFixed(2)} / $${SALARY_CAP}`);
+  // Budget = SALARY_CAP - totalValue (must stay >= 0)
+  const budget = SALARY_CAP - totalValue;
+
+  if (budget < 0) {
+    errors.push(`Team exceeds budget. Budget remaining: $${budget.toFixed(0)}k / $${SALARY_CAP}k cap`);
   }
 
   return {

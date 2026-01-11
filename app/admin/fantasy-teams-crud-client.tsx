@@ -30,6 +30,7 @@ import {
 import { Card } from '@/components/Card';
 import { Modal } from '@/components/Modal';
 import { getErrorMessage } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils/fantasy-utils';
 import { Player, FantasyTeam } from '@/lib/domain/types';
 
 interface FantasyTeamsCrudClientProps {
@@ -481,7 +482,7 @@ export default function FantasyTeamsCrudClient({ seasonId }: FantasyTeamsCrudCli
                       { value: '', label: 'Select player...' },
                       ...availablePlayers.map((p: Player) => ({ 
                         value: p.id, 
-                        label: `${p.first_name} ${p.last_name} ($${p.starting_value})` 
+                        label: `${p.first_name} ${p.last_name} (${formatCurrency(p.starting_value)})` 
                       })),
                     ]}
                   />
@@ -529,7 +530,7 @@ export default function FantasyTeamsCrudClient({ seasonId }: FantasyTeamsCrudCli
                           {tp.is_reserve && <span style={{ marginLeft: '0.5rem', fontSize: '0.85rem', color: '#6c757d' }}>(Bench)</span>}
                         </div>
                         <div style={{ fontSize: '0.85rem', color: '#666' }}>
-                          {tp.players?.player_role} • ${tp.players?.starting_value}
+                          {tp.players?.player_role} • {formatCurrency(tp.players?.starting_value)}
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>

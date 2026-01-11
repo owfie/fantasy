@@ -65,12 +65,12 @@ export default function TickerClient({ prices }: TickerClientProps) {
                             {player.first_name.charAt(0)}. {player.last_name}
                         </span>
                         <span className={styles.PlayerValue}>
-                            ${player.current_value.toFixed(1)}m
+                            ${player.current_value.toFixed(0)}k
                         </span>
                         {player.change !== null && player.change !== 0 && (
                             <span className={player.change > 0 ? styles.ChangeUp : styles.ChangeDown}>
                                 {player.change > 0 ? '▲' : '▼'}
-                                {Math.abs(player.change).toFixed(1)}
+                                {Math.abs(player.change).toFixed(0)}
                             </span>
                         )}
                     </div>

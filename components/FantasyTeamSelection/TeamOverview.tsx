@@ -6,6 +6,8 @@ import { Card } from '@/components/Card';
 import { PitchFormation } from './PitchFormation';
 import { FantasyPosition, Week } from '@/lib/domain/types';
 import styles from './TeamOverview.module.scss';
+import Image from 'next/image';
+import { getTeamJerseyPath } from '@/lib/utils/team-utils';
 
 interface PitchPlayer {
   playerId: string;
@@ -147,6 +149,10 @@ export const TeamOverview = memo(function TeamOverview({
   }, [timeLeft]);
   const timeRemainingPercent = useMemo(() => timeRemainingInSeconds / (6 * 24 * 60 * 60) * 100, [timeRemainingInSeconds]);
 
+  const captainJerseyPath = useMemo(() => {
+    return getTeamJerseyPath(captain?.player?.teamSlug || captain?.player?.teamName) || '';
+  }, [captain]);
+
   return (
     <div className={styles.teamOverview}>
       {/* Header with Title and Countdown */}
@@ -165,44 +171,48 @@ export const TeamOverview = memo(function TeamOverview({
         </div>
       </div>
 
-      {/* Stats Row */}
-      <div className={styles.statsGrid}>
-          <div className={styles.stat}>
-            <div className={styles.statLabel}>Players</div>
-            <div className={styles.statValue}>
-              {playerCount}/{maxPlayers}
-            </div>
-          </div>
-          <div className={styles.stat}>
-            <div className={styles.statLabel}>Budget</div>
-            <div className={styles.statValue}>{formatCurrency(salary)}</div>
-          </div>
-          <div className={styles.stat}>
-            <div className={styles.statLabel}>Transfers</div>
-            <div className={styles.statValue}>
-              {transfersUsed}/{transfersMax}
-            </div>
-          </div>
-      </div>
-
-      {/* Captain Section */}
-      {onCaptainClick && (
-        <Card className={styles.captainCard}>
-          <div className={styles.captainSection}>
-            <div className={styles.captainInfo}>
-              <div className={styles.captainLabel}>Captain</div>
-              <div className={styles.captainName}>
-                {captain?.player
-                  ? `${captain.player.first_name} ${captain.player.last_name}`
-                  : 'Select a captain'}
+      <div className={styles.topContainer}>
+        {/* Stats Row */}
+        <div className={styles.statsGrid}>
+            <div className={styles.stat}>
+              <div className={styles.statLabel}>Players</div>
+              <div className={`${styles.statValue} ${playerCount !== maxPlayers ? styles.invalid : ''}`}>
+                {playerCount}/{maxPlayers}
               </div>
             </div>
-            <button className={styles.captainButton} onClick={onCaptainClick}>
-              {captain ? 'Change' : 'Select'}
-            </button>
+            <div className={styles.stat}>
+              <div className={styles.statLabel}>Budget</div>
+              <div className={`${styles.statValue} ${salary < 0 ? styles.invalid : ''}`}>{formatCurrency(salary)}</div>
+            </div>
+            <div className={styles.stat}>
+              <div className={styles.statLabel}>Transfers</div>
+              <div className={styles.statValueTransparent}>
+                {transfersMax === '∞' ? '∞' : `${transfersUsed}/${transfersMax}`}
+              </div>
+            </div>
+        </div>
+
+        {/* Captain Section */}
+        {onCaptainClick && (
+          <div className={styles.captainCard} onClick={onCaptainClick}>
+            <div className={styles.captainSection}>
+              {
+                captainJerseyPath && (
+                  <Image src={captainJerseyPath} alt={captain?.player?.teamName || 'Team jersey'} width={32} height={32} />
+                )
+              }
+              <div className={styles.captainInfo}>
+                <div className={styles.captainLabel}>Captain</div>
+                <div className={styles.captainName}>
+                  {captain?.player
+                    ? `${captain.player.first_name} ${captain.player.last_name}`
+                    : 'Select a captain'}
+                </div>
+              </div>
+            </div>
           </div>
-        </Card>
-      )}
+        )}
+      </div>
 
       {/* Save/Reset Buttons */}
       {(onSave || onReset) && (
@@ -219,24 +229,12 @@ export const TeamOverview = memo(function TeamOverview({
           {onSave && (
             <button
               onClick={onSave}
-              disabled={!hasUnsavedChanges || isSaving || validationErrors.length > 0}
+              disabled={!hasUnsavedChanges || isSaving || playerCount !== maxPlayers || salary < 0}
               className={styles.saveButton}
             >
-              {isSaving ? 'Saving...' : 'Save team'}
+              {isSaving ? 'Saving...' : 'Save'}
             </button>
           )}
-        </div>
-      )}
-
-      {/* Validation Errors */}
-      {validationErrors.length > 0 && (
-        <div className={styles.validationErrors}>
-          <strong>Validation Errors:</strong>
-          <ul>
-            {validationErrors.map((error, idx) => (
-              <li key={idx}>{error}</li>
-            ))}
-          </ul>
         </div>
       )}
 

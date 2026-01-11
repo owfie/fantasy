@@ -65,9 +65,8 @@
 }
 
 .statsGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  display: flex;
+  align-items: center;
   width: max-content;
 }
 
@@ -80,6 +79,16 @@
   flex-direction: column-reverse;
   gap: 0.25rem;
   width: 100%;
+  padding: 0 1.5rem;
+  border-right: 1px solid #e5e7eb;
+
+  &:first-child {
+    padding-left: 0;
+  }
+
+  &:last-child {
+    border-right: none;
+  }
 }
 
 .statLabel {
@@ -90,20 +99,42 @@
 .statValue {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #111827;
-  background-color: #e5e7eb;
+  background-color: #29ad64;
   color: white;
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
   width: max-content;
+
+  &.invalid {
+    background-color: #ef4444;
+    color: white;
+  }
+}
+
+.statValueTransparent {
+  font-size: 1.125rem;
+  color: #111827;
+  padding: 0.25rem 0rem;
+
 }
 
 .captainCard {
   padding: 0.75rem;
+  position: relative;
+  z-index: 20;
+  background-color: #f3f4f6;
+  cursor: pointer;
+  border-radius: 0.5rem;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background-color: #e5e7eb;
+  }
 }
 
 .captainSection {
   display: flex;
+  flex-direction: row-reverse;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
@@ -111,20 +142,17 @@
 
 .captainInfo {
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: 0.25rem;
+  align-items: flex-end;
 }
 
 .captainLabel {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 400;
   color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .captainName {
-  font-size: 0.875rem;
   font-weight: 500;
   color: #111827;
 }
@@ -153,6 +181,8 @@
   display: flex;
   gap: 0.75rem;
   width: 100%;
+  position: relative;
+  z-index: 20;
 }
 
 .resetButton,
@@ -237,4 +267,13 @@
   justify-content: center;
   align-items: center;
   gap: 1rem;
+}
+
+
+.topContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useActiveSeason } from '@/lib/queries/seasons.queries';
 import { useSeasonPlayers } from '@/lib/queries/seasons.queries';
 import { useWeeks } from '@/lib/queries/seasons.queries';
@@ -103,6 +103,10 @@ export function PlayerAvailabilityTable() {
   // Sort state
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+
+  // Local state for debounced input values
+  const [inputValues, setInputValues] = useState<Map<string, number>>(new Map());
+  const debounceTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
   // Sorted players
   const sortedPlayers = useMemo(() => {
@@ -235,11 +239,47 @@ export function PlayerAvailabilityTable() {
     updateAvailabilityMutation.mutate({ playerId, gameId, status });
   };
 
-  // Handle value change
+  // Initialize input values from activePlayers when they change
+  useEffect(() => {
+    const newInputValues = new Map<string, number>();
+    activePlayers.forEach(player => {
+      newInputValues.set(player.id, player.startingValue);
+    });
+    setInputValues(newInputValues);
+  }, [activePlayers]);
+
+  // Handle value change (immediate UI update, debounced API call)
   const handleValueChange = (playerId: string, value: number) => {
-    if (!activeSeason?.id) return;
-    updateValueMutation.mutate({ seasonId: activeSeason.id, playerId, value });
+    // Update local state immediately for responsive UI
+    setInputValues(prev => {
+      const newMap = new Map(prev);
+      newMap.set(playerId, value);
+      return newMap;
+    });
+
+    // Clear existing timeout for this player
+    const existingTimeout = debounceTimeoutsRef.current.get(playerId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+
+    // Set new timeout to debounce the API call
+    const timeout = setTimeout(() => {
+      if (!activeSeason?.id) return;
+      updateValueMutation.mutate({ seasonId: activeSeason.id, playerId, value });
+      debounceTimeoutsRef.current.delete(playerId);
+    }, 500); // 500ms debounce delay
+
+    debounceTimeoutsRef.current.set(playerId, timeout);
   };
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      debounceTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+      debounceTimeoutsRef.current.clear();
+    };
+  }, []);
 
   if (!activeSeason) {
     return <div>No active season selected</div>;
@@ -320,7 +360,7 @@ export function PlayerAvailabilityTable() {
                   <td style={{ padding: '0.75rem' }}>
                     <input
                       type="number"
-                      value={player.startingValue}
+                      value={inputValues.get(player.id) ?? player.startingValue}
                       onChange={(e) => handleValueChange(player.id, parseFloat(e.target.value) || 0)}
                       style={{
                         width: '80px',

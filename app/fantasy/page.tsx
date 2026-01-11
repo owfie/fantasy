@@ -775,34 +775,35 @@ function FantasyPageContent() {
       onDragCancel={handleDragCancel}
     >
       <div className={styles.container}>
-        <FantasyTeamCard
-          teamName={selectedTeam?.name || ''}
-          teamEmoji="🏆"
-          username={user?.user_metadata?.full_name || user?.user_metadata?.name || user?.user_metadata?.custom_claims?.global_name || user?.email || undefined}
-          teamId={selectedTeamId || ''}
-          onTeamNameUpdate={async (newName: string) => {
-            if (!selectedTeamId || !newName.trim()) return;
-            await updateTeamMutation.mutateAsync({
-              fantasyTeamId: selectedTeamId,
-              updates: { name: newName.trim() },
-            });
-          }}
-          isUpdatingTeamName={updateTeamMutation.isPending}
-        />
-
+        
         <div className={styles.content}>
           <div className={styles.leftPanel}>
-          <PlayerList
-            players={allPlayers}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            teamPlayerIds={teamPlayerIds}
-            onAddPlayer={handleAddPlayer}
-            onSwapPlayer={handleSwapPlayer}
-            isPositionFull={isPositionFullCallback}
-            isTransferLimitReached={isTransferLimitReached}
-            isLoading={false}
+            <FantasyTeamCard
+            teamName={selectedTeam?.name || ''}
+            teamEmoji="🏆"
+            username={user?.user_metadata?.full_name || user?.user_metadata?.name || user?.user_metadata?.custom_claims?.global_name || user?.email || undefined}
+            teamId={selectedTeamId || ''}
+            onTeamNameUpdate={async (newName: string) => {
+              if (!selectedTeamId || !newName.trim()) return;
+              await updateTeamMutation.mutateAsync({
+                fantasyTeamId: selectedTeamId,
+                updates: { name: newName.trim() },
+              });
+            }}
+            isUpdatingTeamName={updateTeamMutation.isPending}
           />
+
+            <PlayerList
+              players={allPlayers}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              teamPlayerIds={teamPlayerIds}
+              onAddPlayer={handleAddPlayer}
+              onSwapPlayer={handleSwapPlayer}
+              isPositionFull={isPositionFullCallback}
+              isTransferLimitReached={isTransferLimitReached}
+              isLoading={false}
+            />
           </div>
 
           <div className={styles.rightPanel}>

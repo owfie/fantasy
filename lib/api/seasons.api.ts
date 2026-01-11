@@ -9,6 +9,7 @@ import { getUnitOfWork } from '@/lib/domain/server-uow';
 import { SeasonsService } from '@/lib/domain/services';
 import { InsertSeason, UpdateSeason, Season, SeasonPlayer, Week, InsertWeek, UpdateWeek } from '@/lib/domain/types';
 import { SeasonPlayerWithPlayer } from '@/lib/domain/repositories';
+import { createUtcTimestampFromACST } from '@/lib/utils/date-utils';
 
 // ============================================
 // Season CRUD Operations
@@ -213,7 +214,9 @@ export async function updateSeasonPlayerTeam(
 
 export async function getWeeks(seasonId: string): Promise<Week[]> {
   const uow = await getUnitOfWork();
-  return uow.weeks.findBySeason(seasonId);
+  const weeks = await uow.weeks.findBySeason(seasonId);
+  // Sort by week_number to ensure weeks[0] is always week 1
+  return weeks.sort((a, b) => a.week_number - b.week_number);
 }
 
 export async function createWeek(data: InsertWeek): Promise<TestResult<Week>> {
@@ -230,18 +233,13 @@ export async function createWeek(data: InsertWeek): Promise<TestResult<Week>> {
       return { success: false, message: `Week ${data.week_number} already exists for this season`, error: 'Duplicate week number' };
     }
 
-    // Set default cutoff time to 6pm on the game date if not provided
+    // Set default cutoff time to 6pm ACST on the game date if not provided
     const weekData: InsertWeek = { ...data };
     if (!weekData.transfer_cutoff_time && (weekData.start_date || weekData.end_date)) {
       const gameDate = weekData.start_date || weekData.end_date;
       if (gameDate) {
-        // Parse the date and set to 6pm (18:00) local time
-        const dateParts = gameDate.split('-');
-        const year = parseInt(dateParts[0], 10);
-        const month = parseInt(dateParts[1], 10) - 1; // JavaScript months are 0-indexed
-        const day = parseInt(dateParts[2], 10);
-        const cutoffDateTime = new Date(year, month, day, 18, 0, 0, 0);
-        weekData.transfer_cutoff_time = cutoffDateTime.toISOString();
+        // Create cutoff time as 6pm (18:00) ACST
+        weekData.transfer_cutoff_time = createUtcTimestampFromACST(gameDate, 18, 0);
       }
     }
 
@@ -353,10 +351,8 @@ export async function createWeeks(data: {
         weekName = data.namePattern.replace(/{n}/g, weekNumber.toString());
       }
 
-      // Set default cutoff time to 6pm (18:00) on the game date
-      // Use the gameDate object directly since we already have it
-      const cutoffDateTime = new Date(gameDate);
-      cutoffDateTime.setHours(18, 0, 0, 0);
+      // Set default cutoff time to 6pm (18:00) ACST on the game date
+      const cutoffTime = createUtcTimestampFromACST(gameDateStr, 18, 0);
 
       weeksToCreate.push({
         season_id: data.seasonId,
@@ -366,7 +362,7 @@ export async function createWeeks(data: {
         end_date: gameDateStr, // Same as start since games are on Monday
         is_draft_week: data.isDraftWeek || false,
         transfer_window_open: true,
-        transfer_cutoff_time: cutoffDateTime.toISOString(),
+        transfer_cutoff_time: cutoffTime,
       });
     }
 

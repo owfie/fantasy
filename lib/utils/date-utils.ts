@@ -147,3 +147,99 @@ export function createUtcTimestampFromLocalDate(dateString: string, hours: numbe
   return localDate.toISOString();
 }
 
+/**
+ * Create a UTC ISO timestamp from an ACST (Australia/Adelaide) date and time
+ * ACST is UTC+9:30 (no daylight saving)
+ * @param dateString Date in YYYY-MM-DD format
+ * @param hours Hours in ACST (0-23)
+ * @param minutes Minutes (0-59)
+ * @returns UTC ISO string
+ */
+export function createUtcTimestampFromACST(dateString: string, hours: number, minutes: number): string {
+  if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    throw new Error('Invalid date format. Expected YYYY-MM-DD');
+  }
+  
+  // Parse date components
+  const dateParts = dateString.split('-');
+  const year = parseInt(dateParts[0], 10);
+  const month = parseInt(dateParts[1], 10);
+  const day = parseInt(dateParts[2], 10);
+  
+  // Create date string in ISO format with ACST timezone offset (+09:30)
+  // JavaScript will parse this and convert to UTC automatically
+  const acstDateString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00+09:30`;
+  
+  // Parse as ACST time and convert to UTC ISO string
+  const acstDate = new Date(acstDateString);
+  
+  if (isNaN(acstDate.getTime())) {
+    throw new Error('Invalid date/time values');
+  }
+  
+  return acstDate.toISOString();
+}
+
+/**
+ * Format a UTC timestamp as an ACST date/time string
+ * @param utcIsoString UTC ISO timestamp string
+ * @param options Intl.DateTimeFormatOptions for formatting
+ * @returns Formatted string in ACST
+ */
+export function formatInACST(utcIsoString: string | null | undefined, options: Intl.DateTimeFormatOptions): string {
+  if (!utcIsoString) return '';
+  
+  const utcDate = new Date(utcIsoString);
+  if (isNaN(utcDate.getTime())) return '';
+  
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    ...options,
+    timeZone: 'Australia/Adelaide',
+  });
+  
+  return formatter.format(utcDate);
+}
+
+/**
+ * Get ACST date components from a UTC timestamp
+ * @param utcIsoString UTC ISO timestamp string
+ * @returns Object with ACST date components
+ */
+export function getACSTDateComponents(utcIsoString: string | null | undefined): {
+  year: number;
+  month: number;
+  day: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+} | null {
+  if (!utcIsoString) return null;
+  
+  const utcDate = new Date(utcIsoString);
+  if (isNaN(utcDate.getTime())) return null;
+  
+  // Use Intl.DateTimeFormat to get ACST components
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Australia/Adelaide',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  
+  const parts = formatter.formatToParts(utcDate);
+  const partMap = new Map(parts.map(p => [p.type, p.value]));
+  
+  return {
+    year: parseInt(partMap.get('year') || '0', 10),
+    month: parseInt(partMap.get('month') || '0', 10),
+    day: parseInt(partMap.get('day') || '0', 10),
+    hours: parseInt(partMap.get('hour') || '0', 10),
+    minutes: parseInt(partMap.get('minute') || '0', 10),
+    seconds: parseInt(partMap.get('second') || '0', 10),
+  };
+}
+

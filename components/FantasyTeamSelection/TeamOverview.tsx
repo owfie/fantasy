@@ -8,6 +8,7 @@ import { FantasyPosition, Week } from '@/lib/domain/types';
 import styles from './TeamOverview.module.scss';
 import Image from 'next/image';
 import { getTeamJerseyPath } from '@/lib/utils/team-utils';
+import { formatInACST } from '@/lib/utils/date-utils';
 
 interface PitchPlayer {
   playerId: string;
@@ -127,17 +128,19 @@ export const TeamOverview = memo(function TeamOverview({
   };
 
   const formatDeadline = () => {
-    if (!cutoffDate) return 'No deadline set';
-    // Mon 12 Jan at 6pm (ACST)
-    return `${cutoffDate.toLocaleDateString('en-GB', {
+    if (!cutoffTimestamp) return 'No deadline set';
+    // Format as ACST: Mon 12 Jan at 6pm (ACST)
+    const dateStr = formatInACST(cutoffTimestamp, {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
-    })} at ${cutoffDate.toLocaleTimeString('en-GB', {
+    });
+    const timeStr = formatInACST(cutoffTimestamp, {
       hour: 'numeric',
       minute: 'numeric',
       hour12: true,
-    })} (ACST)`;
+    });
+    return `${dateStr} at ${timeStr} (ACST)`;
   };
 
   const captain = pitchPlayers.find(p => p.isCaptain && !p.isBenched);

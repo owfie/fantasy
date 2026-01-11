@@ -46,11 +46,31 @@ export async function getSnapshotWithPlayers(snapshotId: string): Promise<Snapsh
   if (!snapshotId) {
     return null;
   }
-  
+
   const uow = await getUnitOfWork();
   return uow.execute(async () => {
     const service = new FantasyTeamSnapshotService(uow);
     return service.getSnapshotWithPlayers(snapshotId);
+  });
+}
+
+/**
+ * Get snapshot with players for a specific week - SINGLE QUERY
+ * Eliminates the waterfall of getSnapshotForWeek -> getSnapshotWithPlayers
+ * Returns null if snapshot doesn't exist (for new teams without snapshots)
+ */
+export async function getSnapshotWithPlayersForWeek(
+  fantasyTeamId: string,
+  weekId: string
+): Promise<SnapshotWithPlayers | null> {
+  if (!fantasyTeamId || !weekId) {
+    return null;
+  }
+
+  const uow = await getUnitOfWork();
+  return uow.execute(async () => {
+    const service = new FantasyTeamSnapshotService(uow);
+    return service.getSnapshotWithPlayersForWeek(fantasyTeamId, weekId);
   });
 }
 

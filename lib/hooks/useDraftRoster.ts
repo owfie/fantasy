@@ -1,5 +1,6 @@
 /**
  * Hook to manage draft roster state and initialization from snapshots
+ * Simplified to use a single derived key for initialization
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -13,39 +14,37 @@ export function useDraftRoster(
 ) {
   const [draftRoster, setDraftRoster] = useState<DraftRosterPlayer[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const lastSnapshotIdRef = useRef<string | null>(null);
-  const lastWeekIdRef = useRef<string | null>(null);
-  const lastTeamIdRef = useRef<string | null>(null);
 
-  // Initialize draft roster from snapshot when it loads or week/team changes
-  // Only reset when snapshot ID, week, or team actually changes (not on refetches)
+  // Single derived key for initialization - simplifies 3 refs into 1 comparison
+  const initKey = `${snapshotWithPlayers?.snapshot?.id || 'no-snapshot'}-${currentWeekId || 'no-week'}-${selectedTeamId || 'no-team'}`;
+  const lastInitKeyRef = useRef<string | null>(null);
+
+  // Initialize draft roster when the init key changes
   useEffect(() => {
-    const currentSnapshotId = snapshotWithPlayers?.snapshot?.id || null;
-    const snapshotChanged = currentSnapshotId !== lastSnapshotIdRef.current;
-    const weekChanged = currentWeekId !== lastWeekIdRef.current;
-    const teamChanged = selectedTeamId !== lastTeamIdRef.current;
-
-    if (snapshotChanged || weekChanged || teamChanged) {
-      if (snapshotWithPlayers?.players) {
-        const roster: DraftRosterPlayer[] = snapshotWithPlayers.players.map(sp => ({
-          playerId: sp.player_id,
-          position: sp.position,
-          isBenched: sp.is_benched,
-          isCaptain: sp.is_captain,
-        }));
-        setDraftRoster(roster);
-        setHasUnsavedChanges(false);
-      } else {
-        // No snapshot exists (new team) - start with empty roster
-        setDraftRoster([]);
-        setHasUnsavedChanges(false);
-      }
-
-      lastSnapshotIdRef.current = currentSnapshotId;
-      lastWeekIdRef.current = currentWeekId;
-      lastTeamIdRef.current = selectedTeamId;
+    // Skip if key hasn't changed (prevents duplicate initializations)
+    if (initKey === lastInitKeyRef.current) {
+      return;
     }
-  }, [snapshotWithPlayers, currentWeekId, selectedTeamId]);
+
+    // Update the ref to track current init key
+    lastInitKeyRef.current = initKey;
+
+    // Initialize roster from snapshot or clear it
+    if (snapshotWithPlayers?.players) {
+      const roster: DraftRosterPlayer[] = snapshotWithPlayers.players.map(sp => ({
+        playerId: sp.player_id,
+        position: sp.position,
+        isBenched: sp.is_benched,
+        isCaptain: sp.is_captain,
+      }));
+      setDraftRoster(roster);
+      setHasUnsavedChanges(false);
+    } else {
+      // No snapshot exists (new team) - start with empty roster
+      setDraftRoster([]);
+      setHasUnsavedChanges(false);
+    }
+  }, [initKey, snapshotWithPlayers?.players]);
 
   return {
     draftRoster,
@@ -54,4 +53,3 @@ export function useDraftRoster(
     setHasUnsavedChanges,
   };
 }
-

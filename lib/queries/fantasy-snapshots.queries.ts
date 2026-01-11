@@ -10,6 +10,7 @@ import {
   getSnapshotsForTeam,
   getSnapshotForWeek,
   getSnapshotWithPlayers,
+  getSnapshotWithPlayersForWeek,
   createSnapshot,
   createSnapshotFromCurrentTeam,
 } from '@/lib/api/fantasy-snapshots.api';
@@ -42,7 +43,7 @@ export function useSnapshotForWeek(fantasyTeamId: string, weekId: string) {
 
 export function useSnapshotWithPlayers(snapshotId: string) {
   const queryClient = useQueryClient();
-  
+
   return useQuery({
     queryKey: snapshotKeys.detail(snapshotId),
     queryFn: () => getSnapshotWithPlayers(snapshotId),
@@ -54,6 +55,27 @@ export function useSnapshotWithPlayers(snapshotId: string) {
     placeholderData: (previousData) => {
       if (!snapshotId) return previousData;
       const cached = queryClient.getQueryData<SnapshotWithPlayers | null>(snapshotKeys.detail(snapshotId));
+      return cached !== undefined ? cached : previousData;
+    },
+  });
+}
+
+/**
+ * Combined query that fetches snapshot with players in a single request
+ * Eliminates the waterfall of useSnapshotForWeek -> useSnapshotWithPlayers
+ */
+export function useSnapshotWithPlayersForWeek(fantasyTeamId: string, weekId: string) {
+  const queryClient = useQueryClient();
+
+  return useQuery({
+    queryKey: snapshotKeys.byWeek(fantasyTeamId, weekId),
+    queryFn: () => getSnapshotWithPlayersForWeek(fantasyTeamId, weekId),
+    enabled: !!fantasyTeamId && !!weekId,
+    retry: false,
+    // Use placeholderData to immediately use cached data if available
+    placeholderData: (previousData) => {
+      if (!fantasyTeamId || !weekId) return previousData;
+      const cached = queryClient.getQueryData<SnapshotWithPlayers | null>(snapshotKeys.byWeek(fantasyTeamId, weekId));
       return cached !== undefined ? cached : previousData;
     },
   });

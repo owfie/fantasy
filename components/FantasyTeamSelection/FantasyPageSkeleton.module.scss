@@ -1,0 +1,294 @@
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base, #e5e7eb) 0%,
+    var(--skeleton-highlight, #f3f4f6) 50%,
+    var(--skeleton-base, #e5e7eb) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+// Dark mode support
+:global([data-theme="dark"]) {
+  .shimmer {
+    --skeleton-base: #374151;
+    --skeleton-highlight: #4b5563;
+  }
+}
+
+// Layout - matches page.module.scss
+.content {
+  display: grid;
+  grid-template-columns: 400px 1fr;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.leftPanel {
+  display: flex;
+  flex-direction: column;
+  min-height: 600px;
+}
+
+.rightPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+// Header skeleton
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.teamName {
+  height: 2rem;
+  width: 12rem;
+}
+
+.weekBadge {
+  height: 1.5rem;
+  width: 5rem;
+  border-radius: 9999px;
+}
+
+.viewToggle {
+  height: 2.25rem;
+  width: 5rem;
+}
+
+.saveButton {
+  height: 2.25rem;
+  width: 6rem;
+}
+
+.playerListContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+// Player list skeleton
+.playerListCard {
+  display: flex;
+  flex-direction: column;
+}
+
+.playerListHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  margin-bottom: 1rem;
+}
+
+.searchBar {
+  height: 2.5rem;
+  width: 100%;
+}
+
+.positionFilters {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filterButton {
+  height: 2rem;
+  width: 5rem;
+  border-radius: 9999px;
+}
+
+.playerList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow: hidden;
+}
+
+.playerCard {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--card-bg-secondary, #f9fafb);
+}
+
+.playerAvatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.playerInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.playerName {
+  height: 1rem;
+  width: 8rem;
+}
+
+.playerMeta {
+  height: 0.75rem;
+  width: 5rem;
+}
+
+.playerValue {
+  height: 1.25rem;
+  width: 3rem;
+}
+
+// Team overview skeleton
+.teamOverview {
+  padding: 1rem;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  margin-bottom: 1rem;
+  gap: 1rem;;
+}
+
+.statItem {
+  display: flex;
+  flex-grow: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.statLabel {
+  height: 0.75rem;
+  width: 4rem;
+}
+
+.statValue {
+  height: 1.5rem;
+  width: 3rem;
+}
+
+// Pitch skeleton
+.pitch {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  min-height: 500px;
+
+
+
+  // transform: rotateX(30deg);
+  // transform-origin: center bottom;
+  // transform-style: preserve-3d;
+}
+
+.pitchRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.positionLabel {
+  height: 1rem;
+  width: 4.5rem;
+  flex-shrink: 0;
+}
+
+.pitchSlots {
+  display: flex;
+  gap: 0.75rem;
+  flex: 1;
+  justify-content: center;
+}
+
+.pitchSlot {
+  width: 4.5rem;
+  height: 5.5rem;
+  border-radius: 8px;
+  background: var(--slot-bg, rgba(255, 255, 255, 0.6));
+  border: 2px dashed var(--slot-border, #bbf7d0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pitchSlotSmall {
+  width: 3.5rem;
+  height: 4.5rem;
+  opacity: 0.6;
+}
+
+.pitchSlotInner {
+  width: 70%;
+  height: 70%;
+  border-radius: 6px;
+}
+
+// Transfers list skeleton
+.transfersCard {
+  padding: 1rem;
+}
+
+.transfersHeader {
+  height: 1.25rem;
+  width: 6rem;
+  margin-bottom: 1rem;
+}
+
+.transfersList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.transferItem {
+  height: 2.5rem;
+  width: 100%;
+}
+
+// Responsive
+@media (max-width: 1200px) {
+  .content {
+    grid-template-columns: 1fr;
+  }
+
+  .leftPanel {
+    min-height: 400px;
+  }
+}

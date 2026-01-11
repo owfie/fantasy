@@ -328,6 +328,32 @@ export class FantasyTeamSnapshotService {
   }
 
   /**
+   * Get snapshot with players for a specific week - SINGLE QUERY
+   * Eliminates the waterfall of getSnapshotForWeek -> getSnapshotWithPlayers
+   * Returns null if snapshot doesn't exist (for new teams without snapshots)
+   */
+  async getSnapshotWithPlayersForWeek(
+    fantasyTeamId: string,
+    weekId: string
+  ): Promise<{
+    snapshot: FantasyTeamSnapshot;
+    players: FantasyTeamSnapshotPlayer[];
+  } | null> {
+    if (!fantasyTeamId || !weekId) {
+      return null;
+    }
+
+    const snapshot = await this.uow.fantasyTeamSnapshots.findByFantasyTeamAndWeek(fantasyTeamId, weekId);
+    if (!snapshot) {
+      return null;
+    }
+
+    const players = await this.uow.fantasyTeamSnapshotPlayers.findBySnapshot(snapshot.id);
+
+    return { snapshot, players };
+  }
+
+  /**
    * Create snapshot from current fantasy_team_players state
    * This is useful when creating a snapshot from the current team composition
    */

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { Suspense, useState, useMemo, useCallback } from 'react';
 import { DndContext, DragEndEvent, DragOverlay, pointerWithin, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { useUpdateFantasyTeam } from '@/lib/queries/fantasy-teams-test.queries';
+import { useUpdateFantasyTeam, useCreateFantasyTeam } from '@/lib/queries/fantasy-teams-test.queries';
 import { useCreateSnapshot } from '@/lib/queries/fantasy-snapshots.queries';
-import { useExecuteTransfer, useIsFirstWeek } from '@/lib/queries/transfers.queries';
+import { useExecuteTransfer } from '@/lib/queries/transfers.queries';
 import { FantasyPosition } from '@/lib/domain/types';
 import { TeamSelectionHeader } from '@/components/FantasyTeamSelection/TeamSelectionHeader';
 import { PlayerList } from '@/components/FantasyTeamSelection/PlayerList';
@@ -18,14 +18,12 @@ import { toast } from 'sonner';
 import styles from './page.module.scss';
 
 import { useFantasyAuth } from '@/lib/hooks/useFantasyAuth';
-import { useFantasyTeamSelection } from '@/lib/hooks/useFantasyTeamSelection';
 import { useDraftRoster } from '@/lib/hooks/useDraftRoster';
-import { useFantasyTeamData } from '@/lib/hooks/useFantasyTeamData';
+import { useFantasyPageData } from '@/lib/hooks/useFantasyPageData';
 import { useFantasyTeamValidation } from '@/lib/hooks/useFantasyTeamValidation';
 import { useUnsavedChangesGuard } from '@/lib/hooks/useUnsavedChangesGuard';
 import { useDragAndDrop } from '@/lib/hooks/useDragAndDrop';
 import { useTransferModal } from '@/lib/hooks/useTransferModal';
-import { useCreateFantasyTeam, useActiveSeason } from '@/lib/queries/fantasy-teams-test.queries';
 
 import {
   calculateRosterSalary,
@@ -50,50 +48,85 @@ import {
 } from '@/lib/utils/fantasy-roster-operations';
 
 import {
-  LoadingState,
   UnauthenticatedState,
   NoTeamState,
   NoSeasonState,
   NoWeekState,
 } from '@/components/FantasyTeamSelection/FantasyTeamEmptyStates';
+import { FantasyPageSkeleton } from '@/components/FantasyTeamSelection/FantasyPageSkeleton';
 import { UnsavedChangesDialog } from '@/components/FantasyTeamSelection/UnsavedChangesDialog';
 import { DebugRosterDisplay } from '@/components/FantasyTeamSelection/DebugRosterDisplay';
 import { DragOverlayContent } from '@/components/FantasyTeamSelection/DragOverlayContent';
 
-export default function FantasyPage() {
+// Debug: Toggle skeleton visibility for visual adjustments
+// Set to true to enable the toggle button
+const DEBUG_SHOW_SKELETON = true;
+
+// Debug toggle component - floating button to switch between skeleton and UI
+function DebugSkeletonToggle({
+  showSkeleton,
+  onToggle
+}: {
+  showSkeleton: boolean;
+  onToggle: () => void;
+}) {
+  if (!DEBUG_SHOW_SKELETON) return null;
+
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        position: 'fixed',
+        bottom: '1rem',
+        right: '1rem',
+        zIndex: 9999,
+        padding: '0.75rem 1rem',
+        backgroundColor: showSkeleton ? '#3b82f6' : '#6b7280',
+        color: 'white',
+        border: 'none',
+        borderRadius: '8px',
+        fontSize: '0.875rem',
+        fontWeight: 500,
+        cursor: 'pointer',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+      }}
+    >
+      {showSkeleton ? '🦴 Skeleton' : '✨ Actual UI'}
+      <span style={{
+        fontSize: '0.75rem',
+        opacity: 0.8,
+        marginLeft: '0.25rem'
+      }}>
+        (click to toggle)
+      </span>
+    </button>
+  );
+}
+
+function FantasyPageContent() {
+  const [debugShowSkeleton, setDebugShowSkeleton] = useState(false);
   const { user, isLoading: isLoadingAuth } = useFantasyAuth();
   const createTeamMutation = useCreateFantasyTeam();
-  
-  const initialData = useFantasyTeamData(null, null);
+
+  // Single unified data hook - eliminates double useFantasyTeamData pattern
   const {
     activeSeason,
     fantasyTeams,
-    weeks: initialWeeks,
-    isLoading: isLoadingInitialData,
-  } = initialData;
-
-  const {
     selectedTeamId,
     selectedWeekId,
     selectedTeam,
     selectedWeek,
-    setSelectedTeamId,
-    setSelectedWeekId,
-  } = useFantasyTeamSelection(fantasyTeams, initialWeeks);
-
-  const teamData = useFantasyTeamData(selectedTeamId, selectedWeekId);
-  const {
     snapshotWithPlayers,
     remainingTransfers,
     weekTransfers,
     allPlayers,
-    isLoading: isLoadingTeamData,
-  } = teamData;
+    isFirstWeek,
+    isLoading: isLoadingData,
+  } = useFantasyPageData();
 
-  const { data: isFirstWeek = false } = useIsFirstWeek(selectedTeamId || '', selectedWeekId || '');
-
-  const isLoadingData = isLoadingInitialData || isLoadingTeamData;
- // ya mum 
   const {
     draftRoster,
     setDraftRoster,
@@ -686,7 +719,20 @@ export default function FantasyPage() {
   );
 
   if (isLoadingAuth || isLoadingData) {
-    return <LoadingState containerClassName={styles.container} />;
+    return <FantasyPageSkeleton containerClassName={styles.container} />;
+  }
+
+  // Debug: Show skeleton toggle for visual comparison
+  if (debugShowSkeleton) {
+    return (
+      <>
+        <FantasyPageSkeleton containerClassName={styles.container} />
+        <DebugSkeletonToggle
+          showSkeleton={debugShowSkeleton}
+          onToggle={() => setDebugShowSkeleton(false)}
+        />
+      </>
+    );
   }
 
   if (!user) {
@@ -832,6 +878,20 @@ export default function FantasyPage() {
           }))}
         onSelect={handleCaptainSelect}
       />
+
+      <DebugSkeletonToggle
+        showSkeleton={debugShowSkeleton}
+        onToggle={() => setDebugShowSkeleton(true)}
+      />
     </DndContext>
+  );
+}
+
+// Wrap in Suspense for useSearchParams (required by Next.js App Router)
+export default function FantasyPage() {
+  return (
+    <Suspense fallback={<FantasyPageSkeleton containerClassName={styles.container} />}>
+      <FantasyPageContent />
+    </Suspense>
   );
 }

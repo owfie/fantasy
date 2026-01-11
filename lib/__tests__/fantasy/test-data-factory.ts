@@ -23,6 +23,7 @@ export interface TestDataIds {
   transferIds: string[];
   fantasyTeamPlayerIds: string[];
   seasonPlayerIds: string[];
+  userProfileIds: string[];
 }
 
 export interface TestPlayer {
@@ -111,6 +112,7 @@ export async function createTestSeason(uow: UnitOfWork): Promise<{
     transferIds: [],
     fantasyTeamPlayerIds: [],
     seasonPlayerIds: [],
+    userProfileIds: [],
   };
 
   const testId = generateTestId();
@@ -208,15 +210,63 @@ export async function createTestSeason(uow: UnitOfWork): Promise<{
   return { ids, players };
 }
 
+// Cache for test user ID
+let cachedTestUserId: string | null = null;
+
+/**
+ * Get a valid user ID for testing
+ *
+ * Uses TEST_USER_ID env var if set, otherwise queries for first existing user.
+ * The user_profiles table has a FK constraint to auth.users, so we can't create
+ * fake users - we must use a real one.
+ *
+ * Set TEST_USER_ID in .env.local to use a specific user for tests.
+ */
+export async function getTestUserId(uow: UnitOfWork): Promise<string> {
+  // Return cached value if available
+  if (cachedTestUserId) {
+    return cachedTestUserId;
+  }
+
+  // Check for env var first
+  if (process.env.TEST_USER_ID) {
+    cachedTestUserId = process.env.TEST_USER_ID;
+    return cachedTestUserId;
+  }
+
+  // Query for an existing user profile
+  const client = uow.getClient();
+  const { data: existingUser, error } = await client
+    .from('user_profiles')
+    .select('id')
+    .limit(1)
+    .single();
+
+  if (error || !existingUser) {
+    throw new Error(
+      'No existing user found for tests. Either:\n' +
+      '1. Set TEST_USER_ID in .env.local to a valid user ID, or\n' +
+      '2. Ensure at least one user exists in the database'
+    );
+  }
+
+  cachedTestUserId = existingUser.id;
+  return cachedTestUserId;
+}
+
 /**
  * Create a fantasy team for testing
+ * Uses an existing user from the database (see getTestUserId)
  */
 export async function createTestFantasyTeam(
   uow: UnitOfWork,
   ids: TestDataIds,
-  ownerId: string,
+  _ownerSuffix: string, // Ignored, kept for API compatibility
   name?: string
 ): Promise<TestFantasyTeam> {
+  // Get a real user ID (we can't create fake users due to auth.users FK)
+  const ownerId = await getTestUserId(uow);
+
   const testId = generateTestId();
   const fantasyTeam = await uow.fantasyTeams.create({
     owner_id: ownerId,
@@ -301,7 +351,8 @@ export async function createTestSnapshot(
 }
 
 /**
- * Create player stats for a game
+ * Create or update player stats for a game
+ * Uses upsert to handle duplicate player/game combinations
  */
 export async function createTestPlayerStats(
   uow: UnitOfWork,
@@ -317,6 +368,40 @@ export async function createTestPlayerStats(
     played?: boolean;
   }
 ): Promise<string> {
+  const client = uow.getClient();
+
+  // Check if stats already exist for this player/game
+  const { data: existing } = await client
+    .from('player_stats')
+    .select('id')
+    .eq('player_id', playerId)
+    .eq('game_id', gameId)
+    .single();
+
+  if (existing) {
+    // Update existing stats
+    const { data, error } = await client
+      .from('player_stats')
+      .update({
+        goals: stats.goals ?? 0,
+        assists: stats.assists ?? 0,
+        blocks: stats.blocks ?? 0,
+        drops: stats.drops ?? 0,
+        throwaways: stats.throwaways ?? 0,
+        played: stats.played ?? true,
+      })
+      .eq('id', existing.id)
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to update player_stats: ${error.message}`);
+    }
+
+    return data.id;
+  }
+
+  // Create new stats
   const playerStats = await uow.playerStats.create({
     player_id: playerId,
     game_id: gameId,
@@ -344,12 +429,17 @@ export async function createTestTransfer(
   playerOutId: string,
   netTransferValue: number = 0
 ): Promise<string> {
+  // Get week number for the round field (required by DB)
+  const week = await uow.weeks.findById(weekId);
+  const round = week?.week_number ?? 1;
+
   const transfer = await uow.transfers.create({
     fantasy_team_id: fantasyTeamId,
     week_id: weekId,
     player_in_id: playerInId,
     player_out_id: playerOutId,
     net_transfer_value: netTransferValue,
+    round: round,
   });
   ids.transferIds.push(transfer.id);
 
@@ -416,8 +506,15 @@ export function buildTestRoster(players: TestPlayer[]): Array<{
 }
 
 /**
- * Generate a test user ID (uses a deterministic UUID-like format)
+ * Generate a test user ID (valid UUID format)
+ * Uses deterministic UUIDs based on suffix for reproducibility
  */
 export function generateTestUserId(suffix: string = '1'): string {
-  return `${TEST_PREFIX}user_${suffix}_00000000-0000-0000-0000-000000000001`;
+  // Create a deterministic but valid UUID based on suffix
+  // Format: 00000000-0000-4000-a000-{12 hex chars from suffix hash}
+  const hash = suffix.split('').reduce((acc, char) => {
+    return ((acc << 5) - acc + char.charCodeAt(0)) | 0;
+  }, 0);
+  const hexHash = Math.abs(hash).toString(16).padStart(12, '0').slice(0, 12);
+  return `00000000-0000-4000-a000-${hexHash}`;
 }

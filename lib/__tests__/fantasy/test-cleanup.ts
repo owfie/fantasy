@@ -120,6 +120,14 @@ export async function cleanupTestData(uow: UnitOfWork, ids: TestDataIds): Promis
       .delete()
       .eq('id', ids.seasonId);
   }
+
+  // 14. User profiles (created for fantasy teams)
+  if (ids.userProfileIds.length > 0) {
+    await client
+      .from('user_profiles')
+      .delete()
+      .in('id', ids.userProfileIds);
+  }
 }
 
 /**

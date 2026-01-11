@@ -39,7 +39,7 @@ export class TransfersRepository extends BaseRepository<Transfer, InsertTransfer
   }
 
   async countByFantasyTeamAndWeek(fantasyTeamId: string, weekId: string): Promise<number> {
-    const { data, error } = await this.client
+    const { count, error } = await this.client
       .from(this.tableName)
       .select('*', { count: 'exact', head: true })
       .eq('fantasy_team_id', fantasyTeamId)
@@ -49,7 +49,7 @@ export class TransfersRepository extends BaseRepository<Transfer, InsertTransfer
       throw new Error(`Failed to count transfers: ${error.message}`);
     }
 
-    return data?.length || 0;
+    return count || 0;
   }
 }
 

@@ -6,7 +6,13 @@
 
 import { getUnitOfWork } from '@/lib/domain/server-uow';
 import { InsertPlayerAvailability, AvailabilityStatus } from '@/lib/domain/types';
-import { TestResult } from './test.api';
+
+interface TestResult<T = unknown> {
+  success: boolean;
+  message: string;
+  data?: T;
+  error?: string;
+}
 
 /**
  * Update player availability for a game
@@ -122,7 +128,7 @@ export async function getAvailabilityForSeason(seasonId: string): Promise<{
     }
 
     // Get all availability records for these games
-    const allAvailability: Array<{ player_id: string; game_id: string; status: AvailabilityStatus }> = [];
+    const allAvailability: Array<{ playerId: string; gameId: string; status: AvailabilityStatus }> = [];
     
     for (const gameId of gameIds) {
       const availability = await uow.playerAvailability.findByGame(gameId);

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getPlayerBySlug } from '@/lib/api/players.api';
 import { PlayerDetailContent } from '@/components/FantasyTeamSelection/PlayerDetailContent';
+import { formatPlayerName } from '@/lib/utils/fantasy-utils';
 
 interface PlayerPageProps {
   params: Promise<{ 'slug-name': string }>;
@@ -18,9 +19,11 @@ export async function generateMetadata({ params }: PlayerPageProps): Promise<Met
     };
   }
 
+  const playerName = formatPlayerName(player.first_name, player.last_name);
+
   return {
-    title: `${player.name} | Adelaide Super League`,
-    description: `View player details for ${player.name} in Adelaide Super League`,
+    title: `${playerName} | Adelaide Super League`,
+    description: `View player details for ${playerName} in Adelaide Super League`,
   };
 }
 

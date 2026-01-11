@@ -58,7 +58,7 @@ export default function TransferWindowsClient({ seasonId }: TransferWindowsClien
       const cutoffDate = newValue ? new Date(newValue) : null;
       await updateWeekMutation.mutateAsync({
         id: weekId,
-        transfer_cutoff_time: cutoffDate ? cutoffDate.toISOString() : null,
+        transfer_cutoff_time: cutoffDate ? cutoffDate.toISOString() : undefined,
       });
       queryClient.invalidateQueries({ queryKey: ['seasons', 'weeks', seasonId] });
       setEditingCutoff(null);

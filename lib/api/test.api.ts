@@ -8,7 +8,7 @@
 
 import { getUnitOfWork } from '@/lib/domain/server-uow';
 import { FantasyTeamService, TeamsService } from '@/lib/domain/services';
-import { Team, Player, Week, InsertPlayerStats as InsertPlayerStatsType, UpdatePlayerStats } from '@/lib/domain/types';
+import { Team, Player, Week, InsertPlayerStats as InsertPlayerStatsType, UpdatePlayerStats, PlayerRole } from '@/lib/domain/types';
 import { getErrorMessage } from '@/lib/utils';
 
 // ============================================
@@ -259,22 +259,18 @@ export async function testCreatePlayer(
       team_id: string;
       first_name: string;
       last_name: string;
-      player_role: string;
+      player_role: PlayerRole;
       is_active: boolean;
-      starting_value?: number;
+      starting_value: number;
       draft_order?: number;
     } = {
       team_id: teamId,
       first_name: firstName,
       last_name: lastName,
-      player_role: role,
+      player_role: role as PlayerRole,
       is_active: true,
+      starting_value: startingValue ?? 0,
     };
-    
-    // Only set starting_value if provided
-    if (startingValue !== undefined && startingValue !== null) {
-      playerData.starting_value = startingValue;
-    }
     
     // Only set draft_order if provided
     if (draftOrder !== undefined && draftOrder !== null) {
@@ -677,6 +673,7 @@ export async function testCreateSeasonAndWeek() {
         start_date: new Date().toISOString().split('T')[0],
         end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         is_draft_week: false,
+        transfer_window_open: true,
       });
     }
     

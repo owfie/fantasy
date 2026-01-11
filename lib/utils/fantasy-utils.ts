@@ -58,7 +58,8 @@ export function getPositionCode(position: FantasyPosition): string {
     case 'receiver':
       return 'RCV';
     default:
-      return position.toUpperCase().substring(0, 3);
+      // This should never happen with a properly typed FantasyPosition
+      return 'UNK';
   }
 }
 

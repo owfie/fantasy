@@ -251,6 +251,9 @@ export async function getTestUserId(uow: UnitOfWork): Promise<string> {
   }
 
   cachedTestUserId = existingUser.id;
+  if (!cachedTestUserId) {
+    throw new Error('User ID is null');
+  }
   return cachedTestUserId;
 }
 

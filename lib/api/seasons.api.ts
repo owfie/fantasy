@@ -355,6 +355,7 @@ export async function createWeeks(data: {
         start_date: gameDateStr,
         end_date: gameDateStr, // Same as start since games are on Monday
         is_draft_week: data.isDraftWeek || false,
+        transfer_window_open: true,
         transfer_cutoff_time: cutoffDateTime.toISOString(),
       });
     }

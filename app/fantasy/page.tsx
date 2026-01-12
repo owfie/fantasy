@@ -7,6 +7,7 @@ import { useCreateSnapshot } from '@/lib/queries/fantasy-snapshots.queries';
 import { useExecuteTransfer } from '@/lib/queries/transfers.queries';
 import { FantasyPosition } from '@/lib/domain/types';
 import { FantasyTeamCard } from '@/components/FantasyTeamSelection/FantasyTeamCard';
+import { Card } from '@/components/Card';
 import { PlayerList } from '@/components/FantasyTeamSelection/PlayerList';
 import { TeamOverview } from '@/components/FantasyTeamSelection/TeamOverview';
 import { TransfersList } from '@/components/FantasyTeamSelection/TransfersList';
@@ -214,6 +215,9 @@ function FantasyPageContent() {
       isFirstWeek
     );
   }, [remainingTransfers, transfersUsed, unsavedTransfers.length, isFirstWeek]);
+
+  // Check if transfer window is open
+  const isTransferWindowOpen = selectedWeek?.transfer_window_open ?? false;
 
   // Calculate budget (starting at 550, counting down as players are added)
   const salary = useMemo(() => {
@@ -796,17 +800,27 @@ function FantasyPageContent() {
             isUpdatingTeamName={updateTeamMutation.isPending}
           />
 
-            <PlayerList
-              players={allPlayers}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              teamPlayerIds={teamPlayerIds}
-              onAddPlayer={handleAddPlayer}
-              onSwapPlayer={handleSwapPlayer}
-              isPositionFull={isPositionFullCallback}
-              isTransferLimitReached={isTransferLimitReached}
-              isLoading={false}
-            />
+            {isTransferWindowOpen ? (
+              <PlayerList
+                players={allPlayers}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                teamPlayerIds={teamPlayerIds}
+                onAddPlayer={handleAddPlayer}
+                onSwapPlayer={handleSwapPlayer}
+                isPositionFull={isPositionFullCallback}
+                isTransferLimitReached={isTransferLimitReached}
+                isLoading={false}
+              />
+            ) : (
+              <Card className={styles.transferWindowClosed}>
+                <div className={styles.transferWindowClosedContent}>
+                  <span className={styles.transferWindowClosedIcon}>🔒</span>
+                  <h3>Transfer Window Closed</h3>
+                  <p>The transfer window for this week has closed. Check back next week to make changes to your squad.</p>
+                </div>
+              </Card>
+            )}
           </div>
 
           <div className={styles.rightPanel}>
@@ -819,7 +833,7 @@ function FantasyPageContent() {
               salaryCap={550}
               pitchPlayers={pitchPlayers}
               draggedPlayerPosition={activePlayer?.position || null}
-              onCaptainClick={() => setCaptainModalOpen(true)}
+              onCaptainClick={isTransferWindowOpen ? () => setCaptainModalOpen(true) : undefined}
               isFirstWeek={isFirstWeek}
               week={selectedWeek}
               onSave={handleSave}
@@ -827,6 +841,7 @@ function FantasyPageContent() {
               isSaving={createSnapshotMutation.isPending}
               hasUnsavedChanges={hasUnsavedChanges}
               validationErrors={validationErrors}
+              isTransferWindowOpen={isTransferWindowOpen}
             />
 
             <TransfersList

@@ -36,6 +36,7 @@ interface TeamOverviewProps {
   isSaving?: boolean;
   hasUnsavedChanges?: boolean;
   validationErrors?: string[];
+  isTransferWindowOpen?: boolean;
 }
 
 function useCountdown(targetTimestamp: string | null) {
@@ -99,6 +100,7 @@ export const TeamOverview = memo(function TeamOverview({
   isSaving = false,
   hasUnsavedChanges = false,
   validationErrors = [],
+  isTransferWindowOpen = true,
 }: TeamOverviewProps) {
   const cutoffTimestamp = week?.transfer_cutoff_time || null;
   const timeLeft = useCountdown(cutoffTimestamp);
@@ -218,7 +220,7 @@ export const TeamOverview = memo(function TeamOverview({
       </div>
 
       {/* Save/Reset Buttons */}
-      {(onSave || onReset) && (
+      {(onSave || onReset) && isTransferWindowOpen && (
         <div className={styles.actionsSection}>
           {onReset && (
             <button

@@ -7,6 +7,7 @@ import { UnitOfWork } from '../unit-of-work';
 import { InsertTransfer, FantasyPosition, Player } from '../types';
 import { FantasyTeamSnapshotService } from './fantasy-team-snapshot.service';
 import { ValueTrackingService } from './value-tracking.service';
+import { canBypassTransferWindow } from '@/lib/config/transfer-whitelist';
 
 const MAX_TRANSFERS_PER_WEEK = 2;
 const SALARY_CAP = 550;
@@ -29,8 +30,14 @@ export class TransferService {
    * Check if transfers can be made for a week
    * - Transfer window must be open
    * - Must be before cutoff time (if set)
+   * - Users on whitelist can bypass these restrictions
    */
-  async canMakeTransfer(fantasyTeamId: string, weekId: string): Promise<{ canTransfer: boolean; reason?: string }> {
+  async canMakeTransfer(fantasyTeamId: string, weekId: string, userId?: string): Promise<{ canTransfer: boolean; reason?: string }> {
+    // Check if user can bypass transfer window restrictions
+    if (canBypassTransferWindow(userId)) {
+      return { canTransfer: true };
+    }
+
     const week = await this.uow.weeks.findById(weekId);
     if (!week) {
       return { canTransfer: false, reason: 'Week not found' };
@@ -85,12 +92,13 @@ export class TransferService {
     fantasyTeamId: string,
     playerInId: string,
     playerOutId: string,
-    weekId: string
+    weekId: string,
+    userId?: string
   ): Promise<TransferValidationResult> {
     const errors: string[] = [];
 
     // Check if can make transfer
-    const canTransfer = await this.canMakeTransfer(fantasyTeamId, weekId);
+    const canTransfer = await this.canMakeTransfer(fantasyTeamId, weekId, userId);
     if (!canTransfer.canTransfer) {
       errors.push(canTransfer.reason || 'Cannot make transfer');
     }
@@ -221,7 +229,8 @@ export class TransferService {
     fantasyTeamId: string,
     playerInId: string,
     playerOutId: string,
-    weekId: string
+    weekId: string,
+    userId?: string
   ): Promise<{ transfer: InsertTransfer; snapshot: any }> {
     return this.uow.execute(async (uow) => {
       // Check if first week - transfers should not be executed in first week
@@ -231,7 +240,7 @@ export class TransferService {
       }
 
       // Validate transfer
-      const validation = await this.validateTransfer(fantasyTeamId, playerInId, playerOutId, weekId);
+      const validation = await this.validateTransfer(fantasyTeamId, playerInId, playerOutId, weekId, userId);
       if (!validation.valid) {
         throw new Error(`Transfer validation failed: ${validation.errors.join(', ')}`);
       }

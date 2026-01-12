@@ -35,6 +35,7 @@ import {
   getSwapCandidates,
   ensureSingleCaptain,
 } from '@/lib/utils/fantasy-roster-utils';
+import { canBypassTransferWindow } from '@/lib/config/transfer-whitelist';
 import {
   calculateTransferLimitStatus,
   createUnsavedTransfer,
@@ -216,8 +217,9 @@ function FantasyPageContent() {
     );
   }, [remainingTransfers, transfersUsed, unsavedTransfers.length, isFirstWeek]);
 
-  // Check if transfer window is open
-  const isTransferWindowOpen = selectedWeek?.transfer_window_open ?? false;
+  // Check if transfer window is open (or user can bypass)
+  const canUserBypass = canBypassTransferWindow(user?.id);
+  const isTransferWindowOpen = canUserBypass || (selectedWeek?.transfer_window_open ?? false);
 
   // Calculate budget (starting at 550, counting down as players are added)
   const salary = useMemo(() => {

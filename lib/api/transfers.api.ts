@@ -6,6 +6,16 @@
 
 import { getUnitOfWork } from '@/lib/domain/server-uow';
 import { TransferService } from '@/lib/domain/services/transfer.service';
+import { createClient } from '@/lib/supabase/server';
+
+/**
+ * Get the current authenticated user's ID
+ */
+async function getCurrentUserId(): Promise<string | undefined> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id;
+}
 
 /**
  * Check if transfers can be made for a week
@@ -15,9 +25,10 @@ export async function canMakeTransfer(
   weekId: string
 ): Promise<{ canTransfer: boolean; reason?: string }> {
   const uow = await getUnitOfWork();
+  const userId = await getCurrentUserId();
   return uow.execute(async () => {
     const service = new TransferService(uow);
-    return service.canMakeTransfer(fantasyTeamId, weekId);
+    return service.canMakeTransfer(fantasyTeamId, weekId, userId);
   });
 }
 
@@ -61,9 +72,10 @@ export async function executeTransfer(
   weekId: string
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   const uow = await getUnitOfWork();
+  const userId = await getCurrentUserId();
   try {
     const service = new TransferService(uow);
-    await service.executeTransfer(fantasyTeamId, playerInId, playerOutId, weekId);
+    await service.executeTransfer(fantasyTeamId, playerInId, playerOutId, weekId, userId);
     return { success: true, message: 'Transfer executed successfully' };
   } catch (error) {
     return {
@@ -83,9 +95,10 @@ export async function validateTransfer(
   weekId: string
 ): Promise<{ valid: boolean; errors: string[] }> {
   const uow = await getUnitOfWork();
+  const userId = await getCurrentUserId();
   return uow.execute(async () => {
     const service = new TransferService(uow);
-    return service.validateTransfer(fantasyTeamId, playerInId, playerOutId, weekId);
+    return service.validateTransfer(fantasyTeamId, playerInId, playerOutId, weekId, userId);
   });
 }
 

@@ -1,40 +1,43 @@
 /**
  * TanStack Query hooks for Transfers
+ *
+ * Note: Transfers are now computed from snapshot diffs, not stored in the transfers table.
+ * The executeTransfer and validateTransfer hooks have been removed.
  */
 
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
 import {
   canMakeTransfer,
   getRemainingTransfers,
-  executeTransfer,
-  validateTransfer,
   getTransfersByWeek,
   getTransfersBySeason,
   isFirstWeek,
 } from '@/lib/api/transfers.api';
 
-// DEPRECATED: No longer used - first week now has 0 transfers (free roster selection)
-// Keeping for backward compatibility if needed
-export const UNLIMITED_TRANSFERS = -1;
-
 export const transferKeys = {
   all: ['transfers'] as const,
-  canTransfer: (teamId: string, weekId: string) => [...transferKeys.all, 'can', teamId, weekId] as const,
+  canTransfer: (weekId: string) => [...transferKeys.all, 'can', weekId] as const,
   remaining: (teamId: string, weekId: string) => [...transferKeys.all, 'remaining', teamId, weekId] as const,
   isFirstWeek: (teamId: string, weekId: string) => [...transferKeys.all, 'firstWeek', teamId, weekId] as const,
 };
 
-export function useCanMakeTransfer(fantasyTeamId: string, weekId: string) {
+/**
+ * Check if the transfer window is open for a week
+ */
+export function useCanMakeTransfer(weekId: string) {
   return useQuery({
-    queryKey: transferKeys.canTransfer(fantasyTeamId, weekId),
-    queryFn: () => canMakeTransfer(fantasyTeamId, weekId),
-    enabled: !!fantasyTeamId && !!weekId,
+    queryKey: transferKeys.canTransfer(weekId),
+    queryFn: () => canMakeTransfer(weekId),
+    enabled: !!weekId,
   });
 }
 
+/**
+ * Get remaining transfers for a fantasy team in a week
+ * Returns Infinity for first week (unlimited transfers)
+ */
 export function useRemainingTransfers(fantasyTeamId: string, weekId: string) {
   return useQuery({
     queryKey: transferKeys.remaining(fantasyTeamId, weekId),
@@ -43,6 +46,9 @@ export function useRemainingTransfers(fantasyTeamId: string, weekId: string) {
   });
 }
 
+/**
+ * Check if this is the team's first week
+ */
 export function useIsFirstWeek(fantasyTeamId: string, weekId: string) {
   return useQuery({
     queryKey: transferKeys.isFirstWeek(fantasyTeamId, weekId),
@@ -51,48 +57,10 @@ export function useIsFirstWeek(fantasyTeamId: string, weekId: string) {
   });
 }
 
-export function useExecuteTransfer() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: ({
-      fantasyTeamId,
-      playerInId,
-      playerOutId,
-      weekId,
-    }: {
-      fantasyTeamId: string;
-      playerInId: string;
-      playerOutId: string;
-      weekId: string;
-    }) => executeTransfer(fantasyTeamId, playerInId, playerOutId, weekId),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: transferKeys.all });
-      queryClient.invalidateQueries({ queryKey: ['snapshots'] });
-      toast.success('Transfer executed successfully');
-    },
-    onError: (error: Error) => {
-      toast.error(`Transfer failed: ${error.message}`);
-    },
-  });
-}
-
-export function useValidateTransfer() {
-  return useMutation({
-    mutationFn: ({
-      fantasyTeamId,
-      playerInId,
-      playerOutId,
-      weekId,
-    }: {
-      fantasyTeamId: string;
-      playerInId: string;
-      playerOutId: string;
-      weekId: string;
-    }) => validateTransfer(fantasyTeamId, playerInId, playerOutId, weekId),
-  });
-}
-
+/**
+ * Get all transfers for a week (from transfers table - audit purposes)
+ * @deprecated Transfers are now computed from snapshot diffs
+ */
 export function useTransfersByWeek(weekId: string) {
   return useQuery({
     queryKey: [...transferKeys.all, 'week', weekId],
@@ -101,6 +69,10 @@ export function useTransfersByWeek(weekId: string) {
   });
 }
 
+/**
+ * Get all transfers for a season (from transfers table - audit purposes)
+ * @deprecated Transfers are now computed from snapshot diffs
+ */
 export function useTransfersBySeason(seasonId: string) {
   return useQuery({
     queryKey: [...transferKeys.all, 'season', seasonId],
@@ -108,4 +80,3 @@ export function useTransfersBySeason(seasonId: string) {
     enabled: !!seasonId,
   });
 }
-

@@ -76,3 +76,113 @@
   font-size: 2.5rem;
 }
 
+// Debug header for week/transfer window info
+.debugHeader {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: #f1f5f9;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  color: #475569;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+}
+
+.debugItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  strong {
+    color: #334155;
+  }
+}
+
+.debugOpen {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.debugClosed {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.debugBypass {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+// Admin controls for multi-team management
+.adminControls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-top: 0.75rem;
+  background: #fef3c7;
+  border: 1px dashed #d97706;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.adminLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #92400e;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.adminCreateButton {
+  padding: 0.5rem 1rem;
+  background: #d97706;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: #b45309;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.teamSelector {
+  flex: 1;
+  min-width: 0;
+}
+
+.teamSelectorSelect {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  border: 1px solid #d97706;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #1f2937;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: #b45309;
+    box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.2);
+  }
+}
+

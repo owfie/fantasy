@@ -19,10 +19,9 @@ interface PlayerCardProps {
   isOnTeam?: boolean;
   canAdd?: boolean;
   layoutId?: string;
-  isTransferLimitReached?: boolean;
 }
 
-export function PlayerCard({ player, onAdd, onSwap, isOnTeam, canAdd = true, layoutId, isTransferLimitReached = false }: PlayerCardProps) {
+export function PlayerCard({ player, onAdd, onSwap, isOnTeam, canAdd = true, layoutId }: PlayerCardProps) {
   const router = useRouter();
   const jerseyPath = getTeamJerseyPath(player.teamSlug || player.teamName);
   const displayName = formatPlayerName(player.first_name, player.last_name);
@@ -113,24 +112,13 @@ export function PlayerCard({ player, onAdd, onSwap, isOnTeam, canAdd = true, lay
             <button
               className={canAdd ? styles.addButton : styles.swapButton}
               onClick={() => {
-                // Guard against clicking when transfer limit is reached (even if disabled attribute doesn't work)
-                if (!canAdd && isTransferLimitReached) {
-                  return;
-                }
                 if (canAdd && onAdd) {
                   onAdd(player.id);
                 } else if (!canAdd && onSwap) {
                   onSwap(player.id);
                 }
               }}
-              disabled={!canAdd && isTransferLimitReached}
-              title={
-                !canAdd && isTransferLimitReached
-                  ? 'Transfer limit has been reached'
-                  : canAdd
-                  ? 'Add player'
-                  : 'Swap player'
-              }
+              title={canAdd ? 'Add player' : 'Swap player'}
             >
               {canAdd ? '+' : '↔'}
             </button>

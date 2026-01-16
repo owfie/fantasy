@@ -182,7 +182,7 @@ export function useCreateFantasyTeam() {
 export function useUpdateFantasyTeam() {
   const queryClient = useQueryClient();
 
-  return useMutation<TestActionResult, Error, { fantasyTeamId: string; updates: { name?: string } }>({
+  return useMutation<TestActionResult, Error, { fantasyTeamId: string; updates: { name?: string; emoji?: string } }>({
     mutationFn: ({ fantasyTeamId, updates }) => testUpdateFantasyTeam(fantasyTeamId, updates),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: fantasyTeamKeys.lists() });

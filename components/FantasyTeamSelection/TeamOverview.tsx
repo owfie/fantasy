@@ -23,7 +23,8 @@ interface TeamOverviewProps {
   transfersRemaining: number;
   playerCount: number;
   maxPlayers: number;
-  salary: number;
+  teamValue: number;
+  budget: number;
   salaryCap?: number;
   pitchPlayers: PitchPlayer[];
   draggedPlayerPosition?: FantasyPosition | null;
@@ -37,6 +38,7 @@ interface TeamOverviewProps {
   hasUnsavedChanges?: boolean;
   validationErrors?: string[];
   isTransferWindowOpen?: boolean;
+  isOverTransferLimit?: boolean;
 }
 
 function useCountdown(targetTimestamp: string | null) {
@@ -87,7 +89,8 @@ export const TeamOverview = memo(function TeamOverview({
   transfersRemaining,
   playerCount,
   maxPlayers,
-  salary,
+  teamValue,
+  budget,
   salaryCap = 550,
   pitchPlayers,
   draggedPlayerPosition,
@@ -101,6 +104,7 @@ export const TeamOverview = memo(function TeamOverview({
   hasUnsavedChanges = false,
   validationErrors = [],
   isTransferWindowOpen = true,
+  isOverTransferLimit = false,
 }: TeamOverviewProps) {
   const cutoffTimestamp = week?.transfer_cutoff_time || null;
   const timeLeft = useCountdown(cutoffTimestamp);
@@ -186,8 +190,12 @@ export const TeamOverview = memo(function TeamOverview({
               </div>
             </div>
             <div className={styles.stat}>
+              <div className={styles.statLabel}>Team Value</div>
+              <div className={styles.statValue}>{formatCurrency(teamValue)}</div>
+            </div>
+            <div className={styles.stat}>
               <div className={styles.statLabel}>Budget</div>
-              <div className={`${styles.statValue} ${salary < 0 ? styles.invalid : ''}`}>{formatCurrency(salary)}</div>
+              <div className={`${styles.statValue} ${budget < 0 ? styles.invalid : ''}`}>{formatCurrency(budget)}</div>
             </div>
             <div className={styles.stat}>
               <div className={styles.statLabel}>Transfers</div>
@@ -234,8 +242,9 @@ export const TeamOverview = memo(function TeamOverview({
           {onSave && (
             <button
               onClick={onSave}
-              disabled={!hasUnsavedChanges || isSaving || playerCount !== maxPlayers || salary < 0}
+              disabled={!hasUnsavedChanges || isSaving || playerCount !== maxPlayers || budget < 0 || isOverTransferLimit}
               className={styles.saveButton}
+              title={isOverTransferLimit ? 'Remove some transfers before saving (max 2)' : undefined}
             >
               {isSaving ? 'Saving...' : 'Save'}
             </button>

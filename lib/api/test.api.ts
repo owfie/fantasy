@@ -1124,7 +1124,7 @@ export async function testCreateFantasyTeamEmpty(
 
 export async function testUpdateFantasyTeam(
   fantasyTeamId: string,
-  updates: { name?: string }
+  updates: { name?: string; emoji?: string }
 ) {
   const uow = await getUnitOfWork();
   

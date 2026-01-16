@@ -19,10 +19,12 @@ import FantasyTeamsCrudClient from './fantasy-teams-crud-client';
 import UsersListClient from './users-list-client';
 import TransferWindowsClient from './transfer-windows-client';
 import FantasyAnalyticsTable from './fantasy-analytics-table';
+import PlayerPricesClient from './player-prices-client';
+import FantasySnapshotsClient from './fantasy-snapshots-client';
 import { Card } from '@/components/Card';
 import styles from './admin.module.scss';
 
-type Section = 'statistics' | 'data' | 'fantasy' | 'analytics' | 'transfers' | 'tests' | 'users';
+type Section = 'statistics' | 'data' | 'fantasy' | 'analytics' | 'prices' | 'transfers' | 'snapshots' | 'tests' | 'users';
 type DataTab = 'seasons' | 'teams' | 'players';
 
 const NAV_ITEMS: { id: Section; label: string; icon: string }[] = [
@@ -30,7 +32,9 @@ const NAV_ITEMS: { id: Section; label: string; icon: string }[] = [
   { id: 'data', label: 'Data Management', icon: '🗃️' },
   { id: 'fantasy', label: 'Fantasy', icon: '⚽' },
   { id: 'analytics', label: 'Fantasy Analytics', icon: '📈' },
+  { id: 'prices', label: 'Player Prices', icon: '💰' },
   { id: 'transfers', label: 'Transfer Windows', icon: '🔄' },
+  { id: 'snapshots', label: 'Team Snapshots', icon: '📸' },
   { id: 'tests', label: 'Tests', icon: '🧪' },
   { id: 'users', label: 'Users', icon: '👤' },
 ];
@@ -205,6 +209,16 @@ export default function AdminPage() {
           </>
         )}
 
+        {/* PLAYER PRICES SECTION */}
+        {activeSection === 'prices' && (
+          <>
+            <div className={styles.contentHeader}>
+              <h2>Player Prices</h2>
+            </div>
+            <PlayerPricesClient seasonId={selectedSeasonId} />
+          </>
+        )}
+
         {/* TRANSFER WINDOWS SECTION */}
         {activeSection === 'transfers' && (
           <>
@@ -212,6 +226,16 @@ export default function AdminPage() {
               <h2>Transfer Windows</h2>
             </div>
             <TransferWindowsClient seasonId={selectedSeasonId} />
+          </>
+        )}
+
+        {/* TEAM SNAPSHOTS SECTION */}
+        {activeSection === 'snapshots' && (
+          <>
+            <div className={styles.contentHeader}>
+              <h2>Team Snapshots</h2>
+            </div>
+            <FantasySnapshotsClient seasonId={selectedSeasonId} />
           </>
         )}
 

@@ -329,11 +329,13 @@ export async function createTestSnapshot(
 ): Promise<string> {
   const captainPlayer = players.find(p => p.isCaptain);
 
+  const totalValue = players.reduce((sum, p) => sum + p.value, 0);
   const snapshot = await uow.fantasyTeamSnapshots.create({
     fantasy_team_id: fantasyTeamId,
     week_id: weekId,
     captain_player_id: captainPlayer?.playerId,
-    total_value: players.reduce((sum, p) => sum + p.value, 0),
+    total_value: totalValue,
+    budget_remaining: 550 - totalValue, // Calculate budget as SALARY_CAP - team value
   });
   ids.snapshotIds.push(snapshot.id);
 

@@ -78,6 +78,7 @@ export interface FantasyTeam extends BaseEntity {
   owner_id: string;
   season_id: string;
   name: string;
+  emoji?: string; // Optional - defaults to '🏆' in database
   original_value: number;
   total_value: number;
 }
@@ -143,6 +144,7 @@ export interface FantasyTeamSnapshot extends BaseEntity {
   week_id: string;
   captain_player_id?: string;
   total_value: number;
+  budget_remaining: number;
   snapshot_created_at: string;
 }
 

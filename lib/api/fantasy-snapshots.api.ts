@@ -155,3 +155,99 @@ export async function createSnapshotFromCurrentTeam(
   });
 }
 
+/**
+ * Snapshot with full details for admin viewing
+ */
+export interface SnapshotWithDetails {
+  snapshot: FantasyTeamSnapshot;
+  players: Array<{
+    player_id: string;
+    position: FantasyPosition;
+    is_benched: boolean;
+    is_captain: boolean;
+    player_value_at_snapshot: number;
+    player?: {
+      first_name: string;
+      last_name: string;
+    };
+  }>;
+  week?: {
+    id: string;
+    week_number: number;
+    name?: string;
+  };
+}
+
+/**
+ * Get all snapshots with full details for a fantasy team
+ * Used by admin panel to view team history
+ */
+export async function getAllSnapshotsWithDetailsForTeam(
+  fantasyTeamId: string
+): Promise<SnapshotWithDetails[]> {
+  if (!fantasyTeamId) {
+    return [];
+  }
+
+  const uow = await getUnitOfWork();
+  return uow.execute(async () => {
+    // Get all snapshots for the team
+    const snapshots = await uow.fantasyTeamSnapshots.findByFantasyTeam(fantasyTeamId);
+    
+    // Get all weeks for reference
+    const fantasyTeam = await uow.fantasyTeams.findById(fantasyTeamId);
+    const weeks = fantasyTeam ? await uow.weeks.findBySeason(fantasyTeam.season_id) : [];
+    const weekMap = new Map(weeks.map(w => [w.id, w]));
+    
+    // Get all players for reference
+    const allPlayerIds = new Set<string>();
+    const snapshotPlayersMap = new Map<string, FantasyTeamSnapshotPlayer[]>();
+    
+    for (const snapshot of snapshots) {
+      const snapshotPlayers = await uow.fantasyTeamSnapshotPlayers.findBySnapshot(snapshot.id);
+      snapshotPlayersMap.set(snapshot.id, snapshotPlayers);
+      snapshotPlayers.forEach(sp => allPlayerIds.add(sp.player_id));
+    }
+    
+    // Fetch all players at once
+    const players = await Promise.all(
+      Array.from(allPlayerIds).map(id => uow.players.findById(id))
+    );
+    const playerMap = new Map(players.filter(Boolean).map(p => [p!.id, p!]));
+    
+    // Build the result
+    const result: SnapshotWithDetails[] = snapshots.map(snapshot => {
+      const snapshotPlayers = snapshotPlayersMap.get(snapshot.id) || [];
+      const week = weekMap.get(snapshot.week_id);
+      
+      return {
+        snapshot,
+        players: snapshotPlayers.map(sp => {
+          const player = playerMap.get(sp.player_id);
+          return {
+            player_id: sp.player_id,
+            position: sp.position,
+            is_benched: sp.is_benched,
+            is_captain: sp.is_captain,
+            player_value_at_snapshot: sp.player_value_at_snapshot,
+            player: player ? {
+              first_name: player.first_name,
+              last_name: player.last_name,
+            } : undefined,
+          };
+        }),
+        week: week ? {
+          id: week.id,
+          week_number: week.week_number,
+          name: week.name || undefined,
+        } : undefined,
+      };
+    });
+    
+    // Sort by week number (most recent first)
+    result.sort((a, b) => (b.week?.week_number || 0) - (a.week?.week_number || 0));
+    
+    return result;
+  });
+}
+

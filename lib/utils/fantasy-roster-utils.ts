@@ -144,14 +144,14 @@ export function isPositionFull(
 }
 
 /**
- * Create a map of player IDs to player name data
+ * Create a map of player IDs to player name and value data
  */
 export function createPlayersMap(
   players: PlayerWithValue[]
-): Map<string, { firstName: string; lastName: string }> {
-  const map = new Map<string, { firstName: string; lastName: string }>();
+): Map<string, { firstName: string; lastName: string; currentValue: number }> {
+  const map = new Map<string, { firstName: string; lastName: string; currentValue: number }>();
   players.forEach(p => {
-    map.set(p.id, { firstName: p.first_name, lastName: p.last_name });
+    map.set(p.id, { firstName: p.first_name, lastName: p.last_name, currentValue: p.currentValue });
   });
   return map;
 }

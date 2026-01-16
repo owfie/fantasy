@@ -1,30 +1,19 @@
 /**
  * Transfer Service
- * Handles transfer validation, execution, and limits
+ * Handles transfer window validation
+ *
+ * Note: Transfers are now computed from snapshot diffs, not stored in the transfers table.
+ * The actual transfer validation (count limits, budget) happens at snapshot save time
+ * in FantasyTeamSnapshotService.
  */
 
 import { UnitOfWork } from '../unit-of-work';
-import { InsertTransfer, FantasyPosition, Player } from '../types';
-import { FantasyTeamSnapshotService } from './fantasy-team-snapshot.service';
-import { ValueTrackingService } from './value-tracking.service';
 import { canBypassTransferWindow } from '@/lib/config/transfer-whitelist';
-
-const MAX_TRANSFERS_PER_WEEK = 2;
-const SALARY_CAP = 550;
-
-export interface TransferValidationResult {
-  valid: boolean;
-  errors: string[];
-}
+import { computeTransfersFromIds } from '@/lib/utils/transfer-computation';
+import { MAX_TRANSFERS_PER_WEEK } from './budget.service';
 
 export class TransferService {
-  private snapshotService: FantasyTeamSnapshotService;
-  private valueTracking: ValueTrackingService;
-
-  constructor(private uow: UnitOfWork) {
-    this.snapshotService = new FantasyTeamSnapshotService(uow);
-    this.valueTracking = new ValueTrackingService(uow);
-  }
+  constructor(private uow: UnitOfWork) {}
 
   /**
    * Check if transfers can be made for a week
@@ -32,7 +21,10 @@ export class TransferService {
    * - Must be before cutoff time (if set)
    * - Users on whitelist can bypass these restrictions
    */
-  async canMakeTransfer(fantasyTeamId: string, weekId: string, userId?: string): Promise<{ canTransfer: boolean; reason?: string }> {
+  async canMakeTransfer(
+    weekId: string,
+    userId?: string
+  ): Promise<{ canTransfer: boolean; reason?: string }> {
     // Check if user can bypass transfer window restrictions
     if (canBypassTransferWindow(userId)) {
       return { canTransfer: true };
@@ -73,291 +65,67 @@ export class TransferService {
 
   /**
    * Get remaining transfers for a week
-   * Returns 0 for first week (no transfers allowed, only free roster selection),
-   * otherwise returns remaining count
+   * Computed by comparing current week snapshot to previous week snapshot
+   *
+   * @param fantasyTeamId - Fantasy team ID
+   * @param weekId - Current week ID
+   * @returns Remaining transfer count (or Infinity for first week)
    */
   async getRemainingTransfers(fantasyTeamId: string, weekId: string): Promise<number> {
     const isFirst = await this.isFirstWeek(fantasyTeamId, weekId);
     if (isFirst) {
-      return 0; // First week has 0 transfers - only free roster selection
-    }
-    const count = await this.uow.transfers.countByFantasyTeamAndWeek(fantasyTeamId, weekId);
-    return Math.max(0, MAX_TRANSFERS_PER_WEEK - count);
-  }
-
-  /**
-   * Validate a transfer
-   */
-  async validateTransfer(
-    fantasyTeamId: string,
-    playerInId: string,
-    playerOutId: string,
-    weekId: string,
-    userId?: string
-  ): Promise<TransferValidationResult> {
-    const errors: string[] = [];
-
-    // Check if can make transfer
-    const canTransfer = await this.canMakeTransfer(fantasyTeamId, weekId, userId);
-    if (!canTransfer.canTransfer) {
-      errors.push(canTransfer.reason || 'Cannot make transfer');
+      return Infinity; // First week has unlimited transfers (building initial roster)
     }
 
-    // Check if this is first week - transfers are not allowed in first week
-    const isFirst = await this.isFirstWeek(fantasyTeamId, weekId);
-    if (isFirst) {
-      errors.push('Transfers are not allowed in the first week. Please use the free roster selection instead.');
-    } else {
-      // Check transfer limit for subsequent weeks
-      const remaining = await this.getRemainingTransfers(fantasyTeamId, weekId);
-      if (remaining <= 0) {
-        errors.push(`Maximum of ${MAX_TRANSFERS_PER_WEEK} transfers allowed per week`);
-      }
-    }
-
-    // Get fantasy team
+    // Get the fantasy team's season to find weeks
     const fantasyTeam = await this.uow.fantasyTeams.findById(fantasyTeamId);
     if (!fantasyTeam) {
-      errors.push('Fantasy team not found');
-      return { valid: false, errors };
+      return 0;
     }
 
-    // Get week
-    const week = await this.uow.weeks.findById(weekId);
-    if (!week) {
-      errors.push('Week not found');
-      return { valid: false, errors };
+    // Get all weeks to find previous week
+    const allWeeks = await this.uow.weeks.findBySeason(fantasyTeam.season_id);
+    const sortedWeeks = allWeeks.sort((a, b) => a.week_number - b.week_number);
+    const currentWeekIndex = sortedWeeks.findIndex(w => w.id === weekId);
+
+    if (currentWeekIndex <= 0) {
+      return MAX_TRANSFERS_PER_WEEK; // Can't determine previous week, assume max allowed
     }
 
-    // Get current snapshot or team players
-    const currentSnapshot = await this.snapshotService.getSnapshotForWeek(fantasyTeamId, weekId);
-    let currentPlayers: Array<{ playerId: string; position: FantasyPosition; isBenched: boolean }>;
+    const previousWeek = sortedWeeks[currentWeekIndex - 1];
 
+    // Get current and previous week snapshots
+    const currentSnapshot = await this.uow.fantasyTeamSnapshots.findByFantasyTeamAndWeek(
+      fantasyTeamId,
+      weekId
+    );
+    const previousSnapshot = await this.uow.fantasyTeamSnapshots.findByFantasyTeamAndWeek(
+      fantasyTeamId,
+      previousWeek.id
+    );
+
+    if (!previousSnapshot) {
+      return MAX_TRANSFERS_PER_WEEK; // No previous snapshot, assume max allowed
+    }
+
+    // Get player IDs from snapshots
+    let currentPlayerIds: string[];
     if (currentSnapshot) {
-      // Use snapshot
       const snapshotPlayers = await this.uow.fantasyTeamSnapshotPlayers.findBySnapshot(currentSnapshot.id);
-      currentPlayers = snapshotPlayers.map(sp => ({
-        playerId: sp.player_id,
-        position: sp.position,
-        isBenched: sp.is_benched,
-      }));
+      currentPlayerIds = snapshotPlayers.map(p => p.player_id);
     } else {
-      // Use current team players
       const teamPlayers = await this.uow.fantasyTeamPlayers.findByFantasyTeam(fantasyTeamId);
-      const playerDetails = await Promise.all(
-        teamPlayers.map(tp => this.uow.players.findById(tp.player_id))
-      );
-
-      currentPlayers = teamPlayers.map((tp, index) => {
-        const player = playerDetails[index];
-        if (!player || !player.position) {
-          throw new Error(`Player ${tp.player_id} does not have a position set`);
-        }
-        return {
-          playerId: tp.player_id,
-          position: player.position,
-          isBenched: tp.is_reserve || !tp.is_active,
-        };
-      });
+      currentPlayerIds = teamPlayers.map(p => p.player_id);
     }
 
-    // Check player out is on team
-    const playerOut = currentPlayers.find(p => p.playerId === playerOutId);
-    if (!playerOut) {
-      errors.push('Player to remove is not on your team');
-    }
+    const previousPlayers = await this.uow.fantasyTeamSnapshotPlayers.findBySnapshot(
+      previousSnapshot.id
+    );
+    const previousPlayerIds = previousPlayers.map(p => p.player_id);
 
-    // Check player in is not already on team
-    const playerInExists = currentPlayers.find(p => p.playerId === playerInId);
-    if (playerInExists) {
-      errors.push('Player to add is already on your team');
-    }
+    // Compute transfers from snapshot diff (count only - validation is done at save time)
+    const transfers = computeTransfersFromIds(currentPlayerIds, previousPlayerIds);
 
-    // Get player details
-    const playerIn = await this.uow.players.findById(playerInId);
-    const playerOutDetails = await this.uow.players.findById(playerOutId);
-
-    if (!playerIn) {
-      errors.push('Player to add not found');
-    }
-    if (!playerOutDetails) {
-      errors.push('Player to remove not found');
-    }
-
-    if (playerIn && playerOutDetails && playerOut) {
-      // Check position match (must replace with same position)
-      if (playerIn.position !== playerOut.position) {
-        errors.push(`Cannot replace ${playerOut.position} with ${playerIn.position}. Positions must match.`);
-      }
-
-      // Check salary cap (only enforce after first week)
-      if (!isFirst) {
-        const playerInValue = await this.valueTracking.getPlayerValueForWeek(
-          playerInId,
-          week.week_number,
-          fantasyTeam.season_id
-        );
-        const playerOutValue = await this.valueTracking.getPlayerValueForWeek(
-          playerOutId,
-          week.week_number,
-          fantasyTeam.season_id
-        );
-
-        // Calculate new total value and budget
-        const currentValue = currentSnapshot?.total_value || fantasyTeam.total_value;
-        const newValue = currentValue - playerOutValue + playerInValue;
-        const budget = SALARY_CAP - newValue;
-
-        if (budget < 0) {
-          errors.push(`Transfer would exceed budget. Budget remaining: ${budget.toFixed(0)}k / ${SALARY_CAP}k cap`);
-        }
-      }
-    }
-
-    return {
-      valid: errors.length === 0,
-      errors,
-    };
-  }
-
-  /**
-   * Execute a transfer
-   * Creates a new snapshot with the transfer applied
-   * Note: Transfers are not allowed in the first week - use snapshot creation directly instead
-   */
-  async executeTransfer(
-    fantasyTeamId: string,
-    playerInId: string,
-    playerOutId: string,
-    weekId: string,
-    userId?: string
-  ): Promise<{ transfer: InsertTransfer; snapshot: any }> {
-    return this.uow.execute(async (uow) => {
-      // Check if first week - transfers should not be executed in first week
-      const isFirst = await this.isFirstWeek(fantasyTeamId, weekId);
-      if (isFirst) {
-        throw new Error('Transfers cannot be executed in the first week. Use free roster selection instead.');
-      }
-
-      // Validate transfer
-      const validation = await this.validateTransfer(fantasyTeamId, playerInId, playerOutId, weekId, userId);
-      if (!validation.valid) {
-        throw new Error(`Transfer validation failed: ${validation.errors.join(', ')}`);
-      }
-
-      // Get current snapshot or team players
-      const week = await uow.weeks.findById(weekId);
-      if (!week) {
-        throw new Error('Week not found');
-      }
-
-      const fantasyTeam = await uow.fantasyTeams.findById(fantasyTeamId);
-      if (!fantasyTeam) {
-        throw new Error('Fantasy team not found');
-      }
-
-      const currentSnapshot = await this.snapshotService.getSnapshotForWeek(fantasyTeamId, weekId);
-      let players: Array<{
-        playerId: string;
-        position: FantasyPosition;
-        isBenched: boolean;
-        isCaptain: boolean;
-      }>;
-
-      if (currentSnapshot) {
-        // Use snapshot
-        const snapshotPlayers = await uow.fantasyTeamSnapshotPlayers.findBySnapshot(currentSnapshot.id);
-        players = snapshotPlayers.map(sp => ({
-          playerId: sp.player_id,
-          position: sp.position,
-          isBenched: sp.is_benched,
-          isCaptain: sp.is_captain,
-        }));
-      } else {
-        // Use current team players
-        const teamPlayers = await uow.fantasyTeamPlayers.findByFantasyTeam(fantasyTeamId);
-        const playerDetails = await Promise.all(
-          teamPlayers.map(tp => uow.players.findById(tp.player_id))
-        );
-
-        players = teamPlayers.map((tp, index) => {
-          const player = playerDetails[index];
-          if (!player || !player.position) {
-            throw new Error(`Player ${tp.player_id} does not have a position set`);
-          }
-          return {
-            playerId: tp.player_id,
-            position: player.position,
-            isBenched: tp.is_reserve || !tp.is_active,
-            isCaptain: tp.is_captain,
-          };
-        });
-      }
-
-      // Apply transfer: replace playerOut with playerIn
-      const playerOutIndex = players.findIndex(p => p.playerId === playerOutId);
-      if (playerOutIndex === -1) {
-        throw new Error('Player to remove not found in team');
-      }
-
-      const playerIn = await uow.players.findById(playerInId);
-      if (!playerIn || !playerIn.position) {
-        throw new Error('Player to add does not have a position set');
-      }
-
-      // Replace player, maintaining position and bench status
-      const wasCaptain = players[playerOutIndex].isCaptain;
-      players[playerOutIndex] = {
-        playerId: playerInId,
-        position: playerIn.position,
-        isBenched: players[playerOutIndex].isBenched,
-        isCaptain: wasCaptain, // Keep captain status if it was the captain
-      };
-
-      // Calculate transfer value
-      const playerInValue = await this.valueTracking.getPlayerValueForWeek(
-        playerInId,
-        week.week_number,
-        fantasyTeam.season_id
-      );
-      const playerOutValue = await this.valueTracking.getPlayerValueForWeek(
-        playerOutId,
-        week.week_number,
-        fantasyTeam.season_id
-      );
-      const netTransferValue = playerInValue - playerOutValue;
-
-      // Create or update snapshot with new lineup
-      let snapshot;
-      if (currentSnapshot) {
-        // Delete old snapshot players and recreate
-        const oldPlayers = await uow.fantasyTeamSnapshotPlayers.findBySnapshot(currentSnapshot.id);
-        for (const oldPlayer of oldPlayers) {
-          await uow.fantasyTeamSnapshotPlayers.delete(oldPlayer.id);
-        }
-        await uow.fantasyTeamSnapshots.delete(currentSnapshot.id);
-      }
-
-      // Create new snapshot
-      snapshot = await this.snapshotService.createSnapshotForWeek(fantasyTeamId, weekId, players);
-
-      // Create transfer record
-      const transfer: InsertTransfer = {
-        fantasy_team_id: fantasyTeamId,
-        player_in_id: playerInId,
-        player_out_id: playerOutId,
-        week_id: weekId,
-        round: week.week_number, // Keep for backward compatibility
-        net_transfer_value: netTransferValue,
-      };
-
-      const createdTransfer = await uow.transfers.create(transfer);
-
-      // Update current team value
-      await this.valueTracking.updateTeamValue(fantasyTeamId);
-
-      return { transfer: createdTransfer, snapshot };
-    });
+    return Math.max(0, MAX_TRANSFERS_PER_WEEK - transfers.length);
   }
 }
-

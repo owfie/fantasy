@@ -1,5 +1,8 @@
 /**
  * Transfers API - Server Actions
+ *
+ * Note: Transfers are now computed from snapshot diffs, not stored in the transfers table.
+ * The transfer table functions are kept for backward compatibility/audit purposes.
  */
 
 'use server';
@@ -21,20 +24,19 @@ async function getCurrentUserId(): Promise<string | undefined> {
  * Check if transfers can be made for a week
  */
 export async function canMakeTransfer(
-  fantasyTeamId: string,
   weekId: string
 ): Promise<{ canTransfer: boolean; reason?: string }> {
   const uow = await getUnitOfWork();
   const userId = await getCurrentUserId();
   return uow.execute(async () => {
     const service = new TransferService(uow);
-    return service.canMakeTransfer(fantasyTeamId, weekId, userId);
+    return service.canMakeTransfer(weekId, userId);
   });
 }
 
 /**
  * Get remaining transfers for a week
- * Returns 0 for first week (no transfers allowed, only free roster selection),
+ * Returns Infinity for first week (unlimited transfers for building initial roster),
  * otherwise returns remaining count (max 2 per week)
  */
 export async function getRemainingTransfers(
@@ -63,47 +65,8 @@ export async function isFirstWeek(
 }
 
 /**
- * Execute a transfer
- */
-export async function executeTransfer(
-  fantasyTeamId: string,
-  playerInId: string,
-  playerOutId: string,
-  weekId: string
-): Promise<{ success: boolean; message?: string; error?: string }> {
-  const uow = await getUnitOfWork();
-  const userId = await getCurrentUserId();
-  try {
-    const service = new TransferService(uow);
-    await service.executeTransfer(fantasyTeamId, playerInId, playerOutId, weekId, userId);
-    return { success: true, message: 'Transfer executed successfully' };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
-}
-
-/**
- * Validate a transfer without executing it
- */
-export async function validateTransfer(
-  fantasyTeamId: string,
-  playerInId: string,
-  playerOutId: string,
-  weekId: string
-): Promise<{ valid: boolean; errors: string[] }> {
-  const uow = await getUnitOfWork();
-  const userId = await getCurrentUserId();
-  return uow.execute(async () => {
-    const service = new TransferService(uow);
-    return service.validateTransfer(fantasyTeamId, playerInId, playerOutId, weekId, userId);
-  });
-}
-
-/**
- * Get all transfers for a week
+ * Get all transfers for a week (from transfers table - audit purposes)
+ * @deprecated Transfers are now computed from snapshot diffs
  */
 export async function getTransfersByWeek(weekId: string) {
   const uow = await getUnitOfWork();
@@ -113,7 +76,8 @@ export async function getTransfersByWeek(weekId: string) {
 }
 
 /**
- * Get all transfers for a season (across all weeks)
+ * Get all transfers for a season (from transfers table - audit purposes)
+ * @deprecated Transfers are now computed from snapshot diffs
  */
 export async function getTransfersBySeason(seasonId: string) {
   const uow = await getUnitOfWork();
@@ -121,7 +85,7 @@ export async function getTransfersBySeason(seasonId: string) {
     // Get all weeks for the season
     const weeks = await uow.weeks.findBySeason(seasonId);
     const weekIds = weeks.map(w => w.id);
-    
+
     if (weekIds.length === 0) {
       return [];
     }
@@ -140,4 +104,3 @@ export async function getTransfersBySeason(seasonId: string) {
     return (data || []) as any[];
   });
 }
-

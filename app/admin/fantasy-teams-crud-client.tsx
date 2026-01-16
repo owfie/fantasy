@@ -659,7 +659,7 @@ function FantasyTeamScoresTable({ fantasyTeams, seasonId }: { fantasyTeams: Fant
                 return (
                   <tr key={team.id} style={{ borderBottom: '1px solid #dee2e6' }}>
                     <td style={{ padding: '0.75rem', position: 'sticky', left: 0, background: 'white', fontWeight: '500' }}>
-                      {team.name}
+                      {team.name} by {team.user_profiles?.display_name}
                     </td>
                     {sortedWeeks.map((week) => {
                       const weekPoints = teamScores.get(week.id) || 0;

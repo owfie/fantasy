@@ -35,6 +35,24 @@ export class ValueChangesRepository extends BaseRepository<ValueChange, InsertVa
     return this.findAll({ round } as Partial<ValueChange>);
   }
 
+  async findByPlayerAndRound(playerId: string, round: number): Promise<ValueChange | null> {
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select('*')
+      .eq('player_id', playerId)
+      .eq('round', round)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null;
+      }
+      throw new Error(`Failed to find value change: ${error.message}`);
+    }
+
+    return data as ValueChange;
+  }
+
   async findLatestByPlayer(playerId: string): Promise<ValueChange | null> {
     const { data, error } = await this.client
       .from(this.tableName)

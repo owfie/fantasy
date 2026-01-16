@@ -13,9 +13,10 @@ import {
   getSnapshotWithPlayersForWeek,
   createSnapshot,
   createSnapshotFromCurrentTeam,
+  getAllSnapshotsWithDetailsForTeam,
 } from '@/lib/api/fantasy-snapshots.api';
 import { FantasyTeamSnapshot, FantasyPosition } from '@/lib/domain/types';
-import { SnapshotWithPlayers } from '@/lib/api/fantasy-snapshots.api';
+import { SnapshotWithPlayers, SnapshotWithDetails } from '@/lib/api/fantasy-snapshots.api';
 
 export const snapshotKeys = {
   all: ['snapshots'] as const,
@@ -137,6 +138,17 @@ export function useCreateSnapshotFromCurrentTeam() {
     onError: (error: Error) => {
       toast.error(`Failed to create snapshot: ${error.message}`);
     },
+  });
+}
+
+/**
+ * Get all snapshots with full details for a team (admin use)
+ */
+export function useAllSnapshotsWithDetailsForTeam(fantasyTeamId: string) {
+  return useQuery({
+    queryKey: [...snapshotKeys.byTeam(fantasyTeamId), 'details'],
+    queryFn: () => getAllSnapshotsWithDetailsForTeam(fantasyTeamId),
+    enabled: !!fantasyTeamId,
   });
 }
 

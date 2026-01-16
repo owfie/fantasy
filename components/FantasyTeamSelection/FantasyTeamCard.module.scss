@@ -10,42 +10,35 @@
 
 .emojiSection {
   flex-shrink: 0;
+  position: relative;
 }
 
 .emojiDisplay {
   font-size: 3rem;
   line-height: 1;
-  cursor: pointer;
   padding: 0.25rem;
   border-radius: 0.5rem;
   transition: background-color 0.15s ease;
+  user-select: none;
 
-  &:hover {
-    background-color: #f9fafb;
+  &.editable {
+    cursor: pointer;
+
+    &:hover {
+      background-color: #f9fafb;
+    }
   }
 }
 
-.emojiEdit {
-  display: flex;
-  align-items: center;
-}
-
-.emojiInput {
-  font-size: 3rem;
-  line-height: 1;
-  width: 4rem;
-  padding: 0.25rem;
-  border: 2px solid #3b82f6;
-  border-radius: 0.5rem;
-  text-align: center;
-  background-color: #fff;
-  outline: none;
-  transition: border-color 0.15s ease;
-
-  &:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
+.emojiPickerWrapper {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  margin-top: 0.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
 }
 
 .infoSection {
@@ -107,7 +100,7 @@
 
 // Dark mode support
 :global([data-theme="dark"]) {
-  .emojiDisplay:hover {
+  .emojiDisplay.editable:hover {
     background-color: #1f2937;
   }
 
@@ -130,17 +123,12 @@
     }
   }
 
-  .emojiInput {
-    background-color: #1f2937;
-    border-color: #3b82f6;
-
-    &:focus {
-      border-color: #2563eb;
-    }
-  }
-
   .username {
     color: #9ca3af;
+  }
+
+  .emojiPickerWrapper {
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 }
 

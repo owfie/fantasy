@@ -18,7 +18,6 @@ interface PlayerListProps {
   onSearchChange?: (query: string) => void;
   isLoading?: boolean;
   isPositionFull?: (position: FantasyPosition) => boolean;
-  isTransferLimitReached?: boolean;
 }
 
 const ALL_POSITIONS: FantasyPosition[] = ['handler', 'cutter', 'receiver'];
@@ -33,7 +32,6 @@ export const PlayerList = memo(function PlayerList({
   onSearchChange,
   isLoading = false,
   isPositionFull,
-  isTransferLimitReached = false,
 }: PlayerListProps) {
   type SortOption = 'price-high' | 'price-low' | 'draft-order' | 'points' | 'name' | 'team';
   const [sortBy, setSortBy] = useState<SortOption>('price-high');
@@ -193,7 +191,6 @@ export const PlayerList = memo(function PlayerList({
                 canAdd={canAdd}
                 isOnTeam={teamPlayerIds.has(player.id)}
                 layoutId={`player-${player.id}`}
-                isTransferLimitReached={isTransferLimitReached}
               />
             );
           })

@@ -12,6 +12,8 @@ import {
   FantasyTeamSnapshotPlayer,
 } from '../types';
 import { ValueTrackingService } from './value-tracking.service';
+import { BudgetService, SALARY_CAP, MAX_TRANSFERS_PER_WEEK } from './budget.service';
+import { computeTransfersFromSnapshots, isWithinTransferLimit } from '../../utils/transfer-computation';
 
 export interface LineupValidationResult {
   valid: boolean;
@@ -26,9 +28,11 @@ export interface LineupCounts {
 
 export class FantasyTeamSnapshotService {
   private valueTracking: ValueTrackingService;
+  private budgetService: BudgetService;
 
   constructor(private uow: UnitOfWork) {
     this.valueTracking = new ValueTrackingService(uow);
+    this.budgetService = new BudgetService(uow);
   }
 
   /**
@@ -206,6 +210,14 @@ export class FantasyTeamSnapshotService {
   /**
    * Create a snapshot for a specific week from the current fantasy team state
    * This captures the immutable state of the team at that point in time
+   *
+   * Budget Rules:
+   * - Week 1: Budget = SALARY_CAP - sum of player values at current prices
+   * - Week 2+: Budget = previous_budget + transfer_delta (sell - buy)
+   *
+   * Transfer Rules:
+   * - Week 1: Unlimited transfers (building initial roster)
+   * - Week 2+: Maximum MAX_TRANSFERS_PER_WEEK transfers
    */
   async createSnapshotForWeek(
     fantasyTeamId: string,
@@ -228,9 +240,6 @@ export class FantasyTeamSnapshotService {
         throw new Error(`Invalid lineup: ${validation.errors.join(', ')}`);
       }
 
-      // Check for existing snapshot - if exists, we'll delete it first (handled by API)
-      // This method creates a new snapshot, the API layer handles updates
-
       // Get week and season info
       const week = await uow.weeks.findById(weekId);
       if (!week) {
@@ -242,12 +251,14 @@ export class FantasyTeamSnapshotService {
         throw new Error('Fantasy team not found');
       }
 
+      const isFirstWeek = week.week_number === 1;
+
       // Find captain - for partial teams, allow no captain (will be set later)
       const captain = players.find(p => p.isCaptain);
       if (!captain && !allowPartial) {
         throw new Error('Must have exactly one captain');
       }
-      
+
       // For partial teams without a captain, use the first player as a temporary captain
       const captainPlayer = captain || players[0];
       if (!captainPlayer) {
@@ -265,12 +276,78 @@ export class FantasyTeamSnapshotService {
       // Calculate total value
       const totalValue = Array.from(playerValues.values()).reduce((sum, value) => sum + value, 0);
 
-      // Create snapshot
+      // Get previous week snapshot for transfer computation and budget calculation
+      let budgetRemaining: number;
+
+      if (isFirstWeek) {
+        // Week 1: Budget = SALARY_CAP - team value
+        budgetRemaining = SALARY_CAP - totalValue;
+      } else {
+        // Week 2+: Get previous week snapshot for budget and transfer validation
+        const allWeeks = await uow.weeks.findBySeason(fantasyTeam.season_id);
+        const sortedWeeks = allWeeks.sort((a, b) => a.week_number - b.week_number);
+        const currentWeekIndex = sortedWeeks.findIndex(w => w.id === weekId);
+
+        if (currentWeekIndex <= 0) {
+          throw new Error('Cannot find previous week for budget calculation');
+        }
+
+        const previousWeek = sortedWeeks[currentWeekIndex - 1];
+        const previousSnapshot = await uow.fantasyTeamSnapshots.findByFantasyTeamAndWeek(
+          fantasyTeamId,
+          previousWeek.id
+        );
+
+        if (!previousSnapshot) {
+          throw new Error('No previous week snapshot found - cannot calculate budget');
+        }
+
+        // Get previous week's players for transfer computation (with positions)
+        const previousSnapshotPlayers = await uow.fantasyTeamSnapshotPlayers.findBySnapshot(previousSnapshot.id);
+        const previousPlayersWithPosition = previousSnapshotPlayers.map(p => ({
+          playerId: p.player_id,
+          position: p.position,
+        }));
+
+        // Current players with positions
+        const currentPlayersWithPosition = players.map(p => ({
+          playerId: p.playerId,
+          position: p.position,
+        }));
+
+        // Compute transfers (diff between current and previous rosters, paired by position)
+        const transfers = computeTransfersFromSnapshots(currentPlayersWithPosition, previousPlayersWithPosition);
+
+        // Validate transfer count
+        if (!isWithinTransferLimit(transfers.length, isFirstWeek, MAX_TRANSFERS_PER_WEEK)) {
+          throw new Error(
+            `Exceeded transfer limit: ${transfers.length} transfers, maximum ${MAX_TRANSFERS_PER_WEEK} allowed per week`
+          );
+        }
+
+        // Calculate budget after transfers
+        const budgetResult = await this.budgetService.calculateBudgetAfterTransfers(
+          previousSnapshot.budget_remaining,
+          transfers.map(t => ({ playerInId: t.playerInId, playerOutId: t.playerOutId })),
+          week.week_number,
+          fantasyTeam.season_id
+        );
+
+        budgetRemaining = budgetResult.budget;
+      }
+
+      // Validate budget is non-negative
+      if (!this.budgetService.validateBudget(budgetRemaining)) {
+        throw new Error(`Budget exceeded by $${Math.abs(budgetRemaining).toFixed(0)}`);
+      }
+
+      // Create snapshot with budget
       const snapshot: InsertFantasyTeamSnapshot = {
         fantasy_team_id: fantasyTeamId,
         week_id: weekId,
         captain_player_id: captainPlayer.playerId,
         total_value: totalValue,
+        budget_remaining: budgetRemaining,
       };
 
       const createdSnapshot = await uow.fantasyTeamSnapshots.create(snapshot);
@@ -373,12 +450,14 @@ export class FantasyTeamSnapshotService {
 
     // Create virtual snapshot (not persisted)
     const now = new Date().toISOString();
+    const totalValue = Array.from(playerValues.values()).reduce((sum, v) => sum + v, 0);
     const virtualSnapshot: FantasyTeamSnapshot = {
       id: `virtual-${fantasyTeamId}-${weekId}`,
       fantasy_team_id: fantasyTeamId,
       week_id: weekId,
       captain_player_id: teamPlayers.find(tp => tp.is_captain)?.player_id || teamPlayers[0]?.player_id || '',
-      total_value: Array.from(playerValues.values()).reduce((sum, v) => sum + v, 0),
+      total_value: totalValue,
+      budget_remaining: SALARY_CAP - totalValue, // For virtual snapshots, assume it's week 1 budget calculation
       created_at: now,
       snapshot_created_at: now,
     };

@@ -1,6 +1,6 @@
 /**
- * Hook to manage fantasy team and week selection via URL search params
- * Eliminates useState cascade by deriving selection from URL
+ * Hook to manage fantasy team and week selection
+ * Team selection uses URL params, week is determined by admin settings
  */
 
 'use client';
@@ -12,19 +12,42 @@ import { Week } from '@/lib/domain/types';
 interface FantasyTeam {
   id: string;
   name: string;
+  emoji?: string;
+}
+
+/**
+ * Get the current week based on admin settings:
+ * - Regular users: only returns a week with transfer_window_open === true
+ * - Bypass users: falls back to latest week if no window is open
+ */
+function getCurrentWeek(weeks: Week[], canBypass: boolean): Week | null {
+  if (weeks.length === 0) return null;
+
+  // Try to find a week with an open transfer window
+  const openWindowWeek = weeks.find(w => w.transfer_window_open);
+  if (openWindowWeek) return openWindowWeek;
+
+  // Only bypass users get fallback to latest week
+  if (canBypass) {
+    const sortedByNumber = [...weeks].sort((a, b) => b.week_number - a.week_number);
+    return sortedByNumber[0] || null;
+  }
+
+  // Regular users: no valid week available
+  return null;
 }
 
 export function useFantasyTeamSelection(
   fantasyTeams: FantasyTeam[],
-  weeks: Week[]
+  weeks: Week[],
+  canBypass: boolean = false
 ) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
-  // Read from URL or default to first available
+  // Read team from URL (week is no longer URL-controlled)
   const urlTeamId = searchParams.get('team');
-  const urlWeekId = searchParams.get('week');
 
   // Derive selected team ID: use URL param if valid, otherwise first team
   const selectedTeamId = useMemo(() => {
@@ -34,25 +57,17 @@ export function useFantasyTeamSelection(
     return fantasyTeams[0]?.id || null;
   }, [urlTeamId, fantasyTeams]);
 
-  // Derive selected week ID: use URL param if valid, otherwise first week
-  const selectedWeekId = useMemo(() => {
-    if (urlWeekId && weeks.some(w => w.id === urlWeekId)) {
-      return urlWeekId;
-    }
-    return weeks[0]?.id || null;
-  }, [urlWeekId, weeks]);
+  // Week is determined by admin settings, not URL
+  const selectedWeek = useMemo(() => getCurrentWeek(weeks, canBypass), [weeks, canBypass]);
+  const selectedWeekId = selectedWeek?.id || null;
 
-  // Derive selected objects
+  // Derive selected team object
   const selectedTeam = useMemo(
     () => fantasyTeams.find(t => t.id === selectedTeamId),
     [fantasyTeams, selectedTeamId]
   );
-  const selectedWeek = useMemo(
-    () => weeks.find(w => w.id === selectedWeekId) || weeks[0],
-    [weeks, selectedWeekId]
-  );
 
-  // Update URL without full navigation (shallow update)
+  // Update URL without full navigation (shallow update) - only for team
   const setSelectedTeamId = useCallback((teamId: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
     if (teamId) {
@@ -63,15 +78,11 @@ export function useFantasyTeamSelection(
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [searchParams, router, pathname]);
 
-  const setSelectedWeekId = useCallback((weekId: string | null) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (weekId) {
-      params.set('week', weekId);
-    } else {
-      params.delete('week');
-    }
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [searchParams, router, pathname]);
+  // Week selection is no longer user-controllable - it's admin-controlled
+  // This is a no-op but kept for API compatibility
+  const setSelectedWeekId = useCallback((_weekId: string | null) => {
+    // No-op: week is determined by admin settings
+  }, []);
 
   return {
     selectedTeamId,

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import { Card } from '@/components/Card';
 import styles from './FantasyTeamCard.module.scss';
 
@@ -25,8 +26,8 @@ export function FantasyTeamCard({
 }: FantasyTeamCardProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(teamName);
-  const [isEditingEmoji, setIsEditingEmoji] = useState(false);
-  const [editedEmoji, setEditedEmoji] = useState(teamEmoji);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   // Sync editedName when teamName prop changes
   useEffect(() => {
@@ -35,12 +36,19 @@ export function FantasyTeamCard({
     }
   }, [teamName, isEditingName]);
 
-  // Sync editedEmoji when teamEmoji prop changes
+  // Close picker when clicking outside
   useEffect(() => {
-    if (!isEditingEmoji) {
-      setEditedEmoji(teamEmoji);
+    function handleClickOutside(event: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
+        setIsPickerOpen(false);
+      }
     }
-  }, [teamEmoji, isEditingEmoji]);
+    
+    if (isPickerOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isPickerOpen]);
 
   const handleNameClick = () => {
     if (!isUpdatingTeamName && teamId) {
@@ -79,63 +87,45 @@ export function FantasyTeamCard({
 
   const handleEmojiClick = () => {
     if (onTeamEmojiUpdate && teamId) {
-      setIsEditingEmoji(true);
+      setIsPickerOpen(true);
     }
   };
 
-  const handleEmojiSave = async () => {
-    if (!editedEmoji.trim() || editedEmoji.trim() === teamEmoji || !onTeamEmojiUpdate) {
-      setIsEditingEmoji(false);
-      setEditedEmoji(teamEmoji);
-      return;
-    }
-
+  const handleEmojiSelect = async (emojiData: EmojiClickData) => {
+    if (!onTeamEmojiUpdate) return;
+    
+    setIsPickerOpen(false);
+    
+    if (emojiData.emoji === teamEmoji) return;
+    
     try {
-      await onTeamEmojiUpdate(editedEmoji.trim());
-      setIsEditingEmoji(false);
+      await onTeamEmojiUpdate(emojiData.emoji);
     } catch (error) {
-      setEditedEmoji(teamEmoji);
-      setIsEditingEmoji(false);
-    }
-  };
-
-  const handleEmojiCancel = () => {
-    setEditedEmoji(teamEmoji);
-    setIsEditingEmoji(false);
-  };
-
-  const handleEmojiKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleEmojiSave();
-    } else if (e.key === 'Escape') {
-      handleEmojiCancel();
+      // Error is handled by mutation
     }
   };
 
   return (
     <Card className={styles.teamCard}>
       <div className={styles.content}>
-        <div className={styles.emojiSection}>
-          {isEditingEmoji ? (
-            <div className={styles.emojiEdit}>
-              <input
-                type="text"
-                value={editedEmoji}
-                onChange={(e) => setEditedEmoji(e.target.value)}
-                onBlur={handleEmojiSave}
-                onKeyDown={handleEmojiKeyDown}
-                className={styles.emojiInput}
-                autoFocus
-                maxLength={2}
+        <div className={styles.emojiSection} ref={pickerRef}>
+          <div
+            className={`${styles.emojiDisplay} ${onTeamEmojiUpdate ? styles.editable : ''}`}
+            onClick={handleEmojiClick}
+            title={onTeamEmojiUpdate ? 'Click to change emoji' : ''}
+          >
+            {teamEmoji}
+          </div>
+          {isPickerOpen && (
+            <div className={styles.emojiPickerWrapper}>
+              <EmojiPicker
+                onEmojiClick={handleEmojiSelect}
+                theme={Theme.AUTO}
+                width={320}
+                height={400}
+                searchPlaceholder="Search emojis..."
+                previewConfig={{ showPreview: false }}
               />
-            </div>
-          ) : (
-            <div
-              className={styles.emojiDisplay}
-              onClick={handleEmojiClick}
-              title={onTeamEmojiUpdate ? 'Click to edit emoji' : ''}
-            >
-              {teamEmoji}
             </div>
           )}
         </div>

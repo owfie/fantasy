@@ -13,7 +13,7 @@ import { TransfersList } from '@/components/FantasyTeamSelection/TransfersList';
 import { TransferModal } from '@/components/FantasyTeamSelection/TransferModal';
 import { CaptainSelectionModal } from '@/components/FantasyTeamSelection/CaptainSelectionModal';
 import { PlayerWithValue } from '@/lib/api/players.api';
-import { DraftRosterPlayer, validateFantasyTeam, getMaxPlayersPerPosition } from '@/lib/utils/fantasy-team-validation';
+import { DraftRosterPlayer, validateLineup, getMaxPlayersPerPosition } from '@/lib/utils/fantasy-team-validation';
 import { toast } from 'sonner';
 import styles from './page.module.scss';
 
@@ -371,10 +371,24 @@ function FantasyPageContent() {
       return;
     }
 
-    const validation = validateFantasyTeam(draftRoster, playersValueMap, false);
-    if (!validation.valid) {
-      const errorMessage = validation.errors.join('\n');
+    // Validate lineup (positions, captain, etc.) - but NOT salary cap (handled separately)
+    const lineupValidation = validateLineup(
+      draftRoster.map(p => ({ position: p.position, isBenched: p.isBenched, isCaptain: p.isCaptain })),
+      false
+    );
+    if (!lineupValidation.valid) {
+      const errorMessage = lineupValidation.errors.join('\n');
       toast.error(`Cannot save team:\n${errorMessage}`, {
+        duration: 5000,
+      });
+      return;
+    }
+
+    // Validate budget using the actual computed budget (not naive salary cap check)
+    // For week 1: budget = SALARY_CAP - team_value
+    // For week 2+: budget = previous_budget + transfer_delta
+    if (budget < 0) {
+      toast.error(`Cannot save team: Budget exceeded by $${Math.abs(budget).toFixed(0)}k`, {
         duration: 5000,
       });
       return;
@@ -398,7 +412,7 @@ function FantasyPageContent() {
     selectedTeamId,
     selectedWeekId,
     draftRoster,
-    playersValueMap,
+    budget,
     computedTransfers.length,
     isFirstWeek,
     createSnapshotMutation,
@@ -805,7 +819,7 @@ function FantasyPageContent() {
             isUpdatingTeamName={updateTeamMutation.isPending}
           />
 
-          {/* {isAdmin && (
+          {isAdmin && (
             <div className={styles.adminControls}>
               <span className={styles.adminLabel}>🔧 Admin</span>
               {fantasyTeams.length > 1 && (
@@ -831,7 +845,7 @@ function FantasyPageContent() {
                 {createTeamMutation.isPending ? 'Creating...' : '+ New Team'}
               </button>
             </div>
-          )} */}
+          )}
 
 
             {isTransferWindowOpen ? (

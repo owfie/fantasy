@@ -251,8 +251,6 @@ export class FantasyTeamSnapshotService {
         throw new Error('Fantasy team not found');
       }
 
-      const isFirstWeek = week.week_number === 1;
-
       // Find captain - for partial teams, allow no captain (will be set later)
       const captain = players.find(p => p.isCaptain);
       if (!captain && !allowPartial) {
@@ -278,32 +276,38 @@ export class FantasyTeamSnapshotService {
 
       // Get previous week snapshot for transfer computation and budget calculation
       let budgetRemaining: number;
-
-      if (isFirstWeek) {
-        // Week 1: Budget = SALARY_CAP - team value
-        budgetRemaining = SALARY_CAP - totalValue;
-      } else {
-        // Week 2+: Get previous week snapshot for budget and transfer validation
+      
+      // Check if there's any previous snapshot for this team (not just week 1)
+      // A team created mid-season won't have previous snapshots
+      let previousSnapshot: FantasyTeamSnapshot | null = null;
+      const isFirstWeek = week.week_number === 1;
+      
+      if (!isFirstWeek) {
         const allWeeks = await uow.weeks.findBySeason(fantasyTeam.season_id);
         const sortedWeeks = allWeeks.sort((a, b) => a.week_number - b.week_number);
         const currentWeekIndex = sortedWeeks.findIndex(w => w.id === weekId);
 
-        if (currentWeekIndex <= 0) {
-          throw new Error('Cannot find previous week for budget calculation');
+        if (currentWeekIndex > 0) {
+          const previousWeek = sortedWeeks[currentWeekIndex - 1];
+          previousSnapshot = await uow.fantasyTeamSnapshots.findByFantasyTeamAndWeek(
+            fantasyTeamId,
+            previousWeek.id
+          );
         }
+      }
 
-        const previousWeek = sortedWeeks[currentWeekIndex - 1];
-        const previousSnapshot = await uow.fantasyTeamSnapshots.findByFantasyTeamAndWeek(
-          fantasyTeamId,
-          previousWeek.id
-        );
+      // If this is the first snapshot for this team (either week 1 or new team created mid-season)
+      const isFirstSnapshotForTeam = isFirstWeek || !previousSnapshot;
 
-        if (!previousSnapshot) {
-          throw new Error('No previous week snapshot found - cannot calculate budget');
-        }
+      if (isFirstSnapshotForTeam) {
+        // First snapshot: Budget = SALARY_CAP - team value
+        budgetRemaining = SALARY_CAP - totalValue;
+      } else {
+        // Subsequent snapshots: Get previous week snapshot for budget and transfer validation
+        // previousSnapshot is guaranteed to exist here due to the isFirstSnapshotForTeam check
 
         // Get previous week's players for transfer computation (with positions)
-        const previousSnapshotPlayers = await uow.fantasyTeamSnapshotPlayers.findBySnapshot(previousSnapshot.id);
+        const previousSnapshotPlayers = await uow.fantasyTeamSnapshotPlayers.findBySnapshot(previousSnapshot!.id);
         const previousPlayersWithPosition = previousSnapshotPlayers.map(p => ({
           playerId: p.player_id,
           position: p.position,
@@ -318,8 +322,8 @@ export class FantasyTeamSnapshotService {
         // Compute transfers (diff between current and previous rosters, paired by position)
         const transfers = computeTransfersFromSnapshots(currentPlayersWithPosition, previousPlayersWithPosition);
 
-        // Validate transfer count
-        if (!isWithinTransferLimit(transfers.length, isFirstWeek, MAX_TRANSFERS_PER_WEEK)) {
+        // Validate transfer count (first snapshot for team has unlimited transfers)
+        if (!isWithinTransferLimit(transfers.length, false, MAX_TRANSFERS_PER_WEEK)) {
           throw new Error(
             `Exceeded transfer limit: ${transfers.length} transfers, maximum ${MAX_TRANSFERS_PER_WEEK} allowed per week`
           );
@@ -327,7 +331,7 @@ export class FantasyTeamSnapshotService {
 
         // Calculate budget after transfers
         const budgetResult = await this.budgetService.calculateBudgetAfterTransfers(
-          previousSnapshot.budget_remaining,
+          previousSnapshot!.budget_remaining,
           transfers.map(t => ({ playerInId: t.playerInId, playerOutId: t.playerOutId })),
           week.week_number,
           fantasyTeam.season_id

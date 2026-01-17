@@ -263,6 +263,7 @@ export default function PlayerPricesClient({ seasonId }: PlayerPricesClientProps
                     const weekData = player.weekData.get(week.week_number);
                     const points = weekData?.points ?? 0;
                     const price = weekData?.price ?? previousPrice;
+                    const played = weekData?.played ?? false;
                     const priceColor = getPriceChangeColor(price, previousPrice);
 
                     // Update previousPrice for next iteration
@@ -276,19 +277,21 @@ export default function PlayerPricesClient({ seasonId }: PlayerPricesClientProps
                           style={{
                             padding: '0.4rem',
                             textAlign: 'center',
-                            color: points > 0 ? '#28a745' : '#999',
-                            fontWeight: points > 0 ? '500' : '400'
+                            color: !played ? '#999' : points > 0 ? '#28a745' : '#666',
+                            fontWeight: played && points > 0 ? '500' : '400',
+                            fontStyle: !played ? 'italic' : 'normal'
                           }}
                         >
-                          {points}
+                          {played ? points : '—'}
                         </td>
                         <td
                           key={`${player.playerId}-${week.id}-price`}
                           style={{
                             padding: '0.4rem',
                             textAlign: 'center',
-                            color: week.week_number === 1 ? '#333' : priceColor,
+                            color: week.week_number === 1 ? '#333' : !played ? '#999' : priceColor,
                             fontWeight: '500',
+                            fontStyle: !played ? 'italic' : 'normal',
                             borderRight: index < weeks.length - 1 ? '1px solid #dee2e6' : 'none'
                           }}
                         >
@@ -311,7 +314,10 @@ export default function PlayerPricesClient({ seasonId }: PlayerPricesClientProps
         <p style={{ margin: '0.25rem 0' }}>
           <span style={{ color: '#28a745' }}>Green</span> = price increased |
           <span style={{ color: '#dc3545' }}> Red</span> = price decreased |
-          Week 2 uses Week 1 points only, Week 3+ uses 2-week average
+          <span style={{ fontStyle: 'italic', color: '#999' }}> — (italic)</span> = did not play (price unchanged)
+        </p>
+        <p style={{ margin: '0.25rem 0' }}>
+          Week 2 uses Week 1 points only, Week 3+ uses 2-week average (only counting weeks where player played)
         </p>
       </div>
     </Card>

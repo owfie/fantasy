@@ -10,6 +10,7 @@ import { Week } from '../types';
 export interface PlayerWeekData {
   points: number;
   price: number;
+  played: boolean;
 }
 
 export interface PlayerPriceRow {
@@ -40,9 +41,9 @@ export class PriceCalculationService {
   }
 
   /**
-   * Get all player points grouped by week for a season
+   * Get all player points and played status grouped by week for a season
    */
-  async getPlayerPointsByWeek(seasonId: string): Promise<Map<string, Map<string, number>>> {
+  async getPlayerPointsByWeek(seasonId: string): Promise<Map<string, Map<string, { points: number; played: boolean }>>> {
     const client = this.uow.getClient();
 
     // Get all weeks for this season
@@ -53,12 +54,13 @@ export class PriceCalculationService {
       return new Map();
     }
 
-    // Get all player stats with game and week info
+    // Get all player stats with game and week info, including played status
     const { data: statsWithGames, error } = await client
       .from('player_stats')
       .select(`
         player_id,
         points,
+        played,
         game_id,
         games!inner(week_id)
       `);
@@ -67,12 +69,13 @@ export class PriceCalculationService {
       throw new Error(`Failed to fetch player stats: ${error.message}`);
     }
 
-    // Build map: playerId -> weekId -> totalPoints
-    const playerWeekPoints = new Map<string, Map<string, number>>();
+    // Build map: playerId -> weekId -> { points, played }
+    const playerWeekData = new Map<string, Map<string, { points: number; played: boolean }>>();
 
     interface StatWithGame {
       player_id: string;
       points: number;
+      played: boolean;
       games?: { week_id: string };
     }
 
@@ -80,16 +83,21 @@ export class PriceCalculationService {
       const weekId = stat.games?.week_id;
       if (!weekId || !weekIds.includes(weekId)) continue;
 
-      if (!playerWeekPoints.has(stat.player_id)) {
-        playerWeekPoints.set(stat.player_id, new Map());
+      if (!playerWeekData.has(stat.player_id)) {
+        playerWeekData.set(stat.player_id, new Map());
       }
 
-      const weekMap = playerWeekPoints.get(stat.player_id)!;
-      const currentPoints = weekMap.get(weekId) || 0;
-      weekMap.set(weekId, currentPoints + (stat.points || 0));
+      const weekMap = playerWeekData.get(stat.player_id)!;
+      const currentData = weekMap.get(weekId) || { points: 0, played: false };
+
+      // Aggregate points and track if player played in ANY game this week
+      weekMap.set(weekId, {
+        points: currentData.points + (stat.points || 0),
+        played: currentData.played || stat.played === true
+      });
     }
 
-    return playerWeekPoints;
+    return playerWeekData;
   }
 
   /**
@@ -117,8 +125,8 @@ export class PriceCalculationService {
     // Create week number to ID mapping
     const weekIdToNumber = new Map(sortedWeeks.map(w => [w.id, w.week_number]));
 
-    // Get all player points by week
-    const playerWeekPoints = await this.getPlayerPointsByWeek(seasonId);
+    // Get all player points and played status by week
+    const playerWeekData = await this.getPlayerPointsByWeek(seasonId);
 
     // Build price rows for each player
     const priceRows: PlayerPriceRow[] = [];
@@ -131,44 +139,47 @@ export class PriceCalculationService {
       const team = seasonPlayer.team_id ? teamsMap.get(seasonPlayer.team_id) : null;
       const startingPrice = seasonPlayer.starting_value;
 
-      // Get this player's points by week
-      const weekPoints = playerWeekPoints.get(player.id) || new Map<string, number>();
+      // Get this player's data by week
+      const weekStats = playerWeekData.get(player.id) || new Map<string, { points: number; played: boolean }>();
 
       // Calculate prices for each week
       const weekData = new Map<number, PlayerWeekData>();
       let previousPrice = startingPrice;
-      const pointsHistory: number[] = [];
+      // Only track points from weeks where player actually played
+      const playedPointsHistory: number[] = [];
 
       for (const week of sortedWeeks) {
         const weekNumber = week.week_number;
-        const points = weekPoints.get(week.id) || 0;
-        pointsHistory.push(points);
+        const stats = weekStats.get(week.id);
+        const points = stats?.points || 0;
+        const played = stats?.played ?? false;
 
-        // Calculate new price based on formula
-        // Week 2 uses week 1 points only, Week 3+ uses 2-week average
-        let twoWeekAvg: number;
-        if (pointsHistory.length === 1) {
-          // First week with points - price stays at starting
-          twoWeekAvg = points;
-        } else if (pointsHistory.length === 2) {
-          // Second week - use only first week's points for price calculation
-          twoWeekAvg = pointsHistory[0];
-        } else {
-          // Third week onwards - use average of previous 2 weeks
-          twoWeekAvg = (pointsHistory[pointsHistory.length - 2] + pointsHistory[pointsHistory.length - 3]) / 2;
-        }
-
-        // Calculate price for this week (price at start of week, based on previous performance)
+        // Calculate price for THIS week based on PREVIOUS played weeks
+        // (we add current week to history AFTER calculating price)
         let price: number;
         if (weekNumber === 1) {
           // Week 1: use starting price
           price = startingPrice;
+        } else if (playedPointsHistory.length === 0) {
+          // No played weeks yet, carry forward starting price
+          price = previousPrice;
+        } else if (playedPointsHistory.length === 1) {
+          // One played week available - use it for average
+          price = this.calculateNewPrice(previousPrice, playedPointsHistory[0]);
         } else {
-          // Week 2+: calculate from previous price and points
+          // Two or more played weeks - use average of last 2 played weeks
+          const lastTwo = playedPointsHistory.slice(-2);
+          const twoWeekAvg = (lastTwo[0] + lastTwo[1]) / 2;
           price = this.calculateNewPrice(previousPrice, twoWeekAvg);
         }
 
-        weekData.set(weekNumber, { points, price });
+        // AFTER calculating price, add current week to history if player actually played
+        // This affects FUTURE week calculations, not the current week's price
+        if (played) {
+          playedPointsHistory.push(points);
+        }
+
+        weekData.set(weekNumber, { points, price, played });
         previousPrice = price;
       }
 

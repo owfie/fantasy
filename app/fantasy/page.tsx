@@ -61,7 +61,7 @@ function FantasyPageContent() {
   const createTeamMutation = useCreateFantasyTeam();
 
   // Single unified data hook - eliminates double useFantasyTeamData pattern
-  // Pass user ID to filter teams by ownership
+  // Pass user ID to filter teams by ownership (admins see all teams for debug mode)
   const {
     activeSeason,
     fantasyTeams,
@@ -78,7 +78,7 @@ function FantasyPageContent() {
     isFirstWeek,
     canBypass,
     isLoading: isLoadingData,
-  } = useFantasyPageData(user?.id);
+  } = useFantasyPageData(user?.id, isAdmin);
 
   const {
     draftRoster,
@@ -805,8 +805,7 @@ function FantasyPageContent() {
             isUpdatingTeamName={updateTeamMutation.isPending}
           />
 
-          {/* Admin controls for managing multiple teams */}
-          {isAdmin && (
+          {/* {isAdmin && (
             <div className={styles.adminControls}>
               <span className={styles.adminLabel}>🔧 Admin</span>
               {fantasyTeams.length > 1 && (
@@ -832,7 +831,8 @@ function FantasyPageContent() {
                 {createTeamMutation.isPending ? 'Creating...' : '+ New Team'}
               </button>
             </div>
-          )}
+          )} */}
+
 
             {isTransferWindowOpen ? (
               <PlayerList

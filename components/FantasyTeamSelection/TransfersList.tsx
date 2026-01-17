@@ -61,9 +61,9 @@ export function TransfersList({
           </div>
         </div>
 
-        {transfers.length === 0 ? (
+        {transfers.length === 0 || isFirstWeek ? (
           <div className={styles.empty}>
-            {isFirstWeek ? 'Build your squad above' : 'No transfers made this week'}
+            {isFirstWeek ? 'Build your squad - no transfer limits' : 'No transfers made this week'}
           </div>
         ) : (
           <div className={styles.transfersTable}>

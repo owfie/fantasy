@@ -103,7 +103,7 @@ export function useActiveSeason() {
  */
 export function useFantasyTeams(seasonId: string | null, ownerId?: string | null) {
   return useQuery({
-    queryKey: fantasyTeamKeys.list(seasonId || '' + (ownerId ? `-${ownerId}` : '')),
+    queryKey: fantasyTeamKeys.list(`${seasonId || ''}${ownerId ? `-${ownerId}` : ''}`),
     queryFn: async () => {
       if (!seasonId) return [];
       const result = await testGetAllFantasyTeams(seasonId, ownerId || undefined);

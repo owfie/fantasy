@@ -49,3 +49,31 @@ export async function deleteTeam(teamId: string): Promise<void> {
   });
 }
 
+/**
+ * Get a team by slug
+ * Checks team.slug field first, then generates slug from team.name
+ */
+export async function getTeamBySlug(slug: string): Promise<Team | null> {
+  const { generateSlug } = await import('@/lib/utils/slug');
+  const uow = await getUnitOfWork();
+  const service = new TeamsService(uow);
+
+  return uow.execute(async () => {
+    const allTeams = await service.findAll();
+
+    for (const team of allTeams) {
+      // Check if team has a slug field that matches
+      if (team.slug === slug) {
+        return team;
+      }
+      // Otherwise generate slug from name
+      const generatedSlug = generateSlug(team.name);
+      if (generatedSlug === slug) {
+        return team;
+      }
+    }
+
+    return null;
+  });
+}
+

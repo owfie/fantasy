@@ -38,6 +38,7 @@ export function useFantasyPageData(userId?: string | null, isAdmin?: boolean) {
   const canBypass = canBypassTransferWindow(userId ?? undefined);
 
   // Step 2: Get selection (team from URL, week from admin settings)
+  // Pass userId so admins default to their own team instead of first team in list
   const {
     selectedTeamId,
     selectedWeekId,
@@ -45,7 +46,7 @@ export function useFantasyPageData(userId?: string | null, isAdmin?: boolean) {
     selectedWeek,
     setSelectedTeamId,
     setSelectedWeekId,
-  } = useFantasyTeamSelection(fantasyTeams, weeks, canBypass);
+  } = useFantasyTeamSelection(fantasyTeams, weeks, canBypass, userId);
 
   // Step 3: Derive week-related values
   // Find the previous week ID for transfer computation

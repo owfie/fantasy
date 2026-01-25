@@ -87,6 +87,129 @@ export interface PlayerWithValue extends Player {
 }
 
 /**
+ * Player details with full info for the player detail page/modal
+ */
+export interface PlayerDetails {
+  player: Player;
+  currentValue: number;
+  startingValue: number;
+  teamName?: string;
+  teamColor?: string;
+  weeklyAvailability: {
+    weekNumber: number;
+    weekName: string;
+    status: 'available' | 'unavailable' | 'unsure' | null;
+  }[];
+}
+
+/**
+ * Get detailed player info by slug including current value and availability
+ */
+export async function getPlayerDetailsBySlug(slug: string): Promise<PlayerDetails | null> {
+  const uow = await getUnitOfWork();
+  return uow.execute(async () => {
+    const { generateSlug } = await import('@/lib/utils/slug');
+    
+    // Find the player
+    const allPlayers = await uow.players.findAll({ is_active: true });
+    let player: Player | null = null;
+    
+    for (const p of allPlayers) {
+      const playerSlug = generateSlug(`${p.first_name} ${p.last_name}`);
+      if (playerSlug === slug) {
+        player = p;
+        break;
+      }
+    }
+    
+    if (!player) {
+      return null;
+    }
+    
+    // Get active season
+    const activeSeason = await uow.seasons.findActive();
+    if (!activeSeason) {
+      return {
+        player,
+        currentValue: player.starting_value || 0,
+        startingValue: player.starting_value || 0,
+        weeklyAvailability: [],
+      };
+    }
+    
+    // Get season player info for starting value and team
+    const seasonPlayers = await uow.seasonPlayers.findBySeason(activeSeason.id);
+    const seasonPlayer = seasonPlayers.find(sp => sp.player_id === player!.id);
+    const startingValue = seasonPlayer?.starting_value || player.starting_value || 0;
+    
+    // Get team info
+    const teamId = seasonPlayer?.team_id || player.team_id;
+    let teamName: string | undefined;
+    let teamColor: string | undefined;
+    if (teamId) {
+      const team = await uow.teams.findById(teamId);
+      teamName = team?.name;
+      teamColor = team?.color;
+    }
+    
+    // Get current value from value_changes or fall back to starting value
+    const latestValueChange = await uow.valueChanges.findLatestByPlayer(player.id);
+    const currentValue = latestValueChange?.value || startingValue;
+    
+    // Get weeks for the season
+    const weeks = await uow.weeks.findBySeason(activeSeason.id);
+    const sortedWeeks = weeks.sort((a, b) => a.week_number - b.week_number);
+    
+    // Get all games for the season
+    const weekIds = sortedWeeks.map(w => w.id);
+    const allGames = await uow.games.findAll();
+    const seasonGames = allGames.filter(g => weekIds.includes(g.week_id));
+    
+    // Get player's availability records
+    const playerAvailability = await uow.playerAvailability.findByPlayer(player.id);
+    const availabilityByGame = new Map(playerAvailability.map(a => [a.game_id, a.status]));
+    
+    // Map games to weeks
+    const gamesByWeek = new Map<string, string[]>();
+    for (const game of seasonGames) {
+      const existing = gamesByWeek.get(game.week_id) || [];
+      existing.push(game.id);
+      gamesByWeek.set(game.week_id, existing);
+    }
+    
+    // Build weekly availability
+    const weeklyAvailability = sortedWeeks.map(week => {
+      const weekGameIds = gamesByWeek.get(week.id) || [];
+      
+      // Find the player's availability for any game in this week
+      let status: 'available' | 'unavailable' | 'unsure' | null = null;
+      for (const gameId of weekGameIds) {
+        const avail = availabilityByGame.get(gameId);
+        if (avail) {
+          status = avail;
+          break;
+        }
+      }
+      
+      return {
+        weekNumber: week.week_number,
+        weekName: week.name || `Week ${week.week_number}`,
+        status,
+      };
+    });
+    
+    return {
+      player,
+      currentValue,
+      startingValue,
+      teamName,
+      teamColor,
+      weeklyAvailability,
+    };
+  });
+}
+
+/**
  * Get players with their current values for a specific week, optionally filtered by position
  */
 export async function getPlayersForWeekWithValues(

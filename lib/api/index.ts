@@ -14,4 +14,4 @@ export * from './transfers.api';
 export * from './fantasy-scores.api';
 export * from './availability.api';
 export * from './standings.api';
-
+export * from './youtube.api';

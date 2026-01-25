@@ -13,6 +13,7 @@ interface FantasyTeam {
   id: string;
   name: string;
   emoji?: string;
+  owner_id?: string;
 }
 
 /**
@@ -40,7 +41,8 @@ function getCurrentWeek(weeks: Week[], canBypass: boolean): Week | null {
 export function useFantasyTeamSelection(
   fantasyTeams: FantasyTeam[],
   weeks: Week[],
-  canBypass: boolean = false
+  canBypass: boolean = false,
+  userId?: string | null
 ) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -49,13 +51,20 @@ export function useFantasyTeamSelection(
   // Read team from URL (week is no longer URL-controlled)
   const urlTeamId = searchParams.get('team');
 
-  // Derive selected team ID: use URL param if valid, otherwise first team
+  // Derive selected team ID: use URL param if valid, otherwise user's own team, then first team
   const selectedTeamId = useMemo(() => {
     if (urlTeamId && fantasyTeams.some(t => t.id === urlTeamId)) {
       return urlTeamId;
     }
+    // For admins viewing all teams: prefer the user's own team as default
+    if (userId) {
+      const ownTeam = fantasyTeams.find(t => t.owner_id === userId);
+      if (ownTeam) {
+        return ownTeam.id;
+      }
+    }
     return fantasyTeams[0]?.id || null;
-  }, [urlTeamId, fantasyTeams]);
+  }, [urlTeamId, fantasyTeams, userId]);
 
   // Week is determined by admin settings, not URL
   const selectedWeek = useMemo(() => getCurrentWeek(weeks, canBypass), [weeks, canBypass]);

@@ -1,0 +1,286 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 0.5rem 0;
+}
+
+.subtitle {
+  color: #6b7280;
+  font-size: 1rem;
+  margin: 0;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  align-items: flex-end;
+}
+
+.searchSection {
+  flex: 1;
+  min-width: 200px;
+}
+
+.filterLabel {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #111827;
+  background-color: #fff;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+}
+
+.sortSection {
+  min-width: 160px;
+}
+
+.sortSelect {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background-color: #fff;
+  color: #111827;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5rem 1.5rem;
+  padding-right: 2.5rem;
+
+  &:hover {
+    background-color: #f9fafb;
+    border-color: #d1d5db;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+}
+
+.viewToggle {
+  display: flex;
+  align-items: flex-end;
+}
+
+.playerCount {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+// Grid view
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+// List view
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #9ca3af;
+  font-size: 1rem;
+}
+
+.loading {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.skeletonCard {
+  background: #f3f4f6;
+  border-radius: 0.75rem;
+  height: 100px;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+// Player card styles
+.cardLink {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.playerCard {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  transition: all 0.15s ease;
+  cursor: pointer;
+
+  &:hover {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.jersey {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.jerseyImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.playerInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.playerName {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.9375rem;
+
+  &:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
+.draftOrder {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.teamTag {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  background-color: #ef4444;
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.positionTag {
+  display: inline-block;
+  color: #9f9f9f;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.valueSection {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.value {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.9375rem;
+}
+
+.valueChange {
+  font-size: 0.75rem;
+  font-weight: 500;
+
+  &.positive {
+    color: #10b981;
+  }
+
+  &.negative {
+    color: #ef4444;
+  }
+
+  &.neutral {
+    color: #9ca3af;
+  }
+}
+
+// List row variant (more compact)
+.listRow {
+  composes: playerCard;
+  padding: 0.75rem 1rem;
+
+  .jersey {
+    width: 40px;
+    height: 40px;
+  }
+
+  .playerName {
+    font-size: 0.875rem;
+  }
+}
+

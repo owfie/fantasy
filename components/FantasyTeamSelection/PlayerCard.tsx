@@ -83,7 +83,7 @@ export function PlayerCard({ player, onAdd, onSwap, isOnTeam, canAdd = true, lay
       </div>
       <div className={styles.info}>
         <div className={styles.nameRow}>
-          <Link href={`/players/${playerSlug}`} scroll={false} className={styles.detailsButton}>
+          <Link href={`/players/id/${playerSlug}`} scroll={false} className={styles.detailsButton}>
             <span className={styles.name}>{displayName}</span>
           </Link>
           {player.draft_order && (

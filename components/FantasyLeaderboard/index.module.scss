@@ -1,4 +1,4 @@
-.standings {
+.leaderboard {
   width: 100%;
 }
 
@@ -29,7 +29,7 @@
 
 .table thead th.number {
   text-align: center;
-  width: 3em;
+  width: 4em;
 }
 
 .table tbody tr {
@@ -65,27 +65,80 @@
   text-align: center;
 }
 
-.teamCell {
+.rank {
+  text-align: center;
+  font-weight: 500;
+  color: #666;
+  width: 2em;
+}
+
+.team {
   display: flex;
   align-items: center;
   gap: 0.5em;
+}
+
+.emoji {
+  font-size: 1.25rem;
 }
 
 .teamName {
   font-weight: 500;
 }
 
-.empty {
-  color: #999;
-  font-size: 0.9em;
-  text-align: center;
-  padding: 1em;
+.owner {
+  color: #666;
 }
 
-td.teamCell img {
-    width: 32px;
-    height: 32px;
-    min-width: 32px;
-    min-height: 32px;
-    margin-right: 1em;
+.value {
+  text-align: right;
+  color: #666;
+}
+
+.points {
+  text-align: right;
+  font-weight: 600;
+}
+
+// Empty state
+.emptyState {
+  width: 100%;
+}
+
+.emptyContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2rem;
+  gap: 0.75rem;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.emptyText {
+  margin: 0;
+  font-size: 0.9em;
+  color: #999;
+}
+
+.emptyIcon {
+  font-size: 2rem;
+}
+
+// Responsive adjustments
+@media (max-width: 640px) {
+  .owner,
+  .ownerHeader {
+    display: none;
+  }
+
+  .value,
+  .valueHeader {
+    display: none;
+  }
 }

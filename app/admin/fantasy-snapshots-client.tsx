@@ -121,11 +121,14 @@ export default function FantasySnapshotsClient({ seasonId }: FantasySnapshotsCli
           }}
         >
           <option value="">-- Select a team --</option>
-          {fantasyTeams.map((team) => (
-            <option key={team.id} value={team.id}>
-              {team.name}
-            </option>
-          ))}
+          {fantasyTeams.map((team) => {
+            const ownerName = team.user_profiles?.display_name || team.user_profiles?.email || 'Unknown';
+            return (
+              <option key={team.id} value={team.id}>
+                {team.name} ({ownerName})
+              </option>
+            );
+          })}
         </select>
       </div>
 

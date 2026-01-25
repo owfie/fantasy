@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { ReactNode } from 'react';
+import { FantasyTabs } from '@/components/FantasyTabs';
+import styles from './layout.module.scss';
 
 export const metadata: Metadata = {
   title: 'Fantasy | Adelaide Super League',
@@ -8,15 +10,17 @@ export const metadata: Metadata = {
 
 interface FantasyLayoutProps {
   children: ReactNode;
-  modal?: ReactNode;
+  modal: ReactNode;
 }
 
 export default function FantasyLayout({ children, modal }: FantasyLayoutProps) {
   return (
-    <>
+    <div className={styles.fantasyLayout}>
+      <div className={styles.tabsContainer}>
+        <FantasyTabs />
+      </div>
       {children}
       {modal}
-    </>
+    </div>
   );
 }
-

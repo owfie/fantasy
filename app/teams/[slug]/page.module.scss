@@ -1,0 +1,110 @@
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  padding: 0.5rem 1rem;
+  color: hsl(var(--foreground));
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: opacity 0.2s;
+  border-radius: var(--radius);
+
+  &:hover {
+    opacity: 0.7;
+  }
+
+  &::before {
+    content: '←';
+    font-size: 1.25rem;
+  }
+}
+
+.teamHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.teamColor {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.teamName {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0;
+  color: hsl(var(--foreground));
+}
+
+.rosterSection {
+  margin-top: 2rem;
+}
+
+.sectionTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: hsl(var(--foreground));
+}
+
+.playerList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.playerItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: hsl(var(--muted));
+  border-radius: var(--radius);
+}
+
+.playerLink {
+  color: hsl(var(--foreground));
+  text-decoration: none;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.position {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--foreground) / 0.6);
+  padding: 0.125rem 0.5rem;
+  background: hsl(var(--border));
+  border-radius: 0.25rem;
+}
+
+.captain {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: hsl(var(--primary));
+  padding: 0.125rem 0.5rem;
+  background: hsl(var(--primary) / 0.1);
+  border-radius: 0.25rem;
+}
+
+.noPlayers {
+  color: hsl(var(--foreground) / 0.6);
+  font-style: italic;
+}

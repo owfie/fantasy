@@ -10,6 +10,8 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import Image from 'next/image';
 import Link from 'next/link';
+import { remarkEntityLinks } from '@/lib/news/remark-entity-links';
+import { buildEntityLinkMap } from '@/lib/news/entity-linker';
 import styles from './page.module.scss';
 import './markdown.css';
 
@@ -81,12 +83,15 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     notFound();
   }
 
+  // Build entity link map for auto-linking player/team names
+  const entityMap = await buildEntityLinkMap();
+
   return (
     <main className={styles.container}>
       <Link href="/news" className={styles.backButton}>
         Back to Articles
       </Link>
-      
+
       <article>
         <header className={styles.articleHeader}>
           <div className={styles.headerContent}>
@@ -114,7 +119,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               </p>
             )}
           </div>
-          
+
           {article.headerImage && (
             <div className={styles.headerImageWrapper}>
               <Image
@@ -127,13 +132,30 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             </div>
           )}
         </header>
-        
+
         <div className={`${styles.content} markdownContent`}>
-          <ReactMarkdown 
-            remarkPlugins={[remarkGfm, remarkBreaks, remarkMath]}
+          <ReactMarkdown
+            remarkPlugins={[
+              remarkGfm,
+              remarkBreaks,
+              remarkMath,
+              [remarkEntityLinks, { entityMap }],
+            ]}
             rehypePlugins={[rehypeRaw, rehypeKatex]}
             components={{
               br: () => <br />,
+              a: ({ href, children }) => {
+                // Check if this is an entity link (player or team)
+                if (href?.startsWith('/players/') || href?.startsWith('/teams/')) {
+                  return (
+                    <Link href={href} scroll={false} className={styles.entityLink}>
+                      {children}
+                    </Link>
+                  );
+                }
+                // External or other links
+                return <a href={href}>{children}</a>;
+              },
             }}
           >
             {article.content}

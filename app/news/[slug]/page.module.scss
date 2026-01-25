@@ -109,3 +109,16 @@
   margin: 0 auto;
 }
 
+.entityLink {
+  color: hsl(var(--foreground));
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: text-decoration-style 0.15s ease;
+
+  &:hover {
+    text-decoration-style: solid;
+  }
+}
+

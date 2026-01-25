@@ -1,4 +1,5 @@
 import { getFixtures } from '@/lib/api';
+import { getLatestPlaylistVideo } from '@/lib/api/youtube.api';
 import { getAllArticles } from '@/lib/news/article-service';
 import { GameWithTeams } from '@/lib/domain/repositories/games.repository';
 import { FixtureCard } from '@/components/Fixtures/FixtureCard';
@@ -45,8 +46,11 @@ function formatRelativeTime(dateString: string): string {
 }
 
 export default async function Home() {
-  const fixtures = await getFixtures();
-  const articles = await getAllArticles();
+  const [fixtures, articles, latestVideo] = await Promise.all([
+    getFixtures(),
+    getAllArticles(),
+    getLatestPlaylistVideo(),
+  ]);
 
   // Filter to published articles and get latest 2
   const publishedArticles = articles
@@ -82,8 +86,8 @@ export default async function Home() {
     ? formatRelativeTime(featuredGame.scheduled_time)
     : null;
 
-  // YouTube video URL
-  const youtubeUrl = 'https://www.youtube.com/embed/JTEO-0ka2Uo?start=180';
+  // YouTube video URL - fetches latest video from playlist, falls back to hardcoded
+  const youtubeUrl = latestVideo?.embedUrl ?? 'https://www.youtube.com/embed/JTEO-0ka2Uo';
 
   return (
     <main className={styles.container}>
@@ -93,7 +97,7 @@ export default async function Home() {
           <div className={styles.videoContainer}>
             <iframe
               src={youtubeUrl}
-              title="Adelaide Super League Game"
+              title={latestVideo?.title ?? 'Adelaide Super League Game'}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
               className={styles.video}

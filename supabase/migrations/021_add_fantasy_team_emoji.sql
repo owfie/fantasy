@@ -7,3 +7,4 @@ ADD COLUMN emoji TEXT DEFAULT '🏆';
 -- Add a comment explaining the column
 COMMENT ON COLUMN fantasy_teams.emoji IS 'Custom emoji displayed for the fantasy team. Defaults to trophy emoji.';
 
+

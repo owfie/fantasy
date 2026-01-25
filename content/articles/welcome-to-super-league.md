@@ -3,7 +3,7 @@ title: "Harry’s Super League Crystal Ball"
 description: "A pre-draft prediction."
 author: "Harry Buckland"
 tags: ["Opinion"]
-headerImage: "/images/articles/test.png"
+headerImage: "/images/articles/buckos-ball.jpg"
 publishedAt: "2026-01-04T10:00:00Z"
 ---
 

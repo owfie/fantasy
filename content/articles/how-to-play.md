@@ -3,6 +3,7 @@ title: "How to Play Fantasy"
 description: "A practical guide to Super League Fantasy and managing your team"
 author: "Super League"
 tags: ["Official", "Fantasy"]
+headerImage: "/images/articles/how-fantasy.jpg"
 publishedAt: "2026-01-15T10:00:00Z"
 -----------------------------------
 

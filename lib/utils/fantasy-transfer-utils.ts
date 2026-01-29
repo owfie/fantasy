@@ -181,4 +181,3 @@ export function simplifyTransfers(
   );
   return result.unsavedTransfers;
 }
-

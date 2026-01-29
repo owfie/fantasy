@@ -1,16 +1,34 @@
 /**
  * Transfer Service
- * Handles transfer window validation
+ * Handles transfer window validation and state management
  *
  * Note: Transfers are now computed from snapshot diffs, not stored in the transfers table.
  * The actual transfer validation (count limits, budget) happens at snapshot save time
  * in FantasyTeamSnapshotService.
+ *
+ * Transfer Window States (derived from prices_calculated, transfer_window_open, cutoff_time, closed_at):
+ * - upcoming: prices_calculated=false, transfer_window_open=false -> No prices yet
+ * - ready: prices_calculated=true, transfer_window_open=false, closed_at=null -> For admin review
+ * - open: prices_calculated=true, transfer_window_open=true, cutoff not passed -> Users can transfer
+ * - completed: Either manually closed (closed_at set) OR cutoff time has passed
+ * - Invalid: prices_calculated=false, transfer_window_open=true (prevented by service)
  */
 
 import { UnitOfWork } from '../unit-of-work';
 import { canBypassTransferWindow } from '@/lib/config/transfer-whitelist';
 import { computeTransfersFromIds } from '@/lib/utils/transfer-computation';
 import { MAX_TRANSFERS_PER_WEEK } from './budget.service';
+import { getTransferWindowState, TransferWindowState } from '../types';
+
+export interface OpenWindowResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface CloseWindowResult {
+  success: boolean;
+  error?: string;
+}
 
 export class TransferService {
   constructor(private uow: UnitOfWork) {}
@@ -127,5 +145,97 @@ export class TransferService {
     const transfers = computeTransfersFromIds(currentPlayerIds, previousPlayerIds);
 
     return Math.max(0, MAX_TRANSFERS_PER_WEEK - transfers.length);
+  }
+
+  /**
+   * Get the current state of a transfer window
+   */
+  getWindowState(
+    pricesCalculated: boolean,
+    transferWindowOpen: boolean,
+    cutoffTime?: string,
+    closedAt?: string
+  ): TransferWindowState {
+    return getTransferWindowState(pricesCalculated, transferWindowOpen, cutoffTime, closedAt);
+  }
+
+  /**
+   * Open a transfer window for a week
+   * Validates:
+   * - For week 1: No prior prices needed (initial team selection)
+   * - For week n (n > 1): Week n-1 prices must be calculated
+   * - No other window can be currently open for the season
+   */
+  async openTransferWindow(weekId: string): Promise<OpenWindowResult> {
+    const week = await this.uow.weeks.findById(weekId);
+    if (!week) {
+      return { success: false, error: 'Week not found' };
+    }
+
+    // Validation 1: Check previous week's prices (not current week)
+    // TW_0 (before Week 1) -> no stats needed
+    // TW_n (before Week n+1) -> needs Week n stats/prices
+    if (week.week_number > 1) {
+      const prevWeek = await this.uow.weeks.findBySeasonAndWeekNumber(week.season_id, week.week_number - 1);
+      if (!prevWeek?.prices_calculated) {
+        return { success: false, error: `Week ${week.week_number - 1} prices not yet calculated. Enter stats first.` };
+      }
+    }
+
+    // Validation 2: No other window already open (service-level check before DB constraint)
+    const openWindows = await this.uow.weeks.findOpenWindowsForSeason(week.season_id);
+    if (openWindows.length > 0 && openWindows[0].id !== weekId) {
+      return {
+        success: false,
+        error: `TW ${openWindows[0].week_number} is already open. Close it first.`,
+      };
+    }
+
+    // Already open - no-op success
+    if (week.transfer_window_open) {
+      return { success: true };
+    }
+
+    // Open the window
+    await this.uow.weeks.update({ id: weekId, transfer_window_open: true });
+    return { success: true };
+  }
+
+  /**
+   * Close a transfer window for a week
+   * Records the closed_at timestamp to distinguish "completed" from "ready" state
+   */
+  async closeTransferWindow(weekId: string): Promise<CloseWindowResult> {
+    const week = await this.uow.weeks.findById(weekId);
+    if (!week) {
+      return { success: false, error: 'Week not found' };
+    }
+
+    // Already closed - no-op success
+    if (!week.transfer_window_open) {
+      return { success: true };
+    }
+
+    // Close the window and record timestamp
+    await this.uow.weeks.update({
+      id: weekId,
+      transfer_window_open: false,
+      transfer_window_closed_at: new Date().toISOString(),
+    });
+    return { success: true };
+  }
+
+  /**
+   * Check if any transfer window is currently open for a season
+   */
+  async hasOpenWindow(seasonId: string): Promise<{ hasOpen: boolean; openWeek?: { id: string; weekNumber: number } }> {
+    const openWindows = await this.uow.weeks.findOpenWindowsForSeason(seasonId);
+    if (openWindows.length > 0) {
+      return {
+        hasOpen: true,
+        openWeek: { id: openWindows[0].id, weekNumber: openWindows[0].week_number },
+      };
+    }
+    return { hasOpen: false };
   }
 }

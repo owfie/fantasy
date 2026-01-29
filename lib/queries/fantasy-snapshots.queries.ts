@@ -151,4 +151,3 @@ export function useAllSnapshotsWithDetailsForTeam(fantasyTeamId: string) {
     enabled: !!fantasyTeamId,
   });
 }
-

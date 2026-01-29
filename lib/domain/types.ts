@@ -59,6 +59,8 @@ export interface Week extends BaseEntity {
   is_draft_week: boolean;
   transfer_window_open: boolean;
   transfer_cutoff_time?: string;
+  prices_calculated: boolean;
+  transfer_window_closed_at?: string; // Timestamp when window was closed (to distinguish completed from ready)
 }
 
 // Game
@@ -212,9 +214,11 @@ export type InsertUserProfile = Omit<UserProfile, 'id' | 'created_at' | 'updated
 export type InsertTeam = Omit<Team, 'id' | 'created_at'>;
 export type InsertPlayer = Omit<Player, 'id' | 'created_at' | 'updated_at'>;
 export type InsertSeason = Omit<Season, 'id' | 'created_at'>;
-export type InsertWeek = Omit<Week, 'id' | 'created_at'> & {
+export type InsertWeek = Omit<Week, 'id' | 'created_at' | 'transfer_window_open' | 'transfer_cutoff_time' | 'prices_calculated' | 'transfer_window_closed_at'> & {
   transfer_window_open?: boolean;
   transfer_cutoff_time?: string | null;
+  prices_calculated?: boolean;
+  transfer_window_closed_at?: string | null;
 };
 export type InsertGame = Omit<Game, 'id' | 'created_at' | 'updated_at'>;
 export type InsertFantasyTeam = Omit<FantasyTeam, 'id' | 'created_at' | 'updated_at'>;
@@ -231,6 +235,58 @@ export type InsertSeasonPlayer = Omit<SeasonPlayer, 'id' | 'created_at' | 'updat
 export type InsertArticleAuthor = Omit<ArticleAuthor, 'id' | 'created_at'>;
 export type InsertArticleTag = Omit<ArticleTag, 'id' | 'created_at'>;
 export type InsertArticle = Omit<Article, 'id' | 'created_at' | 'updated_at'>;
+
+// Transfer Window Status (for price calculation UI)
+export interface TransferWindowStatus {
+  windowNumber: number;           // 0, 1, 2, 3, etc.
+  correspondingWeekNumber: number; // 0 for TW0 (none), 1 for TW1, 2 for TW2, etc.
+  hasRequiredStats: boolean;       // Can we calculate this window? (TW0 always true)
+  isCalculated: boolean;           // Have prices been saved? (TW0 always true - starting prices)
+  canCalculate: boolean;           // hasRequiredStats && windowNumber >= 1
+  pricesCalculated: boolean;       // Is prices_calculated flag set on the week?
+  transferWindowOpen: boolean;     // Is transfer window currently open?
+  cutoffTime?: string;             // Transfer cutoff time (for derived completed state)
+  closedAt?: string;               // Timestamp when window was manually closed
+  weekId?: string;                 // The week ID (undefined for TW0)
+}
+
+// Transfer Window Effective State (derived from pricesCalculated + transferWindowOpen + cutoff/closedAt)
+export type TransferWindowState = 'upcoming' | 'ready' | 'open' | 'completed';
+
+/**
+ * Derive the transfer window state from its properties
+ *
+ * States:
+ * - upcoming: prices not calculated yet, window not open
+ * - ready: prices calculated, window never opened (ready for admin review)
+ * - open: prices calculated, window currently open AND before cutoff (users can transfer)
+ * - completed: window was opened and either manually closed OR cutoff time has passed
+ */
+export function getTransferWindowState(
+  pricesCalculated: boolean,
+  transferWindowOpen: boolean,
+  cutoffTime?: string,
+  closedAt?: string
+): TransferWindowState {
+  if (!pricesCalculated && !transferWindowOpen) return 'upcoming';
+
+  if (pricesCalculated && !transferWindowOpen) {
+    // Was it ever opened? Check if closedAt exists
+    if (closedAt) return 'completed'; // Was opened, manually closed
+    return 'ready'; // Never opened
+  }
+
+  if (pricesCalculated && transferWindowOpen) {
+    // Check if cutoff time has passed (derived completed state)
+    if (cutoffTime && new Date(cutoffTime) < new Date()) {
+      return 'completed'; // Cutoff passed, effectively closed
+    }
+    return 'open';
+  }
+
+  // transferWindowOpen && !pricesCalculated is invalid - service layer prevents this
+  return 'upcoming';
+}
 
 // Update types (partial, with id required)
 export type UpdateTeam = Partial<Omit<Team, 'id' | 'created_at'>> & { id: string };

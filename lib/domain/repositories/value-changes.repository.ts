@@ -74,8 +74,47 @@ export class ValueChangesRepository extends BaseRepository<ValueChange, InsertVa
 
   /**
    * Get current round (latest round with value changes)
+   * If seasonId is provided, only considers players active in that season
    */
-  async getCurrentRound(): Promise<number | null> {
+  async getCurrentRound(seasonId?: string): Promise<number | null> {
+    if (seasonId) {
+      // Get active player IDs for this season
+      const { data: seasonPlayers, error: spError } = await this.client
+        .from('season_players')
+        .select('player_id')
+        .eq('season_id', seasonId)
+        .eq('is_active', true);
+
+      if (spError) {
+        throw new Error(`Failed to get season players: ${spError.message}`);
+      }
+
+      const activePlayerIds = (seasonPlayers || []).map((sp: { player_id: string }) => sp.player_id);
+
+      if (activePlayerIds.length === 0) {
+        return null;
+      }
+
+      // Get max round for players in this season
+      const { data, error } = await this.client
+        .from(this.tableName)
+        .select('round')
+        .in('player_id', activePlayerIds)
+        .order('round', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return null;
+        }
+        throw new Error(`Failed to get current round: ${error.message}`);
+      }
+
+      return data?.round ?? null;
+    }
+
+    // Fallback to global query if no seasonId
     const { data, error } = await this.client
       .from(this.tableName)
       .select('round')
@@ -185,8 +224,8 @@ export class ValueChangesRepository extends BaseRepository<ValueChange, InsertVa
    * If seasonId is provided, only returns players active in that season
    */
   async getCurrentPlayerPrices(seasonId?: string): Promise<PlayerWithPrices[]> {
-    const currentRound = await this.getCurrentRound();
-    
+    const currentRound = await this.getCurrentRound(seasonId);
+
     if (currentRound === null) {
       // No value changes yet - fall back to starting values from season_players
       // If no seasonId, return empty array (no active season)
@@ -232,6 +271,49 @@ export class ValueChangesRepository extends BaseRepository<ValueChange, InsertVa
     }
 
     return this.getPlayerPricesForRound(currentRound, seasonId);
+  }
+
+  /**
+   * Get the highest round that has visible prices for users
+   * Only returns rounds where the transfer window has been opened (prices are published)
+   * This ensures users don't see "draft" prices that are calculated but not yet published
+   */
+  async getVisibleRound(seasonId: string): Promise<number | null> {
+    // Get weeks that have had their transfer window opened (prices_calculated = true means it was processed)
+    // AND either currently open or has been opened before
+    const { data: visibleWeeks, error: weekError } = await this.client
+      .from('weeks')
+      .select('week_number')
+      .eq('season_id', seasonId)
+      .eq('prices_calculated', true)
+      .order('week_number', { ascending: false })
+      .limit(1);
+
+    if (weekError) {
+      throw new Error(`Failed to get visible weeks: ${weekError.message}`);
+    }
+
+    if (!visibleWeeks || visibleWeeks.length === 0) {
+      return null;
+    }
+
+    // Return the highest week number where prices have been calculated
+    return visibleWeeks[0].week_number;
+  }
+
+  /**
+   * Get current player prices that are VISIBLE to users
+   * Only shows prices from windows that have been published (prices_calculated = true)
+   */
+  async getVisiblePlayerPrices(seasonId: string): Promise<PlayerWithPrices[]> {
+    const visibleRound = await this.getVisibleRound(seasonId);
+
+    if (visibleRound === null) {
+      // No visible prices yet - show starting values
+      return this.getCurrentPlayerPrices(seasonId);
+    }
+
+    return this.getPlayerPricesForRound(visibleRound, seasonId);
   }
 }
 

@@ -242,4 +242,3 @@ export function getACSTDateComponents(utcIsoString: string | null | undefined): 
     seconds: parseInt(partMap.get('second') || '0', 10),
   };
 }
-

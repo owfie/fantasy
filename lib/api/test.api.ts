@@ -1358,8 +1358,14 @@ async function testGetAvailablePlayersLegacy(seasonId: string) {
 
 export async function saveWeekStats(input: SaveWeekStatsInput) {
   const uow = await getUnitOfWork();
-  
+
   return uow.execute(async (uow) => {
+    // Get the week to find season_id for price calculation
+    const week = await uow.weeks.findById(input.weekId);
+    if (!week) {
+      throw new Error('Week not found');
+    }
+
     // Get or create a default game for this week
     // First, try to find an existing game
     const { data: existingGames } = await uow.getClient()
@@ -1367,9 +1373,9 @@ export async function saveWeekStats(input: SaveWeekStatsInput) {
       .select('id')
       .eq('week_id', input.weekId)
       .limit(1);
-    
+
     let gameId: string;
-    
+
     if (existingGames && existingGames.length > 0) {
       gameId = existingGames[0].id;
     } else {
@@ -1379,7 +1385,7 @@ export async function saveWeekStats(input: SaveWeekStatsInput) {
       if (teams.length < 2) {
         throw new Error('Need at least 2 teams to create a game');
       }
-      
+
       const game = await uow.games.create({
         week_id: input.weekId,
         home_team_id: teams[0].id,
@@ -1388,22 +1394,22 @@ export async function saveWeekStats(input: SaveWeekStatsInput) {
         is_completed: false,
       });
       gameId = game.id;
-      
+
       // Set default availability for all active season players
       const { setDefaultAvailabilityForGame } = await import('./availability.api');
       await setDefaultAvailabilityForGame(gameId);
     }
-    
+
     // Batch fetch all existing stats for this game in one query
     const { data: allExistingStats, error: fetchError } = await uow.getClient()
       .from('player_stats')
       .select('*')
       .eq('game_id', gameId);
-    
+
     if (fetchError) {
       throw new Error(`Failed to fetch existing stats: ${fetchError.message}`);
     }
-    
+
     // Create a map of existing stats by player_id
     interface ExistingStat {
       id: string;
@@ -1424,28 +1430,28 @@ export async function saveWeekStats(input: SaveWeekStatsInput) {
         existingStatsMap.set(stat.player_id, stat);
       }
     }
-    
+
     // Separate stats into creates and updates
     const toCreate: InsertPlayerStatsType[] = [];
     const toUpdate: UpdatePlayerStats[] = [];
-    
+
     for (const playerStat of input.playerStats) {
       const existing = existingStatsMap.get(playerStat.playerId);
-      
+
       if (existing) {
         // Normalize played values for comparison (treat null/undefined as true)
         const existingPlayed = existing.played !== null && existing.played !== undefined ? existing.played : true;
         const newPlayed = playerStat.played !== undefined ? playerStat.played : true;
-        
+
         // Check if anything actually changed
-        const hasChanges = 
+        const hasChanges =
           existing.goals !== playerStat.goals ||
           existing.assists !== playerStat.assists ||
           existing.blocks !== playerStat.blocks ||
           existing.drops !== playerStat.drops ||
           existing.throwaways !== playerStat.throwaways ||
           existingPlayed !== newPlayed;
-        
+
         if (hasChanges) {
           toUpdate.push({
             id: existing.id,
@@ -1473,7 +1479,7 @@ export async function saveWeekStats(input: SaveWeekStatsInput) {
         });
       }
     }
-    
+
     // Batch create new stats
     let createdCount = 0;
     if (toCreate.length > 0) {
@@ -1481,13 +1487,13 @@ export async function saveWeekStats(input: SaveWeekStatsInput) {
         .from('player_stats')
         .insert(toCreate)
         .select();
-      
+
       if (createError) {
         throw new Error(`Failed to create player stats: ${createError.message}`);
       }
       createdCount = created?.length || 0;
     }
-    
+
     // Batch update existing stats
     let updatedCount = 0;
     if (toUpdate.length > 0) {
@@ -1498,15 +1504,28 @@ export async function saveWeekStats(input: SaveWeekStatsInput) {
       await Promise.all(updatePromises);
       updatedCount = toUpdate.length;
     }
-    
+
+    // Auto-calculate prices from this window forward (cascade)
+    // This is the event-driven price calculation triggered by stats save
+    let priceCalcResult = { saved: 0, windowsUpdated: [] as number[] };
+    if (createdCount > 0 || updatedCount > 0) {
+      const { PriceCalculationService } = await import('@/lib/domain/services/price-calculation.service');
+      const priceService = new PriceCalculationService(uow);
+      priceCalcResult = await priceService.calculateFromWindow(week.season_id, week.week_number);
+    }
+
     return {
       success: true,
-      message: `Saved stats: ${createdCount} created, ${updatedCount} updated`,
+      message: `Saved stats: ${createdCount} created, ${updatedCount} updated` +
+        (priceCalcResult.windowsUpdated.length > 0
+          ? `. Prices recalculated for TW ${priceCalcResult.windowsUpdated.join(', ')}`
+          : ''),
       data: {
         gameId,
         statsCount: createdCount + updatedCount,
         createdCount,
         updatedCount,
+        pricesRecalculated: priceCalcResult.windowsUpdated,
       },
     };
   });

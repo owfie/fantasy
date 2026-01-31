@@ -26,17 +26,17 @@ export const Header = ({ children }: HeaderProps) => {
                         transition={{ duration: 0.3, ease: 'easeInOut' }}
                     >
                         <Link href="/">
-                            <Image 
-                                src="/images/logo.svg" 
-                                alt="Logo" 
-                                width={200} 
+                            <Image
+                                src="/images/logo.svg"
+                                alt="Logo"
+                                width={200}
                                 height={200}
                                 style={{ width: 'auto', height: 'auto', maxWidth: '200px', maxHeight: '200px' }}
                                 priority
                             />
                         </Link>
                     </motion.div>
-                    <button 
+                    <button
                         className={styles.mobileMenuButton}
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         aria-label="Toggle menu"
@@ -49,7 +49,7 @@ export const Header = ({ children }: HeaderProps) => {
                             )}
                         </svg>
                     </button>
-                    <motion.nav 
+                    <motion.nav
                         layoutId="header-nav"
                         className={`${styles.nav} ${isMobileMenuOpen ? styles.mobileOpen : ''}`}
                         transition={{ duration: 0.3, ease: 'easeInOut' }}
@@ -57,7 +57,7 @@ export const Header = ({ children }: HeaderProps) => {
                         <Link href="/" data-active={isHome} onClick={() => setIsMobileMenuOpen(false)}>Home</Link>
                         <Link href="/news" data-active={pathname === '/news'} onClick={() => setIsMobileMenuOpen(false)}>News</Link>
                         <Link href="/fixtures" data-active={pathname === '/fixtures'} onClick={() => setIsMobileMenuOpen(false)}>Fixtures</Link>
-                        {/* <Link href="/players" data-active={pathname === '/players'} onClick={() => setIsMobileMenuOpen(false)}>Players</Link> */}
+                         <Link href="/players" data-active={pathname === '/players'} onClick={() => setIsMobileMenuOpen(false)}>Players</Link>
                         <Link href="/fantasy" data-active={pathname === '/fantasy'} onClick={() => setIsMobileMenuOpen(false)}>Fantasy</Link>
                         <div className={styles.user}>
                             {children}

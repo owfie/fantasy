@@ -137,12 +137,17 @@ export class ValueChangesRepository extends BaseRepository<ValueChange, InsertVa
    * If seasonId is provided, only returns players active in that season
    */
   async getPlayerPricesForRound(round: number, seasonId?: string): Promise<PlayerWithPrices[]> {
-    // If seasonId is provided, get active player IDs for that season first
+    // If seasonId is provided, get season players with their season-specific team
+    let seasonPlayerMap: Map<string, { team_name: string | null }> | undefined;
     let activePlayerIds: string[] | undefined;
+    
     if (seasonId) {
       const { data: seasonPlayers, error: spError } = await this.client
         .from('season_players')
-        .select('player_id')
+        .select(`
+          player_id,
+          teams(name)
+        `)
         .eq('season_id', seasonId)
         .eq('is_active', true);
 
@@ -151,6 +156,15 @@ export class ValueChangesRepository extends BaseRepository<ValueChange, InsertVa
       }
 
       activePlayerIds = (seasonPlayers || []).map((sp: { player_id: string }) => sp.player_id);
+      
+      // Build a map of player_id -> team_name for season-specific teams
+      seasonPlayerMap = new Map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (seasonPlayers || []).map((sp: any) => [
+          sp.player_id,
+          { team_name: sp.teams?.name ?? null }
+        ])
+      );
       
       // If no active players in season, return empty array
       if (activePlayerIds.length === 0) {
@@ -206,12 +220,13 @@ export class ValueChangesRepository extends BaseRepository<ValueChange, InsertVa
     return (data || []).map((row: any) => {
       const previousValue = previousValues.get(row.player_id) ?? null;
       const player = row.players;
-      const team = player?.teams;
+      // Use season-specific team if available, otherwise fall back to player's default team
+      const teamName = seasonPlayerMap?.get(row.player_id)?.team_name ?? player?.teams?.name ?? null;
       return {
         player_id: row.player_id,
         first_name: player?.first_name ?? '',
         last_name: player?.last_name ?? '',
-        team_name: team?.name ?? null,
+        team_name: teamName,
         current_value: row.value,
         previous_value: previousValue,
         change: previousValue !== null ? row.value - previousValue : null,
@@ -238,12 +253,12 @@ export class ValueChangesRepository extends BaseRepository<ValueChange, InsertVa
         .select(`
           player_id,
           starting_value,
+          teams(name),
           players!inner(
             id,
             first_name,
             last_name,
-            is_active,
-            teams(name)
+            is_active
           )
         `)
         .eq('season_id', seasonId)
@@ -257,7 +272,8 @@ export class ValueChangesRepository extends BaseRepository<ValueChange, InsertVa
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (data || []).map((sp: any) => {
         const player = sp.players;
-        const team = player?.teams;
+        // Use season-specific team from season_players.team_id
+        const team = sp.teams;
         return {
           player_id: sp.player_id,
           first_name: player?.first_name ?? '',

@@ -5,6 +5,7 @@ import { PlayerWithPrices } from '@/lib/domain/repositories/value-changes.reposi
 import { SegmentedController } from '@/components/SegmentedController';
 import { PlayerDirectoryCard } from './PlayerDirectoryCard';
 import styles from './PlayersDirectory.module.scss';
+import { Card } from '../Card';
 
 type ViewMode = 'grid' | 'list';
 type SortOption = 'name' | 'team' | 'value-high' | 'value-low';
@@ -81,54 +82,52 @@ export function PlayersDirectoryClient({ players }: PlayersDirectoryClientProps)
 
   return (
     <div className={styles.container}>
-      <div className={styles.header}>
-        <h1 className={styles.title}>Players</h1>
-        <p className={styles.subtitle}>
-          All players in the current season
-        </p>
-      </div>
+      <h2>Players</h2>
 
-      <div className={styles.controls}>
-        <div className={styles.searchSection}>
-          <label className={styles.filterLabel} htmlFor="search-input">
-            Search
-          </label>
-          <input
-            id="search-input"
-            type="text"
-            placeholder="Search by name or team..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={styles.searchInput}
-          />
+      <Card className={styles.header}>
+        <div className={styles.controls}>
+          <div className={styles.searchSection}>
+            <label className={styles.filterLabel} htmlFor="search-input">
+              Search
+            </label>
+            <input
+              id="search-input"
+              type="text"
+              placeholder="Search by name or team..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className={styles.searchInput}
+            />
+          </div>
+
+          <div className={styles.sortSection}>
+            <label className={styles.filterLabel} htmlFor="sort-select">
+              Sort by
+            </label>
+            <select
+              id="sort-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className={styles.sortSelect}
+            >
+              <option value="value-high">Value (highest)</option>
+              <option value="value-low">Value (lowest)</option>
+              <option value="name">Name (A-Z)</option>
+              <option value="team">Team</option>
+            </select>
+          </div>
+
+          <div className={styles.viewToggle}>
+            <SegmentedController
+              options={viewOptions}
+              selectedValues={[viewMode]}
+              onChange={(values) => setViewMode(values[0] as ViewMode || 'grid')}
+              allowMultiple={false}
+            />
+          </div>
         </div>
 
-        <div className={styles.sortSection}>
-          <label className={styles.filterLabel} htmlFor="sort-select">
-            Sort by
-          </label>
-          <select
-            id="sort-select"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className={styles.sortSelect}
-          >
-            <option value="value-high">Value (highest)</option>
-            <option value="value-low">Value (lowest)</option>
-            <option value="name">Name (A-Z)</option>
-            <option value="team">Team</option>
-          </select>
-        </div>
-
-        <div className={styles.viewToggle}>
-          <SegmentedController
-            options={viewOptions}
-            selectedValues={[viewMode]}
-            onChange={(values) => setViewMode(values[0] as ViewMode || 'grid')}
-            allowMultiple={false}
-          />
-        </div>
-      </div>
+      </Card>
 
       <div className={styles.playerCount}>
         {filteredAndSortedPlayers.length} player{filteredAndSortedPlayers.length !== 1 ? 's' : ''}
@@ -152,5 +151,3 @@ export function PlayersDirectoryClient({ players }: PlayersDirectoryClientProps)
     </div>
   );
 }
-
-

@@ -5,7 +5,11 @@
 }
 
 .header {
+  margin-top: 2em;
   margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2em;
 }
 
 .title {
@@ -25,7 +29,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
-  margin-bottom: 1.5rem;
   align-items: flex-end;
 }
 
@@ -47,15 +50,18 @@
 .searchInput {
   width: 100%;
   padding: 0.625rem 0.875rem;
-  border: 1px solid #e5e7eb;
+  /* border: 1px solid #e5e7eb; */
   border-radius: 0.5rem;
   font-size: 0.875rem;
   color: #111827;
-  background-color: #fff;
+  background-color: #f8f8f8;
 
   &:focus {
     outline: none;
+
     border-color: #3b82f6;
+    border-width: 1px;
+    border-style: solid;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   }
 
@@ -71,7 +77,7 @@
 .sortSelect {
   width: 100%;
   padding: 0.625rem 0.875rem;
-  border: 1px solid #e5e7eb;
+  border: 1px solid transparent;
   border-radius: 0.5rem;
   background-color: #fff;
   color: #111827;
@@ -79,15 +85,35 @@
   cursor: pointer;
   transition: all 0.15s ease;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
   background-position: right 0.5rem center;
   background-repeat: no-repeat;
   background-size: 1.5rem 1.5rem;
   padding-right: 2.5rem;
 
+    padding: 0.625rem 0.875rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    color: #111827;
+    background-color: #f8f8f8;
+
+    &:focus {
+        outline: none;
+
+        border-color: #3b82f6;
+        border-width: 1px;
+        border-style: solid;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    &::placeholder {
+        color: #9ca3af;
+    }
+
+
   &:hover {
-    background-color: #f9fafb;
-    border-color: #d1d5db;
+      background-color: #f4f4f4;
+
   }
 
   &:focus {
@@ -283,4 +309,3 @@
     font-size: 0.875rem;
   }
 }
-

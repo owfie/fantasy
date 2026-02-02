@@ -2,10 +2,22 @@ import { getFixtures } from '@/lib/api';
 import { GameWithTeams } from '@/lib/domain/repositories/games.repository';
 import { FixtureCard } from './FixtureCard';
 import { formatInACST } from '@/lib/utils/date-utils';
+import { FixtureStatus } from './FixturesFilter';
 import styles from './FixturesList.module.scss';
 
-export async function FixturesList() {
-  const fixtures = await getFixtures();
+interface FixturesListProps {
+  status?: FixtureStatus;
+}
+
+export async function FixturesList({ status = 'all' }: FixturesListProps) {
+  let fixtures = await getFixtures();
+
+  // Filter fixtures by status
+  if (status === 'upcoming') {
+    fixtures = fixtures.filter(f => !f.is_completed);
+  } else if (status === 'played') {
+    fixtures = fixtures.filter(f => f.is_completed);
+  }
 
   if (!fixtures || fixtures.length === 0) {
     return <p>No fixtures found.</p>;

@@ -1356,6 +1356,8 @@ function WeekGamesCard({ week, seasonId, onEdit, onDelete, isDeleting }: WeekGam
   const [results, setResults] = useState<Record<string, TestResult>>({});
   // Local state for time inputs to prevent saving on every keystroke
   const [localTimeValues, setLocalTimeValues] = useState<Record<string, string>>({});
+  // Local state for score inputs
+  const [localScoreValues, setLocalScoreValues] = useState<Record<string, { home: string; away: string }>>({});
 
   const handleTeamChange = async (gameId: string, field: 'home_team_id' | 'away_team_id', teamId: string) => {
     try {
@@ -1453,6 +1455,84 @@ function WeekGamesCard({ week, seasonId, onEdit, onDelete, isDeleting }: WeekGam
         delete next[gameId];
         return next;
       });
+    }
+  };
+
+  const handleScoreInputChange = (gameId: string, field: 'home' | 'away', value: string) => {
+    setLocalScoreValues(prev => ({
+      ...prev,
+      [gameId]: {
+        home: field === 'home' ? value : (prev[gameId]?.home ?? ''),
+        away: field === 'away' ? value : (prev[gameId]?.away ?? ''),
+      }
+    }));
+  };
+
+  const handleScoreBlur = async (gameId: string, field: 'home' | 'away') => {
+    const game = games.find(g => g.id === gameId);
+    if (!game) return;
+
+    const localScore = localScoreValues[gameId];
+    const scoreValue = field === 'home' 
+      ? localScore?.home 
+      : localScore?.away;
+
+    // If no local value set, nothing to save
+    if (scoreValue === undefined) return;
+
+    const numericValue = scoreValue === '' ? undefined : parseInt(scoreValue, 10);
+    
+    // Skip if value hasn't changed
+    const currentValue = field === 'home' ? game.home_score : game.away_score;
+    if (numericValue === currentValue) {
+      // Clear local state
+      setLocalScoreValues(prev => {
+        const next = { ...prev };
+        delete next[gameId];
+        return next;
+      });
+      return;
+    }
+
+    try {
+      const updateData: { id: string; home_score?: number; away_score?: number } = { id: gameId };
+      if (field === 'home') {
+        updateData.home_score = numericValue;
+      } else {
+        updateData.away_score = numericValue;
+      }
+
+      const result = await updateGameMutation.mutateAsync(updateData);
+      setResults(prev => ({ ...prev, [`update-score-${gameId}`]: result }));
+      
+      // Clear local state after successful save
+      setLocalScoreValues(prev => {
+        const next = { ...prev };
+        delete next[gameId];
+        return next;
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to update score';
+      setResults(prev => ({
+        ...prev,
+        [`update-score-${gameId}`]: { success: false, message, error: message },
+      }));
+    }
+  };
+
+  const handleCompletedChange = async (gameId: string, isCompleted: boolean) => {
+    try {
+      const result = await updateGameMutation.mutateAsync({
+        id: gameId,
+        is_completed: isCompleted,
+      });
+      setResults(prev => ({ ...prev, [`update-completed-${gameId}`]: result }));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to update game status';
+      setResults(prev => ({
+        ...prev,
+        [`update-completed-${gameId}`]: { success: false, message, error: message },
+      }));
     }
   };
 
@@ -1710,6 +1790,8 @@ function WeekGamesCard({ week, seasonId, onEdit, onDelete, isDeleting }: WeekGam
                         <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: '600' }}>vs</th>
                         <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>Away Team</th>
                         <th style={{ padding: '0.75rem', textAlign: 'left', fontWeight: '600' }}>Time</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: '600' }}>Score</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'center', fontWeight: '600' }}>Done</th>
                         <th style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '600' }}>Actions</th>
                       </tr>
                     </thead>
@@ -1794,6 +1876,58 @@ function WeekGamesCard({ week, seasonId, onEdit, onDelete, isDeleting }: WeekGam
                                 Set week date first
                               </p>
                             )}
+                          </td>
+                          <td style={{ padding: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+                              <input
+                                type="number"
+                                min="0"
+                                value={localScoreValues[game.id]?.home !== undefined 
+                                  ? localScoreValues[game.id].home 
+                                  : (game.home_score ?? '')}
+                                onChange={(e) => handleScoreInputChange(game.id, 'home', e.target.value)}
+                                onBlur={() => handleScoreBlur(game.id, 'home')}
+                                disabled={updateGameMutation.isPending}
+                                placeholder="-"
+                                style={{
+                                  width: '45px',
+                                  padding: '0.4rem',
+                                  fontSize: '0.9rem',
+                                  borderRadius: '4px',
+                                  border: '1px solid #ddd',
+                                  textAlign: 'center',
+                                }}
+                              />
+                              <span style={{ color: '#666' }}>-</span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={localScoreValues[game.id]?.away !== undefined 
+                                  ? localScoreValues[game.id].away 
+                                  : (game.away_score ?? '')}
+                                onChange={(e) => handleScoreInputChange(game.id, 'away', e.target.value)}
+                                onBlur={() => handleScoreBlur(game.id, 'away')}
+                                disabled={updateGameMutation.isPending}
+                                placeholder="-"
+                                style={{
+                                  width: '45px',
+                                  padding: '0.4rem',
+                                  fontSize: '0.9rem',
+                                  borderRadius: '4px',
+                                  border: '1px solid #ddd',
+                                  textAlign: 'center',
+                                }}
+                              />
+                            </div>
+                          </td>
+                          <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              checked={game.is_completed}
+                              onChange={(e) => handleCompletedChange(game.id, e.target.checked)}
+                              disabled={updateGameMutation.isPending}
+                              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                            />
                           </td>
                           <td style={{ padding: '0.75rem', textAlign: 'right' }}>
                             <Button

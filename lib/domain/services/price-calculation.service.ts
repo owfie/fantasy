@@ -318,6 +318,7 @@ export class PriceCalculationService {
         cutoffTime: week.transfer_cutoff_time,
         closedAt: week.transfer_window_closed_at,
         weekId: week.id,
+        weekEndDate: week.end_date,
       });
     }
 
@@ -469,7 +470,8 @@ export class PriceCalculationService {
           week.prices_calculated,
           week.transfer_window_open,
           week.transfer_cutoff_time,
-          week.transfer_window_closed_at
+          week.transfer_window_closed_at,
+          week.end_date
         );
         affectedWindows.push({
           weekNumber: week.week_number,

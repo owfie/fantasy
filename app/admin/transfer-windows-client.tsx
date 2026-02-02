@@ -151,7 +151,8 @@ export default function TransferWindowsClient({ seasonId }: TransferWindowsClien
       twPricesReady, // For TW, "prices calculated" means the required previous week has prices
       week.transfer_window_open,
       week.transfer_cutoff_time,
-      week.transfer_window_closed_at
+      week.transfer_window_closed_at,
+      week.end_date
     );
 
     timelineItems.push({

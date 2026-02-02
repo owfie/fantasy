@@ -154,9 +154,10 @@ export class TransferService {
     pricesCalculated: boolean,
     transferWindowOpen: boolean,
     cutoffTime?: string,
-    closedAt?: string
+    closedAt?: string,
+    weekEndDate?: string
   ): TransferWindowState {
-    return getTransferWindowState(pricesCalculated, transferWindowOpen, cutoffTime, closedAt);
+    return getTransferWindowState(pricesCalculated, transferWindowOpen, cutoffTime, closedAt, weekEndDate);
   }
 
   /**

@@ -248,6 +248,7 @@ export interface TransferWindowStatus {
   cutoffTime?: string;             // Transfer cutoff time (for derived completed state)
   closedAt?: string;               // Timestamp when window was manually closed
   weekId?: string;                 // The week ID (undefined for TW0)
+  weekEndDate?: string;            // End date of the week (for determining if week is in the past)
 }
 
 // Transfer Window Effective State (derived from pricesCalculated + transferWindowOpen + cutoff/closedAt)
@@ -260,20 +261,25 @@ export type TransferWindowState = 'upcoming' | 'ready' | 'open' | 'completed';
  * - upcoming: prices not calculated yet, window not open
  * - ready: prices calculated, window never opened (ready for admin review)
  * - open: prices calculated, window currently open AND before cutoff (users can transfer)
- * - completed: window was opened and either manually closed OR cutoff time has passed
+ * - completed: window was opened and either manually closed OR cutoff time has passed OR week has ended
  */
 export function getTransferWindowState(
   pricesCalculated: boolean,
   transferWindowOpen: boolean,
   cutoffTime?: string,
-  closedAt?: string
+  closedAt?: string,
+  weekEndDate?: string
 ): TransferWindowState {
   if (!pricesCalculated && !transferWindowOpen) return 'upcoming';
 
   if (pricesCalculated && !transferWindowOpen) {
     // Was it ever opened? Check if closedAt exists
     if (closedAt) return 'completed'; // Was opened, manually closed
-    return 'ready'; // Never opened
+    // Check if week has ended (past weeks are effectively completed)
+    if (weekEndDate && new Date(weekEndDate) < new Date()) {
+      return 'completed'; // Week is in the past
+    }
+    return 'ready'; // Never opened, week not yet ended
   }
 
   if (pricesCalculated && transferWindowOpen) {

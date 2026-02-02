@@ -6,28 +6,19 @@ import {
   useTransferWindowStatuses,
   useCalculateFromWindow,
 } from '@/lib/queries/price-calculation.queries';
-import { TransferWindowStatus, getTransferWindowState, TransferWindowState } from '@/lib/domain/types';
+import { TransferWindowStatus, getTransferWindowState, TransferWindowState, Week } from '@/lib/domain/types';
 
 interface PlayerPricesClientProps {
   seasonId?: string;
 }
 
 /**
- * Get state badge for a transfer window
+ * Get state badge for a transfer window based on the state
  */
-function getStateBadge(status: TransferWindowStatus | undefined): { text: string; color: string; bg: string } {
-  if (!status || status.windowNumber === 0) {
-    return { text: 'Starting', color: '#666', bg: '#f0f0f0' };
-  }
-
-  const state = getTransferWindowState(
-    status.pricesCalculated,
-    status.transferWindowOpen,
-    status.cutoffTime,
-    status.closedAt
-  );
-
+function getStateBadge(state: TransferWindowState | 'starting'): { text: string; color: string; bg: string } {
   switch (state) {
+    case 'starting':
+      return { text: 'Starting', color: '#666', bg: '#f0f0f0' };
     case 'open':
       return { text: 'Open', color: '#fff', bg: '#10b981' }; // Green
     case 'ready':
@@ -39,6 +30,44 @@ function getStateBadge(status: TransferWindowStatus | undefined): { text: string
     default:
       return { text: 'Unknown', color: '#666', bg: '#f0f0f0' };
   }
+}
+
+/**
+ * Calculate TW state for a price column
+ * TW N shows prices from Week N - these prices are used in the transfer window before Week N+1
+ * The transfer window state is determined by Week N+1's transfer_window_open flag
+ */
+function getTWState(weekNumber: number, weeks: Week[]): TransferWindowState | 'starting' {
+  if (weekNumber === 0) {
+    return 'starting';
+  }
+  
+  // Find the week that controls this TW's state
+  // TW N (prices from Week N) is the window before Week N+1
+  // Week N+1's transfer_window_open controls TW N
+  const controllingWeek = weeks.find(w => w.week_number === weekNumber + 1);
+  
+  if (!controllingWeek) {
+    // No next week exists yet - check if current week's prices are calculated
+    const currentWeek = weeks.find(w => w.week_number === weekNumber);
+    if (!currentWeek?.prices_calculated) {
+      return 'upcoming';
+    }
+    // Prices exist but no next week to use them - show as ready/upcoming
+    return 'upcoming';
+  }
+  
+  // Check if the required prices (from weekNumber) are calculated
+  const priceWeek = weeks.find(w => w.week_number === weekNumber);
+  const pricesReady = priceWeek?.prices_calculated ?? false;
+  
+  return getTransferWindowState(
+    pricesReady,
+    controllingWeek.transfer_window_open,
+    controllingWeek.transfer_cutoff_time,
+    controllingWeek.transfer_window_closed_at,
+    controllingWeek.end_date
+  );
 }
 
 /**
@@ -252,8 +281,9 @@ export default function PlayerPricesClient({ seasonId }: PlayerPricesClientProps
               </th>
               {/* TW 1, 2, 3... */}
               {weeks.map((week, index) => {
-                const status = statusMap.get(week.week_number);
-                const badge = getStateBadge(status);
+                // Calculate TW state using the same logic as Transfer Windows page
+                const twState = getTWState(week.week_number, weeks);
+                const badge = getStateBadge(twState);
                 return (
                   <th
                     key={week.id}

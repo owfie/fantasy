@@ -186,25 +186,25 @@ export class PriceCalculationService {
         const points = stats?.points || 0;
         const played = stats?.played ?? false;
 
-        // First, add current week stats to history if player played
-        // (this affects the price for THIS transfer window)
-        if (played) {
-          playedPointsHistory.push(points);
-        }
-
-        // Calculate price for THIS transfer window based on stats up to and including this week
+        // Calculate price for THIS transfer window
         let price: number;
-        if (playedPointsHistory.length === 0) {
-          // No played weeks yet, carry forward previous price
+
+        if (!played) {
+          // Player didn't play this week - freeze price at previous value
           price = previousPrice;
-        } else if (playedPointsHistory.length === 1) {
-          // One played week available - use it for average
-          price = this.calculateNewPrice(previousPrice, playedPointsHistory[0]);
         } else {
-          // Two or more played weeks - use average of last 2 played weeks
-          const lastTwo = playedPointsHistory.slice(-2);
-          const twoWeekAvg = (lastTwo[0] + lastTwo[1]) / 2;
-          price = this.calculateNewPrice(previousPrice, twoWeekAvg);
+          // Player played - add to history and recalculate
+          playedPointsHistory.push(points);
+
+          if (playedPointsHistory.length === 1) {
+            // First played week - use single week's points
+            price = this.calculateNewPrice(previousPrice, playedPointsHistory[0]);
+          } else {
+            // Two or more played weeks - use average of last 2 played weeks
+            const lastTwo = playedPointsHistory.slice(-2);
+            const twoWeekAvg = (lastTwo[0] + lastTwo[1]) / 2;
+            price = this.calculateNewPrice(previousPrice, twoWeekAvg);
+          }
         }
 
         transferWindowData.set(windowNumber, {

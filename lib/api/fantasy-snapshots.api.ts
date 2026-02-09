@@ -142,6 +142,64 @@ export async function createSnapshot(
 }
 
 /**
+ * Get the most recent snapshot before a given week
+ * This handles the case where a team skipped weeks (didn't save changes)
+ * Returns null if no prior snapshot exists (truly first week)
+ */
+export async function getMostRecentSnapshotBeforeWeek(
+  fantasyTeamId: string,
+  currentWeekId: string
+): Promise<SnapshotWithPlayers | null> {
+  if (!fantasyTeamId || !currentWeekId) {
+    return null;
+  }
+
+  const uow = await getUnitOfWork();
+  return uow.execute(async () => {
+    // Get the current week to find its week_number
+    const currentWeek = await uow.weeks.findById(currentWeekId);
+    if (!currentWeek) {
+      return null;
+    }
+
+    // Get all snapshots for this team
+    const allSnapshots = await uow.fantasyTeamSnapshots.findByFantasyTeam(fantasyTeamId);
+    if (allSnapshots.length === 0) {
+      return null;
+    }
+
+    // Get all weeks to map week_id -> week_number
+    const allWeeks = await uow.weeks.findBySeason(currentWeek.season_id);
+    const weekNumberMap = new Map(allWeeks.map(w => [w.id, w.week_number]));
+
+    // Find snapshots from weeks before the current week
+    const priorSnapshots = allSnapshots
+      .filter(s => {
+        const weekNum = weekNumberMap.get(s.week_id);
+        return weekNum !== undefined && weekNum < currentWeek.week_number;
+      })
+      .sort((a, b) => {
+        const weekNumA = weekNumberMap.get(a.week_id) || 0;
+        const weekNumB = weekNumberMap.get(b.week_id) || 0;
+        return weekNumB - weekNumA; // Most recent first
+      });
+
+    if (priorSnapshots.length === 0) {
+      return null;
+    }
+
+    // Get the most recent prior snapshot with its players
+    const mostRecentSnapshot = priorSnapshots[0];
+    const players = await uow.fantasyTeamSnapshotPlayers.findBySnapshot(mostRecentSnapshot.id);
+
+    return {
+      snapshot: mostRecentSnapshot,
+      players,
+    };
+  });
+}
+
+/**
  * Create snapshot from current team state
  */
 export async function createSnapshotFromCurrentTeam(

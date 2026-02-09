@@ -8,7 +8,7 @@
 
 import { useMemo } from 'react';
 import { useActiveSeason, useFantasyTeams } from '@/lib/queries/fantasy-teams-test.queries';
-import { useSnapshotWithPlayersForWeek, snapshotKeys } from '@/lib/queries/fantasy-snapshots.queries';
+import { useSnapshotWithPlayersForWeek, useMostRecentSnapshotBeforeWeek, snapshotKeys } from '@/lib/queries/fantasy-snapshots.queries';
 import { useRemainingTransfers } from '@/lib/queries/transfers.queries';
 import { useWeeks } from '@/lib/queries/seasons.queries';
 import { usePlayersForWeek } from '@/lib/queries/players.queries';
@@ -69,27 +69,25 @@ export function useFantasyPageData(userId?: string | null, isAdmin?: boolean) {
     selectedWeekId || ''
   );
 
-  // Previous week snapshot (for computing transfers)
-  const { data: previousWeekSnapshot, isLoading: isLoadingPreviousSnapshot } = useSnapshotWithPlayersForWeek(
+  // Most recent prior snapshot (for budget calculation and transfer computation)
+  // This handles skipped weeks - if user didn't save in week 3, we use week 2's snapshot
+  const { data: mostRecentPriorSnapshot, isLoading: isLoadingPriorSnapshot } = useMostRecentSnapshotBeforeWeek(
     selectedTeamId || '',
-    previousWeekId || ''
+    selectedWeekId || ''
   );
 
   // Determine if this is effectively the team's first week for transfers
-  // True if: Week 1 of season OR team has no REAL snapshot for previous week
-  // A "virtual" snapshot (id starts with "virtual-") means no actual snapshot was recorded
+  // True if: Week 1 of season OR team has no prior snapshot at all
   const isFirstWeek = useMemo(() => {
     if (isFirstWeekOfSeason) return true;
     // Only check after loading completes
-    if (isLoadingPreviousSnapshot) return false;
-    // No previous week means it's first week of season (already handled above)
-    if (!previousWeekId) return false;
-    // No snapshot data at all = first week
-    if (!previousWeekSnapshot) return true;
+    if (isLoadingPriorSnapshot) return false;
+    // No prior snapshot at all = first week
+    if (!mostRecentPriorSnapshot) return true;
     // Virtual snapshot means no real snapshot exists - this is effectively first week
-    if (previousWeekSnapshot.snapshot?.id?.startsWith('virtual-')) return true;
+    if (mostRecentPriorSnapshot.snapshot?.id?.startsWith('virtual-')) return true;
     return false;
-  }, [isFirstWeekOfSeason, previousWeekId, previousWeekSnapshot, isLoadingPreviousSnapshot]);
+  }, [isFirstWeekOfSeason, mostRecentPriorSnapshot, isLoadingPriorSnapshot]);
 
   const { data: remainingTransfers, isLoading: isLoadingTransfers } = useRemainingTransfers(
     selectedTeamId || '',
@@ -118,7 +116,7 @@ export function useFantasyPageData(userId?: string | null, isAdmin?: boolean) {
   const isLoadingTeamData =
     (isLoadingSnapshot && selectedTeamId && selectedWeekId && !hasSnapshotData) ||
     (isLoadingTransfers && remainingTransfers === undefined && selectedTeamId && selectedWeekId) ||
-    (isLoadingPreviousSnapshot && previousWeekId && selectedTeamId) ||
+    (isLoadingPriorSnapshot && selectedTeamId && selectedWeekId) ||
     (isLoadingPlayers && allPlayers.length === 0 && selectedWeekId && activeSeason?.id);
 
   const isLoading = isLoadingInitial || isLoadingTeamData;
@@ -139,7 +137,7 @@ export function useFantasyPageData(userId?: string | null, isAdmin?: boolean) {
 
     // Team-specific data
     snapshotWithPlayers,
-    previousWeekSnapshot,
+    previousWeekSnapshot: mostRecentPriorSnapshot, // Most recent prior snapshot (handles skipped weeks)
     remainingTransfers,
     allPlayers,
 

@@ -197,8 +197,12 @@ export class TransferService {
       return { success: true };
     }
 
-    // Open the window
-    await this.uow.weeks.update({ id: weekId, transfer_window_open: true });
+    // Open the window and clear closed_at (allows reopening previously closed windows)
+    await this.uow.weeks.update({
+      id: weekId,
+      transfer_window_open: true,
+      transfer_window_closed_at: null,
+    });
     return { success: true };
   }
 

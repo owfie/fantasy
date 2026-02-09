@@ -7,8 +7,6 @@
 
 import { getUnitOfWork } from '@/lib/domain/server-uow';
 
-const SALARY_CAP = 550; // $550k budget
-
 export interface WeekAnalytics {
   weekId: string;
   weekNumber: number;
@@ -74,7 +72,7 @@ export async function getFantasyTeamAnalytics(seasonId: string): Promise<Fantasy
   // Get all snapshots for these teams
   const { data: snapshots, error: snapshotsError } = await uow.getClient()
     .from('fantasy_team_snapshots')
-    .select('fantasy_team_id, week_id, total_value')
+    .select('fantasy_team_id, week_id, total_value, budget_remaining')
     .in('fantasy_team_id', teamIds)
     .in('week_id', weekIds);
 
@@ -94,9 +92,12 @@ export async function getFantasyTeamAnalytics(seasonId: string): Promise<Fantasy
   }
 
   // Create lookup maps
-  const snapshotMap = new Map<string, number>(); // key: `${teamId}-${weekId}`
+  const snapshotMap = new Map<string, { totalValue: number; budgetRemaining: number }>(); // key: `${teamId}-${weekId}`
   snapshots?.forEach(s => {
-    snapshotMap.set(`${s.fantasy_team_id}-${s.week_id}`, s.total_value);
+    snapshotMap.set(`${s.fantasy_team_id}-${s.week_id}`, {
+      totalValue: s.total_value,
+      budgetRemaining: s.budget_remaining,
+    });
   });
 
   const scoreMap = new Map<string, number>(); // key: `${teamId}-${weekId}`
@@ -115,14 +116,15 @@ export async function getFantasyTeamAnalytics(seasonId: string): Promise<Fantasy
 
     const weekAnalytics: WeekAnalytics[] = (weeks || []).map(week => {
       const key = `${team.id}-${week.id}`;
-      const totalValue = snapshotMap.get(key) ?? null;
+      const snapshot = snapshotMap.get(key);
+      const totalValue = snapshot?.totalValue ?? null;
+      const budget = snapshot?.budgetRemaining ?? null;
       const points = scoreMap.get(key) ?? null;
 
       if (points !== null) {
         totalPoints += points;
       }
 
-      const budget = totalValue !== null ? SALARY_CAP - totalValue : null;
       const budgetDelta = budget !== null && previousBudget !== null
         ? budget - previousBudget
         : null;

@@ -298,7 +298,10 @@ export function getTransferWindowState(
 export type UpdateTeam = Partial<Omit<Team, 'id' | 'created_at'>> & { id: string };
 export type UpdatePlayer = Partial<Omit<Player, 'id' | 'created_at'>> & { id: string };
 export type UpdateSeason = Partial<Omit<Season, 'id' | 'created_at'>> & { id: string };
-export type UpdateWeek = Partial<Omit<Week, 'id' | 'created_at'>> & { id: string };
+export type UpdateWeek = Partial<Omit<Week, 'id' | 'created_at' | 'transfer_window_closed_at'>> & {
+  id: string;
+  transfer_window_closed_at?: string | null; // Allow null to clear/reset the closed timestamp
+};
 export type UpdateGame = Partial<Omit<Game, 'id' | 'created_at'>> & { id: string };
 export type UpdateFantasyTeam = Partial<Omit<FantasyTeam, 'id' | 'created_at'>> & { id: string };
 export type UpdateFantasyTeamPlayer = Partial<Omit<FantasyTeamPlayer, 'id' | 'created_at' | 'added_at'>> & { id: string };

@@ -11,6 +11,7 @@ import {
   getSnapshotForWeek,
   getSnapshotWithPlayers,
   getSnapshotWithPlayersForWeek,
+  getMostRecentSnapshotBeforeWeek,
   createSnapshot,
   createSnapshotFromCurrentTeam,
   getAllSnapshotsWithDetailsForTeam,
@@ -23,6 +24,7 @@ export const snapshotKeys = {
   lists: () => [...snapshotKeys.all, 'list'] as const,
   byTeam: (teamId: string) => [...snapshotKeys.lists(), 'team', teamId] as const,
   byWeek: (teamId: string, weekId: string) => [...snapshotKeys.all, 'team', teamId, 'week', weekId] as const,
+  mostRecentBefore: (teamId: string, weekId: string) => [...snapshotKeys.all, 'team', teamId, 'mostRecentBefore', weekId] as const,
   detail: (id: string) => [...snapshotKeys.all, 'detail', id] as const,
 };
 
@@ -79,6 +81,19 @@ export function useSnapshotWithPlayersForWeek(fantasyTeamId: string, weekId: str
       const cached = queryClient.getQueryData<SnapshotWithPlayers | null>(snapshotKeys.byWeek(fantasyTeamId, weekId));
       return cached !== undefined ? cached : previousData;
     },
+  });
+}
+
+/**
+ * Get the most recent snapshot before a given week
+ * Handles skipped weeks - if user didn't save in week 3, this returns week 2's snapshot
+ */
+export function useMostRecentSnapshotBeforeWeek(fantasyTeamId: string, weekId: string) {
+  return useQuery({
+    queryKey: snapshotKeys.mostRecentBefore(fantasyTeamId, weekId),
+    queryFn: () => getMostRecentSnapshotBeforeWeek(fantasyTeamId, weekId),
+    enabled: !!fantasyTeamId && !!weekId,
+    retry: false,
   });
 }
 

@@ -179,14 +179,30 @@ export function validateLineup(
 
 /**
  * Validate salary cap (budget must remain >= 0)
- * Budget starts at SALARY_CAP and counts down as players are added
+ * @param players - Current roster players
+ * @param playersMap - Map of player IDs to player data with values
+ * @param currentBudget - Optional: The actual current budget (for week 2+). If not provided, validates against SALARY_CAP.
  */
 export function validateSalaryCap(
   players: DraftRosterPlayer[],
-  playersMap: Map<string, PlayerWithValue>
+  playersMap: Map<string, PlayerWithValue>,
+  currentBudget?: number
 ): LineupValidationResult {
   const errors: string[] = [];
-  
+
+  // If currentBudget is provided (week 2+), just check if it's negative
+  // The budget calculation is done elsewhere with proper previous week data
+  if (currentBudget !== undefined) {
+    if (currentBudget < 0) {
+      errors.push(`Team exceeds budget by $${Math.abs(currentBudget).toFixed(0)}k`);
+    }
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
+  }
+
+  // Week 1: Calculate budget as SALARY_CAP - totalValue
   let totalValue = 0;
   for (const player of players) {
     const playerData = playersMap.get(player.playerId);
@@ -195,7 +211,6 @@ export function validateSalaryCap(
     }
   }
 
-  // Budget = SALARY_CAP - totalValue (must stay >= 0)
   const budget = SALARY_CAP - totalValue;
 
   if (budget < 0) {
@@ -210,14 +225,19 @@ export function validateSalaryCap(
 
 /**
  * Combined validation (lineup + salary cap)
+ * @param players - Current roster players
+ * @param playersMap - Map of player IDs to player data with values
+ * @param allowPartial - Allow incomplete rosters
+ * @param currentBudget - Optional: The actual current budget (for week 2+). If not provided, validates against SALARY_CAP.
  */
 export function validateFantasyTeam(
   players: DraftRosterPlayer[],
   playersMap: Map<string, PlayerWithValue>,
-  allowPartial: boolean = false
+  allowPartial: boolean = false,
+  currentBudget?: number
 ): LineupValidationResult {
   const lineupValidation = validateLineup(players, allowPartial);
-  const salaryValidation = validateSalaryCap(players, playersMap);
+  const salaryValidation = validateSalaryCap(players, playersMap, currentBudget);
 
   return {
     valid: lineupValidation.valid && salaryValidation.valid,

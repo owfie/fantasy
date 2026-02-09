@@ -87,7 +87,7 @@ function FantasyPageContent() {
     setHasUnsavedChanges,
   } = useDraftRoster(snapshotWithPlayers, selectedWeekId, selectedTeamId);
 
-  const { validationErrors } = useFantasyTeamValidation(draftRoster, allPlayers);
+  // Note: validation hook is called later after budget is calculated
 
   const {
     showNavigateAwayDialog,
@@ -235,6 +235,9 @@ function FantasyPageContent() {
   }, [isFirstWeek, previousWeekSnapshot, teamValue, computedTransfers, playersValueMap]);
 
   const budget = budgetCalc.budget;
+
+  // Validation with correct budget (must be after budget calculation)
+  const { validationErrors } = useFantasyTeamValidation(draftRoster, allPlayers, budget);
 
   const isPositionFullCallback = useCallback(
     (position: FantasyPosition) => isPositionFull(draftRoster, position),

@@ -444,7 +444,7 @@ function TransferWindowCard({
               >
                 Close Window
               </button>
-            ) : state !== 'completed' ? (
+            ) : (
               <button
                 onClick={() => onOpenWindow(week, item)}
                 disabled={isOperationPending || !canOpen}
@@ -453,11 +453,13 @@ function TransferWindowCard({
                     ? `Week ${requiresWeekNumber} prices not yet calculated`
                     : openWindow && openWindow.id !== week.id
                       ? `TW${openWindow.week_number - 1} is already open`
-                      : 'Open transfer window'
+                      : state === 'completed'
+                        ? 'Reopen this transfer window'
+                        : 'Open transfer window'
                 }
                 style={{
                   padding: '0.4rem 0.8rem',
-                  background: canOpen ? '#10b981' : '#9ca3af',
+                  background: canOpen ? (state === 'completed' ? '#3b82f6' : '#10b981') : '#9ca3af',
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
@@ -467,10 +469,10 @@ function TransferWindowCard({
                   opacity: isOperationPending ? 0.6 : 1,
                 }}
               >
-                {!hasRequiredStats ? 'Awaiting Stats' : 'Open Window'}
+                {!hasRequiredStats ? 'Awaiting Stats' : state === 'completed' ? 'Reopen Window' : 'Open Window'}
               </button>
-            ) : null}
-            {!week.transfer_window_open && !canOpen && state !== 'completed' && (
+            )}
+            {!week.transfer_window_open && !canOpen && (
               <span style={{ fontSize: '0.65rem', color: '#ef4444', maxWidth: '140px', textAlign: 'right' }}>
                 {!hasRequiredStats
                   ? `Enter Week ${requiresWeekNumber} stats`

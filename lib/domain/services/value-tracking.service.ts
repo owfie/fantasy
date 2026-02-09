@@ -45,6 +45,7 @@ export class ValueTrackingService {
 
   /**
    * Get player values for multiple players at a specific week
+   * Optimized to use batch queries instead of N+1 queries
    */
   async getPlayerValuesForWeek(
     playerIds: string[],
@@ -53,31 +54,25 @@ export class ValueTrackingService {
   ): Promise<Map<string, number>> {
     const values = new Map<string, number>();
 
-    // Get all value changes for these players
-    const allValueChanges = await Promise.all(
-      playerIds.map(id => this.uow.valueChanges.findByPlayer(id))
-    );
+    if (playerIds.length === 0) return values;
 
-    // Get season players for starting values
-    const seasonPlayers = await Promise.all(
-      playerIds.map(id => this.uow.seasonPlayers.findBySeasonAndPlayer(seasonId, id))
-    );
+    // Batch fetch: all value changes for these players (1 query)
+    const allValueChangesMap = await this.uow.valueChanges.findByPlayers(playerIds);
 
-    // Get players for fallback
-    const players = await Promise.all(
-      playerIds.map(id => this.uow.players.findById(id))
-    );
+    // Batch fetch: season players for starting values (1 query)
+    const seasonPlayersMap = await this.uow.seasonPlayers.findBySeasonAndPlayers(seasonId, playerIds);
 
-    for (let i = 0; i < playerIds.length; i++) {
-      const playerId = playerIds[i];
-      const valueChanges = allValueChanges[i];
-      const seasonPlayer = seasonPlayers[i];
-      const player = players[i];
+    // Batch fetch: players for fallback (1 query)
+    const playersArray = await this.uow.players.findByIds(playerIds);
+    const playersMap = new Map(playersArray.map(p => [p.id, p]));
 
-      // Find relevant value change
-      const relevantValueChange = valueChanges
-        .filter(vc => vc.round <= weekNumber)
-        .sort((a, b) => b.round - a.round)[0];
+    for (const playerId of playerIds) {
+      const valueChanges = allValueChangesMap.get(playerId) || [];
+      const seasonPlayer = seasonPlayersMap.get(playerId);
+      const player = playersMap.get(playerId);
+
+      // Find relevant value change (already sorted by round descending)
+      const relevantValueChange = valueChanges.find(vc => vc.round <= weekNumber);
 
       if (relevantValueChange) {
         values.set(playerId, relevantValueChange.value);

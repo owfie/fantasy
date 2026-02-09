@@ -25,6 +25,24 @@ export class GamesRepository extends BaseRepository<Game, InsertGame, UpdateGame
     return this.findAll({ week_id: weekId } as Partial<Game>);
   }
 
+  /**
+   * Batch fetch games for multiple week IDs in one query
+   */
+  async findByWeekIds(weekIds: string[]): Promise<Game[]> {
+    if (weekIds.length === 0) return [];
+
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select('*')
+      .in('week_id', weekIds);
+
+    if (error) {
+      throw new Error(`Failed to find games by week ids: ${error.message}`);
+    }
+
+    return (data || []) as Game[];
+  }
+
   async findByTeam(teamId: string): Promise<Game[]> {
     const { data, error } = await this.client
       .from(this.tableName)

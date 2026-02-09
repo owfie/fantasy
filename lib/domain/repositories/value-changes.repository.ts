@@ -31,6 +31,37 @@ export class ValueChangesRepository extends BaseRepository<ValueChange, InsertVa
     return (data || []) as ValueChange[];
   }
 
+  /**
+   * Batch fetch value changes for multiple players in one query
+   * Returns a Map of player_id -> ValueChange[] (sorted by round descending)
+   */
+  async findByPlayers(playerIds: string[]): Promise<Map<string, ValueChange[]>> {
+    if (playerIds.length === 0) return new Map();
+
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select('*')
+      .in('player_id', playerIds)
+      .order('round', { ascending: false });
+
+    if (error) {
+      throw new Error(`Failed to find value changes for players: ${error.message}`);
+    }
+
+    // Group by player_id
+    const result = new Map<string, ValueChange[]>();
+    for (const playerId of playerIds) {
+      result.set(playerId, []);
+    }
+    for (const vc of (data || []) as ValueChange[]) {
+      const existing = result.get(vc.player_id) || [];
+      existing.push(vc);
+      result.set(vc.player_id, existing);
+    }
+
+    return result;
+  }
+
   async findByRound(round: number): Promise<ValueChange[]> {
     return this.findAll({ round } as Partial<ValueChange>);
   }

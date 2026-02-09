@@ -89,6 +89,31 @@ export class SeasonPlayersRepository extends BaseRepository<SeasonPlayer, Insert
   }
 
   /**
+   * Batch fetch season-player records for multiple players in one query
+   * Returns a Map of player_id -> SeasonPlayer
+   */
+  async findBySeasonAndPlayers(seasonId: string, playerIds: string[]): Promise<Map<string, SeasonPlayer>> {
+    if (playerIds.length === 0) return new Map();
+
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select('*')
+      .eq('season_id', seasonId)
+      .in('player_id', playerIds);
+
+    if (error) {
+      throw new Error(`Failed to find season-players: ${error.message}`);
+    }
+
+    const result = new Map<string, SeasonPlayer>();
+    for (const sp of (data || []) as SeasonPlayer[]) {
+      result.set(sp.player_id, sp);
+    }
+
+    return result;
+  }
+
+  /**
    * Find active players for a season
    */
   async findActiveBySeason(seasonId: string): Promise<SeasonPlayer[]> {

@@ -5,6 +5,7 @@
 
 'use server';
 
+import { cache } from 'react';
 import { getUnitOfWork } from '@/lib/domain/server-uow';
 import { PlayerWithPrices } from '@/lib/domain/repositories/value-changes.repository';
 import { Player } from '@/lib/domain/types';
@@ -104,16 +105,18 @@ export interface PlayerDetails {
 
 /**
  * Get detailed player info by slug including current value and availability
+ * Wrapped with React cache() to deduplicate calls within the same request
+ * (e.g., generateMetadata and page component both calling this)
  */
-export async function getPlayerDetailsBySlug(slug: string): Promise<PlayerDetails | null> {
+export const getPlayerDetailsBySlug = cache(async (slug: string): Promise<PlayerDetails | null> => {
   const uow = await getUnitOfWork();
   return uow.execute(async () => {
     const { generateSlug } = await import('@/lib/utils/slug');
-    
+
     // Find the player
     const allPlayers = await uow.players.findAll({ is_active: true });
     let player: Player | null = null;
-    
+
     for (const p of allPlayers) {
       const playerSlug = generateSlug(`${p.first_name} ${p.last_name}`);
       if (playerSlug === slug) {
@@ -121,11 +124,11 @@ export async function getPlayerDetailsBySlug(slug: string): Promise<PlayerDetail
         break;
       }
     }
-    
+
     if (!player) {
       return null;
     }
-    
+
     // Get active season
     const activeSeason = await uow.seasons.findActive();
     if (!activeSeason) {
@@ -136,12 +139,12 @@ export async function getPlayerDetailsBySlug(slug: string): Promise<PlayerDetail
         weeklyAvailability: [],
       };
     }
-    
+
     // Get season player info for starting value and team
     const seasonPlayers = await uow.seasonPlayers.findBySeason(activeSeason.id);
     const seasonPlayer = seasonPlayers.find(sp => sp.player_id === player!.id);
     const startingValue = seasonPlayer?.starting_value || player.starting_value || 0;
-    
+
     // Get team info
     const teamId = seasonPlayer?.team_id || player.team_id;
     let teamName: string | undefined;
@@ -151,24 +154,23 @@ export async function getPlayerDetailsBySlug(slug: string): Promise<PlayerDetail
       teamName = team?.name;
       teamColor = team?.color;
     }
-    
+
     // Get current value from value_changes or fall back to starting value
     const latestValueChange = await uow.valueChanges.findLatestByPlayer(player.id);
     const currentValue = latestValueChange?.value || startingValue;
-    
+
     // Get weeks for the season
     const weeks = await uow.weeks.findBySeason(activeSeason.id);
     const sortedWeeks = weeks.sort((a, b) => a.week_number - b.week_number);
-    
-    // Get all games for the season
+
+    // Optimized: Use findByWeekIds instead of findAll + JS filter
     const weekIds = sortedWeeks.map(w => w.id);
-    const allGames = await uow.games.findAll();
-    const seasonGames = allGames.filter(g => weekIds.includes(g.week_id));
-    
+    const seasonGames = await uow.games.findByWeekIds(weekIds);
+
     // Get player's availability records
     const playerAvailability = await uow.playerAvailability.findByPlayer(player.id);
     const availabilityByGame = new Map(playerAvailability.map(a => [a.game_id, a.status]));
-    
+
     // Map games to weeks
     const gamesByWeek = new Map<string, string[]>();
     for (const game of seasonGames) {
@@ -176,11 +178,11 @@ export async function getPlayerDetailsBySlug(slug: string): Promise<PlayerDetail
       existing.push(game.id);
       gamesByWeek.set(game.week_id, existing);
     }
-    
+
     // Build weekly availability
     const weeklyAvailability = sortedWeeks.map(week => {
       const weekGameIds = gamesByWeek.get(week.id) || [];
-      
+
       // Find the player's availability for any game in this week
       let status: 'available' | 'unavailable' | 'unsure' | null = null;
       for (const gameId of weekGameIds) {
@@ -190,14 +192,14 @@ export async function getPlayerDetailsBySlug(slug: string): Promise<PlayerDetail
           break;
         }
       }
-      
+
       return {
         weekNumber: week.week_number,
         weekName: week.name || `Week ${week.week_number}`,
         status,
       };
     });
-    
+
     return {
       player,
       currentValue,
@@ -207,7 +209,7 @@ export async function getPlayerDetailsBySlug(slug: string): Promise<PlayerDetail
       weeklyAvailability,
     };
   });
-}
+});
 
 /**
  * Get players with their current values for a specific week, optionally filtered by position
@@ -236,11 +238,9 @@ export async function getPlayersForWeekWithValues(
       return [];
     }
 
-    // Get all players that are active in this season
-    const allPlayers = await Promise.all(
-      seasonPlayerIds.map(id => uow.players.findById(id))
-    );
-    const activePlayers = allPlayers.filter((p): p is Player => p !== null && p.is_active);
+    // Batch fetch: Get all players that are active in this season (1 query instead of N)
+    const allPlayersArray = await uow.players.findByIds(seasonPlayerIds);
+    const activePlayers = allPlayersArray.filter(p => p.is_active);
 
     // Filter by position if specified
     let players: Player[];
@@ -265,14 +265,14 @@ export async function getPlayersForWeekWithValues(
     // Get teams for players from season_players (team_id can be different per season)
     // Create a map of player_id -> seasonPlayer for quick lookup
     const seasonPlayersMap = new Map(seasonPlayers.map(sp => [sp.player_id, sp]));
-    
-    // Get unique team IDs from season_players
+
+    // Batch fetch: Get unique team IDs from season_players (1 query instead of N)
     const seasonTeamIds = [...new Set(seasonPlayers.filter(sp => sp.team_id).map(sp => sp.team_id!))];
-    const teams = seasonTeamIds.length > 0 
-      ? await Promise.all(seasonTeamIds.map(id => uow.teams.findById(id)))
+    const teams = seasonTeamIds.length > 0
+      ? await uow.teams.findByIds(seasonTeamIds)
       : [];
 
-    const teamsMap = new Map(teams.filter(Boolean).map(t => [t!.id, t!]));
+    const teamsMap = new Map(teams.map(t => [t.id, t]));
 
     // Combine players with values and team info
     const playersWithValues: PlayerWithValue[] = players.map(player => {

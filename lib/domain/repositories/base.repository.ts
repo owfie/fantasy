@@ -7,6 +7,7 @@ import { SupabaseClient, PostgrestError } from '@supabase/supabase-js';
 
 export interface IRepository<T, TInsert, TUpdate> {
   findById(id: string): Promise<T | null>;
+  findByIds(ids: string[]): Promise<T[]>;
   findAll(filter?: Partial<T>): Promise<T[]>;
   create(data: TInsert): Promise<T>;
   createMany(data: TInsert[]): Promise<T[]>;
@@ -40,6 +41,20 @@ export abstract class BaseRepository<T, TInsert, TUpdate> implements IRepository
     }
 
     return data as T;
+  }
+
+  async findByIds(ids: string[]): Promise<T[]> {
+    if (ids.length === 0) return [];
+    const { data, error } = await this.client
+      .from(this.tableName)
+      .select('*')
+      .in('id', ids);
+
+    if (error) {
+      throw new Error(`Failed to find ${this.tableName} by ids: ${error.message}`);
+    }
+
+    return (data || []) as T[];
   }
 
   async findAll(filter?: Partial<T>): Promise<T[]> {

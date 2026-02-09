@@ -275,11 +275,11 @@ export function getTransferWindowState(
   if (pricesCalculated && !transferWindowOpen) {
     // Was it ever opened? Check if closedAt exists
     if (closedAt) return 'completed'; // Was opened, manually closed
-    // Check if week has ended (past weeks are effectively completed)
-    if (weekEndDate && new Date(weekEndDate) < new Date()) {
-      return 'completed'; // Week is in the past
+    // Check if cutoff time has passed (missed window)
+    if (cutoffTime && new Date(cutoffTime) < new Date()) {
+      return 'completed'; // Cutoff passed, window was never opened
     }
-    return 'ready'; // Never opened, week not yet ended
+    return 'ready'; // Never opened, cutoff not yet passed
   }
 
   if (pricesCalculated && transferWindowOpen) {
